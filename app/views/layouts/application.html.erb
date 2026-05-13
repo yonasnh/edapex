@@ -47,9 +47,9 @@
   set_badge_counts_for(@context, @current_user) if @set_badge_counts
   js_env({ notices: flash_notices() })
   student_view_text = @context.is_a?(Course) && @context.horizon_course? ? t('View as Learner') : t('View as Student')
-  enable_content_view_if_requested
-  enable_hide_global_nav_if_requested
--%>
+
+  # Check if we're on a login page
+  is_login_page = controller_name == 'login' || params[:controller] == 'login'-%>
 <%= render :partial => "layouts/head" %>
 <%-
   left_side = nil
@@ -86,7 +86,7 @@
     skip_for_streaming :left_side, except: ["eportfolios/show", "eportfolio_categories/show", "eportfolio_entries/show"] do
       left_side = (yield :left_side).presence
     end
-    @show_left_side ||= (section_tabs.length > 0)
+    @show_left_side ||= (@current_user&.show_sidebar.nil? ? (section_tabs.length > 0) : @current_user.show_sidebar)
   end
   body_classes << "with-left-side" if @show_left_side
   body_classes << "course-menu-expanded" if body_classes.include?("with-left-side") && !@collapse_course_menu
@@ -110,9 +110,9 @@
   body_classes << 'content-only' if @content_only
   body_classes << 'hide-global-nav' if @hide_global_nav
 -%>
-<body class="<%= body_classes.uniq.join(" ") %>">
-<%if !@content_only && @current_user && @real_current_user && @real_current_user != @current_user %>
-  <div role="alert" class="screenreader-only">
+<body class="<%= (body_classes).uniq.join(" ") %>">
+<%= render partial: "shared/top_header" unless is_login_page %>
+<%if @current_user && @real_current_user && @real_current_user != @current_user %>  <div role="alert" class="screenreader-only">
     <% if @current_user.fake_student? %>
         <%= t("You are currently logged into Student View") %>
       <% else %>
@@ -121,29 +121,25 @@
   </div>
 <% end %>
 <%# Flash messages must be outside of #application or they won't work in screenreaders with modals open. %>
-<%= render :partial => 'shared/static_notices' unless @content_only %>
+<%= render :partial => 'shared/static_notices' %>
 <%= render :partial => 'shared/flash_notices' %>
-<%if !@content_only && @domain_root_account&.feature_enabled?(:top_navigation_placement) %>
+<%if @domain_root_account&.feature_enabled?(:top_navigation_placement) %>
   <div id="drawer-layout-mount-point"></div>
 <% end %>
-<% if @show_study_assist %>
-  <div id="study_assist_drawer_layout_mount_point"></div>
-<% end %>
-<div id="application" class="ic-app <%= 'content-only' if @content_only %>">
-  <%= render(:partial => 'shared/new_nav_header') unless @headers == false || @content_only %>
-
+<div id="application" class="ic-app">
+  <%= render(:partial => 'shared/new_nav_header') unless @headers == false %>
   <div id="instructure_ajax_error_box">
     <div style="text-align: <%= direction('right') %>; background-color: #fff;"><a href="#" class="close_instructure_ajax_error_box_link"><%= t('links.close', 'Close') %></a></div>
     <iframe id="instructure_ajax_error_result" src="about:blank" style="border: 0;" title="<%= t('Error') %>"></iframe>
   </div>
 
   <div id="wrapper" class="ic-Layout-wrapper">
-    <% if @instui_topnav && !@content_only %>
+    <% if @instui_topnav %>
       <div class="instui-topnav-container">
         <div id="react-instui-topnav"></div>
       </div>
     <% else %>
-      <% if crumbs.length > 1 && !@content_only %>
+      <% if crumbs.length > 1 %>
         <div class="ic-app-nav-toggle-and-crumbs no-print">
           <% if @show_left_side %>
             <button type="button" id="courseMenuToggle" class="Button Button--link ic-app-course-nav-toggle" aria-live="polite" aria-label="<%= subnav_menu_text %>">
@@ -210,9 +206,9 @@
     <% end %>
     <div id="main" class="ic-Layout-columns">
       <% if !@body_class_no_headers %>
-        <div class="ic-Layout-watermark" aria-hidden="true"></div>
+        <div class="ic-Layout-watermark"></div>
       <% end %>
-      <% if @show_left_side && !@content_only %>
+      <% if @show_left_side %>
         <% if @no_left_side_list_view
             list_view_class = ''
           else
@@ -252,6 +248,11 @@
               <div class="ic-notification__content">
                 <div class="ic-notification__message notification_message" style="margin-bottom:1rem;">
                   <%= t 'Your Classic Quizzes have been migrated to New Quizzes! ' %><br />
+                  <%= t 'Please note:' %>
+                  <ul>
+                    <li><%= t 'Text No Question has moved to a Stimulus; please add a question so it can display within the quiz.' %></li>
+                  </ul>
+                  <%= t 'We apologize for the inconvenience and thank you for your patience as we continue to improve the migration experience!' %>
                 </div>
                 <div class="ic-notification__actions">
                   <a href="#"
@@ -266,7 +267,7 @@
             </div>
           <% end %>
           <%= render :partial => 'shared/content_notices' if @has_content_notices && @show_left_side %>
-          <div id="content" class="ic-Layout-contentMain" role="main">
+          <div id="content" class="ic-Layout-contentMain" role="main" aria-label="<%= t("Global Content") %>">
             <%= yield %>
           </div>
         </div>
@@ -277,7 +278,7 @@
         </div>
       </div>
     </div>
-    <% if @show_footer && !@content_only %>
+    <% if @show_footer %>
       <%= render :partial => 'shared/canvas_footer' %>
     <% end %>
   </div>

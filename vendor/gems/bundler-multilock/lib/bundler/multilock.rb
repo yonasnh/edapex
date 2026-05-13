@@ -75,11 +75,11 @@ module Bundler
 
         lockfile_definitions[lockfile] = (lockfile_def = {
           gemfile: (gemfile && Bundler.root.join(gemfile).expand_path) || Bundler.default_gemfile,
-          lockfile:,
-          active:,
+          lockfile: lockfile,
+          active: active,
           prepare: block,
-          parent:,
-          enforce_pinned_additional_dependencies:
+          parent: parent,
+          enforce_pinned_additional_dependencies: enforce_pinned_additional_dependencies
         })
 
         # If they're using BUNDLE_LOCKFILE, then they really do want to
@@ -179,7 +179,7 @@ module Bundler
             Bundler.settings.temporary(frozen: true) do
               Bundler.ui.silence do
                 up_to_date = checker.base_check(lockfile_definition, check_missing_deps: true) &&
-                             checker.deep_check(lockfile_definition, conflicts:)
+                             checker.deep_check(lockfile_definition, conflicts: conflicts)
               end
             end
             if up_to_date
@@ -198,7 +198,7 @@ module Bundler
               end
 
               Bundler.ui.info("Installing gems for #{relative_lockfile}...")
-              write_lockfile(lockfile_definition, lockfile_name, cache, install:)
+              write_lockfile(lockfile_definition, lockfile_name, cache, install: install)
             else
               Bundler.ui.info("Syncing to #{relative_lockfile}...") if attempts == 1
               synced_any = true
@@ -307,9 +307,9 @@ module Bundler
                 had_changes ||= write_lockfile(lockfile_definition,
                                                temp_lockfile.path,
                                                cache,
-                                               install:,
-                                               dependency_changes:,
-                                               unlocking_bundler:)
+                                               install: install,
+                                               dependency_changes: dependency_changes,
+                                               unlocking_bundler: unlocking_bundler)
               end
               cache.invalidate_lockfile(lockfile_name) if had_changes
 

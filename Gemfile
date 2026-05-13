@@ -15,7 +15,7 @@ source "https://rubygems.org/"
 Plugin.uninstall(["bundler_lockfile_extensions"], {}) if Plugin.installed?("bundler_lockfile_extensions")
 
 # vendored until https://github.com/rubygems/rubygems/pull/6957 is merged and released
-plugin "bundler-multilock", "1.4.0", path: "#{__dir__}/vendor/gems/bundler-multilock"
+plugin "bundler-multilock", "1.3.4", path: "#{__dir__}/vendor/gems/bundler-multilock"
 # the extra check here is in case `bundle check` or `bundle exec` gets run before `bundle install`,
 # and is also fixed by the same PR
 raise GemNotFound, "bundler-multilock plugin is not installed" if !is_a?(Bundler::Plugin::DSL) && !Plugin.installed?("bundler-multilock")
@@ -50,8 +50,8 @@ if Bundler.default_gemfile == gemfile
     active = rails_version == $canvas_rails && !!include_plugins
 
     lockfile(lockfile,
-             active:,
-             parent:,
+             active: active,
+             parent: parent,
              enforce_pinned_additional_dependencies: include_plugins) do
       $canvas_rails = rails_version
       @include_plugins = include_plugins
@@ -63,8 +63,8 @@ if Bundler.default_gemfile == gemfile
     parent = nil unless parent.to_s.match?(/\.rails\d+\.lock$/)
     gemfile = gem_lockfile_name.to_s.sub(/(?:.rails\d+)?\.lock$/, "")
     return unless lockfile(gem_lockfile_name,
-                           gemfile:,
-                           parent:)
+                           gemfile: gemfile,
+                           parent: parent)
   end
 end
 
@@ -87,7 +87,7 @@ module GemOverride # rubocop:disable Style/OneClassPerFile
       super(name, path: vendor_path, **kwargs)
     elsif pinned_github_gems.key?(name)
       repo, ref = pinned_github_gems[name].split(":")
-      super(name, github: repo, ref:)
+      super(name, github: repo, ref: ref)
     else
       super
     end
@@ -99,11 +99,8 @@ module GemOverride # rubocop:disable Style/OneClassPerFile
     @pinned_github_gems ||= ENV.fetch("CANVAS_PINNED_GITHUB_GEMS", "").split(",").each_with_object({}) do |entry, hash|
       owner_repo, branch = entry.split(":")
       owner, repo = owner_repo.split("/")
-      repo, repo_as = repo.split("@")
-      repo_as ||= repo
-      hash[repo_as] = "#{owner}/#{repo}:#{branch}"
+      hash[repo] = "#{owner}/#{repo}:#{branch}"
     end
-    @pinned_github_gems
   end
 end
 Bundler::Dsl.prepend(GemOverride)

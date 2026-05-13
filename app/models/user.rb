@@ -4135,6 +4135,15 @@ class User < ApplicationRecord
     accounts.any?(&:limited_access_for_students?)
   end
 
+  def show_sidebar
+    # Return the database value if it exists, otherwise default to true
+    if has_attribute?(:show_sidebar)
+      read_attribute(:show_sidebar)
+    else
+      true
+    end
+  end
+
   def pseudonym_for_restoration_in(account)
     account.pseudonyms.where(user_id: self).order(deleted_at: :desc).first!
   end

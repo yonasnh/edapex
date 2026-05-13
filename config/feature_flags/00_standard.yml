@@ -41,6 +41,13 @@ common_cartridge_page_conversion:
   description: If enabled, Common Cartridge importers will convert HTML files into
     Pages
   applies_to: Course
+course_paces:
+  type: setting
+  state: allowed
+  display_name: Course Pacing
+  description: Enable course pacing features for managing course schedules and deadlines
+  applies_to: Course
+  root_opt_in: true
 disable_alert_timeouts:
   type: setting
   state: allowed

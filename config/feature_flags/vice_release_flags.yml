@@ -182,17 +182,16 @@ restore_discussion_entry:
   description: |-
     This feature flag enables the ability to restore deleted discussion entries in the discussion topic with moderate permission or the entry creator.
 
-inbox_sis_id_for_duplicates:
+discussion_default_sort:
   state: hidden
-  beta: true
-  applies_to: SiteAdmin
-  display_name: Inbox - SIS ID for Duplicate Names
+  applies_to: RootAccount
+  display_name: Discussion Default Sort
   description: |-
-    When enabled, displays SIS IDs in the Inbox recipient selector
-    to help differentiate users with identical names. Only visible
-    to users with read_sis permission (teachers by default).
-  environments:
-    development:
-      state: allowed_on
-    ci:
-      state: allowed_on
+    This feature flag enables the ability to set default sort order for discussions.
+
+discussion_default_expand:
+  state: hidden
+  applies_to: RootAccount
+  display_name: Discussion Default Expand
+  description: |-
+    This feature flag enables the ability to set default expand behavior for discussions.

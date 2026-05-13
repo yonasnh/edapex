@@ -87,7 +87,6 @@ class UsersController < ApplicationController
   include DashboardHelper
   include Api::V1::Submission
   include ObserverEnrollmentsHelper
-  include HorizonMode
 
   skip_before_action :require_user, only: %i[avatar_image
                                              create
@@ -106,9 +105,6 @@ class UsersController < ApplicationController
   skip_before_action :load_user, only: [:create_self_registered_user]
   before_action :require_self_registration, only: %i[new create create_self_registered_user]
   before_action :check_limited_access_for_students, only: %i[create_file set_custom_color]
-  before_action :load_canvas_career, only: %i[user_dashboard]
-
-  MAX_UUIDS_IN_FILTER = 100
 
   def grades
     @user = User.where(id: params[:user_id]).first if params[:user_id].present?
@@ -262,10 +258,8 @@ class UsersController < ApplicationController
   #   This can be a base role type of 'student', 'teacher',
   #   'ta', 'observer', or 'designer'.
   #
-  # @argument sort [String, "username"|"email"|"sis_id"|"integration_id"|"last_login"|"id"]
-  #   The column to sort results by. For efficiency, use +id+ if you intend to retrieve
-  #   many pages of results. In the future, other sort options may be rate-limited
-  #   after 50 pages.
+  # @argument sort [String, "username"|"email"|"sis_id"|"integration_id"|"last_login"]
+  #   The column to sort results by.
   #
   # @argument order [String, "asc"|"desc"]
   #   The order to sort the given column by.
@@ -273,10 +267,6 @@ class UsersController < ApplicationController
   # @argument include_deleted_users [Boolean]
   #   When set to true and used with an account context, returns users who have deleted
   #   pseudonyms for the context
-  #
-  # @argument uuids [Array]
-  #   When set, only return users with the specified UUIDs. UUIDs after the first 100
-  #   are ignored.
   #
   #  @example_request
   #    curl https://<canvas>/api/v1/accounts/self/users?search_term=<search value> \
@@ -294,7 +284,6 @@ class UsersController < ApplicationController
     includes << "deleted_pseudonyms" if include_deleted_users
 
     search_term = params[:search_term].presence
-
     if search_term
       users = UserSearch.for_user_in_context(search_term,
                                              @context,
@@ -322,16 +311,6 @@ class UsersController < ApplicationController
       users = users.with_last_login if params[:sort] == "last_login"
     end
 
-    if params[:uuids].present? && Array(params[:uuids]).size > MAX_UUIDS_IN_FILTER
-      return render json: { error: "Too many UUIDs in filter. Current limit is #{MAX_UUIDS_IN_FILTER}" }, status: :bad_request
-    end
-
-    if params[:uuids].present? && (uuids = Array(params[:uuids]).flatten)
-      users = users.where(uuid: uuids)
-    end
-
-    users.preload(:pseudonyms) if includes.include? "deleted_pseudonyms"
-
     page_opts = { total_entries: nil }
     if in_app? || includes.include?("ui_invoked")
       page_opts = {} # let Folio calculate total entries
@@ -340,10 +319,10 @@ class UsersController < ApplicationController
       # for a more efficient way to retrieve many pages in bulk
       users = BookmarkedCollection.wrap(Plannable::Bookmarker.new(User, params[:order] == "desc", :id),
                                         users,
-                                        count_total_entries: false)
-    end
+                                        count_total_entries: false)    end
 
     GuardRail.activate(:secondary) do
+      users.preload(:pseudonyms) if includes.include? "deleted_pseudonyms"
       users = Api.paginate(users, self, api_v1_account_users_url, page_opts)
 
       preload_profiles = @domain_root_account.enable_profiles?
@@ -362,7 +341,7 @@ class UsersController < ApplicationController
     @user = api_find(User, params[:user_id])
     return render_unauthorized_action unless @user.can_masquerade?(@real_current_user || @current_user, @domain_root_account)
 
-    if request.post? || params[:stop_acting_as_user] == "true"
+    if request.post?
       if @user == @real_current_user
         session.delete(:become_user_id)
         session.delete(:enrollment_uuid)
@@ -473,7 +452,6 @@ class UsersController < ApplicationController
       end
       return render html: "", layout: true
     end
-
     # Use the legacy to do list for non-students until it is ready for other roles
     if planner_enabled? && !@current_user.non_student_enrollment?
       css_bundle :react_todo_sidebar
@@ -504,7 +482,11 @@ class UsersController < ApplicationController
     k5_user = k5_user?(check_disabled: false)
     js_env({ K5_USER: k5_user && !k5_disabled }, overwrite: true)
 
-    course_permissions = @current_user.create_courses_permissions(@domain_root_account)
+    # things needed on both k5 and classic dashboards
+    create_permission_root_account = @current_user.create_courses_right(@domain_root_account)
+    create_permission_mcc_account = @current_user.create_courses_right(@domain_root_account.manually_created_courses_account)
+    create_permission_alternate_account = @current_user.alternate_account_for_course_creation && @current_user.create_courses_right(@current_user.alternate_account_for_course_creation)
+
     js_env({
              PREFERENCES: {
                dashboard_view: @current_user.dashboard_view(@domain_root_account),
@@ -516,10 +498,8 @@ class UsersController < ApplicationController
              STUDENT_PLANNER_GROUPS: planner_enabled? && map_groups_for_planner(@current_user.current_groups),
              ALLOW_ELEMENTARY_DASHBOARD: k5_disabled && k5_user,
              CREATE_COURSES_PERMISSIONS: {
-               PERMISSION: course_permissions[:can_create],
-               RESTRICT_TO_MCC_ACCOUNT: course_permissions[:restrict_to_mcc],
-               VIEWABLE_ACCOUNT_IDS: course_permissions[:viewable_account_ids],
-             },
+               PERMISSION: create_permission_alternate_account || create_permission_root_account || create_permission_mcc_account,
+               RESTRICT_TO_MCC_ACCOUNT: !!(!create_permission_root_account && create_permission_mcc_account) && !(@domain_root_account.feature_enabled?(:create_course_subaccount_picker) && create_permission_alternate_account),             },
              OBSERVED_USERS_LIST: observed_users_list,
              CAN_ADD_OBSERVEE: @current_user
                                .profile
@@ -552,7 +532,7 @@ class UsersController < ApplicationController
              })
 
       css_bundle :k5_common, :k5_dashboard, :dashboard_card
-      css_bundle :k5_font unless use_classic_font? || @current_user.prefers_dyslexic_font? || mobile_device?
+      css_bundle :k5_font unless use_classic_font?
       js_bundle :k5_dashboard
     else
       # things needed only for classic dashboard
@@ -581,12 +561,13 @@ class UsersController < ApplicationController
       return render_unauthorized_action unless course_ids.any?
     end
     courses = course_ids.present? ? api_find_all(Course, course_ids) : nil
-    @stream_items = @user.cached_recent_stream_items(contexts: courses)
 
+    @stream_items = @user.cached_recent_stream_items(contexts: courses)
+    is_student = @user.roles(@domain_root_account).all? { |role| ["student", "user"].include?(role) }
     if stale?(etag: @stream_items)
-      @stream_items = @stream_items.reject { |i| i&.course&.horizon_course? && !i.course.grants_right?(@user, :read_as_admin) }
-      @stream_items = @stream_items.reject { |i| i.asset_type == "Conversation" } if @is_observing_student
-      render partial: "shared/recent_activity", layout: false
+      if is_student
+        @stream_items = @stream_items.reject { |i| i&.course&.horizon_course? }
+      end      render partial: "shared/recent_activity", layout: false
     end
   end
 
@@ -612,7 +593,7 @@ class UsersController < ApplicationController
   def cached_upcoming_events(user)
     Rails.cache.fetch(["cached_user_upcoming_events", user].cache_key,
                       expires_in: 3.minutes) do
-      user.upcoming_events context_codes: ([user.asset_string] + user.cached_context_codes)
+      user.upcoming_events context_codes: ([user.asset_string] + user.cached_context_codes), include_sub_assignments: @domain_root_account.feature_enabled?(:discussion_checkpoints)
     end
   end
 
@@ -656,7 +637,7 @@ class UsersController < ApplicationController
       end
 
       if (@show_recent_feedback = @user.student_enrollments.active.exists?)
-        @recent_feedback = @user.recent_feedback(course_ids:) || []
+        @recent_feedback = @user.recent_feedback(course_ids:, exclude_parent_assignment_submissions: @domain_root_account.feature_enabled?(:discussion_checkpoints)) || []
       end
     end
 
@@ -803,7 +784,6 @@ class UsersController < ApplicationController
       opts[:context] = Context.find_by_asset_string(params[:context_code]) if params[:context_code]
       opts[:submission_user_id] = params[:submission_user_id] if params.key?(:submission_user_id)
       opts[:only_active_courses] = value_to_boolean(params[:only_active_courses]) if params.key?(:only_active_courses)
-      opts[:notification_categories] = params[:notification_categories] if params.key?(:notification_categories)
       api_render_stream(opts)
     else
       render_unauthorized_action
@@ -875,12 +855,9 @@ class UsersController < ApplicationController
       @courses.select! { |c| c.grants_all_rights?(@current_user, :read_as_admin, :read) }
     end
 
-    current_course = Course.find_by(id: params[:current_course_id]) if params[:current_course_id].present?
     MasterCourses::MasterTemplate.preload_is_master_course(@courses)
-
     render json: @courses.map { |c|
-      {
-        label: c.nickname_for(@current_user),
+      { label: c.nickname_for(@current_user),
         id: c.id,
         course_code: c.course_code,
         sis_id: c.sis_source_id,
@@ -888,11 +865,9 @@ class UsersController < ApplicationController
         enrollment_start: c.enrollment_term.start_at,
         account_name: c.enrollment_term.root_account.name,
         account_id: c.enrollment_term.root_account.id,
-        start_at: datetime_string(c.start_at, :verbose, nil, shorten_midnight: true),
-        end_at: datetime_string(c.conclude_at, :verbose, nil, shorten_midnight: true),
-        blueprint: MasterCourses::MasterTemplate.is_master_course?(c)
-      }.merge(locale_dates_for(c, current_course))
-    }
+        start_at: datetime_string(c.start_at, :verbose, nil, true),
+        end_at: datetime_string(c.conclude_at, :verbose, nil, true),
+        blueprint: MasterCourses::MasterTemplate.is_master_course?(c) }    }
   end
 
   include Api::V1::TodoItem
@@ -974,10 +949,7 @@ class UsersController < ApplicationController
       submitting_scope = @current_user
                          .assignments_needing_submitting(
                            include_ungraded: true,
-                           scope_only: true,
-                           course_ids: submitting_course_ids,
-                           include_concluded: false
-                         )
+                           scope_only: true                         )
                          .reorder(:due_at, :id).preload(:external_tool_tag, :rubric_association, :rubric, :discussion_topic, :quiz).eager_load(:duplicate_of)
 
       grading_collection = BookmarkedCollection.wrap(bookmark, grading_scope)
@@ -1298,7 +1270,7 @@ class UsersController < ApplicationController
   # Upload a file to the user's personal files section.
   #
   # This API endpoint is the first step in uploading a file to a user's files.
-  # See the {file:file.file_uploads.html File Upload Documentation} for details on
+  # See the {file:file_uploads.html File Upload Documentation} for details on
   # the file upload workflow.
   #
   # Note that typically users will only be able to upload files to their
@@ -1411,8 +1383,7 @@ class UsersController < ApplicationController
           js_permissions = {
             can_view_user_generated_access_tokens: @user.grants_right?(@current_user, :view_user_generated_access_tokens),
             can_manage_sis_pseudonyms: @context_account.root_account.grants_right?(@current_user, :manage_sis),
-            can_manage_user_details: @user.grants_right?(@current_user, :manage_user_details),
-            can_manage_dsr_requests: @context_account.grants_right?(@current_user, :manage_dsr_requests)
+            can_manage_user_details: @user.grants_right?(@current_user, :manage_user_details)
           }
           if @context_account.root_account.feature_enabled?(:temporary_enrollments)
             js_permissions[:can_read_sis] = @context_account.grants_right?(@current_user, session, :read_sis)
@@ -1512,7 +1483,7 @@ class UsersController < ApplicationController
   def external_tool
     timing_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     placement = :user_navigation
-    @tool = Lti::ToolFinder.from_id!(params[:id], @domain_root_account, placement:)
+    @tool = ContextExternalTool.find_for(params[:id], @domain_root_account, placement)
     @opaque_id = @tool.opaque_identifier_for(@current_user, context: @domain_root_account)
     @resource_type = "user_navigation"
 
@@ -1564,13 +1535,7 @@ class UsersController < ApplicationController
 
     set_active_tab @tool.asset_string
     add_crumb(@current_user.short_name, user_profile_path(@current_user))
-
-    @display_override = if @tool.extension_setting("user_navigation", "windowTarget") == "_blank"
-                          "borderless"
-                        end
-
-    render Lti::AppUtil.display_template(@tool.display_type(placement), display_override: @display_override)
-    timing_end = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    render Lti::AppUtil.display_template    timing_end = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     InstStatsd::Statsd.timing("lti.user_external_tool.request_time", timing_end - timing_start, tags: { lti_version: @tool.lti_version })
   end
 
@@ -1705,7 +1670,7 @@ class UsersController < ApplicationController
   #
   # @argument enable_sis_reactivation [Boolean]
   #   When true, will first try to re-activate a deleted user with matching sis_user_id if possible.
-  #   This is commonly done with +user[skip_registration]+ and +communication_channel[skip_confirmation]+
+  #   This is commonly done with user[skip_registration] and communication_channel[skip_confirmation]
   #   so that the default communication_channel is also restored.
   #
   # @argument destination [URL]
@@ -2013,7 +1978,7 @@ class UsersController < ApplicationController
         format.json do
           if user.set_preference(:custom_colors, colors)
             enrollment_types_tags = user.participating_enrollments.pluck(:type).uniq.map { |type| "enrollment_type:#{type}" }
-            InstStatsd::Statsd.distributed_increment("user.set_custom_color", tags: enrollment_types_tags)
+            InstStatsd::Statsd.increment("user.set_custom_color", tags: enrollment_types_tags)
             render(json: { hexcode: colors[context.asset_string] })
           else
             render(json: user.errors, status: :bad_request)
@@ -2053,41 +2018,6 @@ class UsersController < ApplicationController
 
     if user.set_preference(:text_editor_preference, params[:text_editor_preference])
       render(json: { text_editor_preference: user.reload.get_preference(:text_editor_preference) })
-    else
-      render(json: user.errors, status: :bad_request)
-    end
-  end
-
-  # @API Update files UI version preference
-  # Updates a user's default choice for files UI version. This allows
-  # the files UI to preload the user's preference.
-  #
-  # @argument files_ui_version [String, "v1"|"v2"]
-  #   The identifier for the files UI version.
-  #
-  # @example_request
-  #
-  #   curl 'https://<canvas>/api/v1/users/<user_id>/files_ui_version_preference \
-  #     -X PUT \
-  #     -F 'files_ui_version=v2'
-  #     -H 'Authorization: Bearer <token>'
-  #
-  # @example_response
-  #   {
-  #     "files_ui_version": "v2"
-  #   }
-
-  def set_files_ui_version_preference
-    user = api_find(User, params[:id])
-
-    return unless authorized_action(user, @current_user, [:manage, :manage_user_details])
-
-    if %w[v1 v2].exclude?(params[:files_ui_version])
-      return render(json: { message: "Invalid files_ui_version provided" }, status: :bad_request)
-    end
-
-    if user.set_preference(:files_ui_version, params[:files_ui_version])
-      render(json: { files_ui_version: user.reload.get_preference(:files_ui_version) })
     else
       render(json: user.errors, status: :bad_request)
     end
@@ -2210,7 +2140,7 @@ class UsersController < ApplicationController
   # @argument user[avatar][token] [String]
   #   A unique representation of the avatar record to assign as the user's
   #   current avatar. This token can be obtained from the user avatars endpoint.
-  #   This supersedes the +user[avatar][url]+ argument, and if both are included
+  #   This supersedes the user [avatar] [url] argument, and if both are included
   #   the url will be ignored. Note: this is an internal representation and is
   #   subject to change without notice. It should be consumed with this api
   #   endpoint and used in the user update endpoint, and should not be
@@ -2490,47 +2420,57 @@ class UsersController < ApplicationController
     end
   end
 
-  def admin_merge
-    @user = User.find(params[:user_id])
-
-    return unless authorized_action(@user, @current_user, :merge)
-
-    title = t("Merge Users")
-
-    @page_title = title
-    @show_left_side = true
-    @context = @domain_root_account
-
-    add_crumb(@domain_root_account.name, account_url(@domain_root_account))
-    add_crumb(title)
-
-    page_has_instui_topnav
-
-    account_options_for_merge_users = @current_user.associated_accounts.shard(Shard.current).to_a
-    account_options_for_merge_users.push(@domain_root_account) if @domain_root_account && !account_options_for_merge_users.include?(@domain_root_account)
-    account_options_for_merge_users = account_options_for_merge_users.sort_by(&:name).uniq.select { |a| a.grants_any_right?(@current_user, session, :manage_user_logins, :read_roster) }
-
-    js_env({ ADMIN_MERGE_ACCOUNT_OPTIONS: account_options_for_merge_users.map { |a| { id: a.id, name: a.name } } })
-
-    render html: '<div id="admin_merge_mount_point"></div>'.html_safe, layout: true
+  def merge
+    @source_user = User.find(params[:user_id])
+    @target_user = User.where(id: params[:new_user_id]).first if params[:new_user_id]
+    @target_user ||= @current_user
+    if @source_user.grants_right?(@current_user, :merge) && @target_user.grants_right?(@current_user, :merge)
+      UserMerge.from(@source_user).into(@target_user, merger: @current_user, source: "users_controller")
+      @target_user.touch
+      flash[:notice] = t("user_merge_success", "User merge succeeded! %{first_user} and %{second_user} are now one and the same.", first_user: @target_user.name, second_user: @source_user.name)
+      if @target_user == @current_user
+        redirect_to user_profile_url(@current_user)
+      else
+        redirect_to user_url(@target_user)
+      end
+    else
+      flash[:error] = t("user_merge_fail", "User merge failed. Please make sure you have proper permission and try again.")
+      redirect_to dashboard_url
+    end
   end
 
-  def user_for_merge
+  def admin_merge
     @user = User.find(params[:user_id])
+    if authorized_action(@user, @current_user, :merge)
+      if params[:clear]
+        params.delete(:new_user_id)
+        params.delete(:pending_user_id)
+      end
 
-    return unless authorized_action(@user, @current_user, :merge)
+      if params[:new_user_id].present?
+        @other_user = api_find_all(User, [params[:new_user_id]]).first
+        if !@other_user || !@other_user.grants_right?(@current_user, :merge)
+          @other_user = nil
+          flash[:error] = t("user_not_found", "No active user with that ID was found.")
+        elsif @other_user == @user
+          @other_user = nil
+          flash[:error] = t("cant_self_merge", "You can't merge an account with itself.")
+        end
+      end
 
-    includes = %w[email]
-    enrollments_for_display = @user.enrollments.current.map { |e| t("%{course_name} (%{enrollment_type})", course_name: e.course.name, enrollment_type: e.readable_type) }
-    pseudonyms_for_display = @user.pseudonyms.active.map { |p| t("%{unique_id} (%{account_name})", unique_id: p.unique_id, account_name: p.account.name) }
-    communication_channels_for_display = @user.communication_channels.unretired.email.map(&:path).uniq
+      if params[:pending_user_id].present?
+        @pending_other_user = api_find_all(User, [params[:pending_user_id]]).first
+        if !@pending_other_user || !@pending_other_user.grants_right?(@current_user, :merge)
+          @pending_other_user = nil
+          flash[:error] = t("user_not_found", "No active user with that ID was found.")
+        elsif @pending_other_user == @user
+          @pending_other_user = nil
+          flash[:error] = t("cant_self_merge", "You can't merge an account with itself.")
+        end
+      end
 
-    render json: {
-      **user_json(@user, @current_user, session, includes, @domain_root_account),
-      enrollments: enrollments_for_display,
-      pseudonyms: pseudonyms_for_display,
-      communication_channels: communication_channels_for_display
-    }
+      render :admin_merge
+    end
   end
 
   def admin_split
@@ -2675,7 +2615,7 @@ class UsersController < ApplicationController
   #
   # Avatars:
   # When both users have avatars, only the destination_users avatar will remain.
-  # When one user has an avatar, it will end up on the destination_user.
+  # When one user has an avatar, will it will end up on the destination_user.
   #
   # Terms of Use:
   # If either user has accepted terms of use, it will be be left as accepted.
@@ -2975,7 +2915,7 @@ class UsersController < ApplicationController
   end
 
   # @API Get a users most recently graded submissions
-  # Returns a list of the user's most recently graded submissions.
+  #
   # @example_request
   #     curl https://<canvas>/api/v1/users/<user_id>/graded_submissions \
   #          -X POST \
@@ -3684,5 +3624,4 @@ class UsersController < ApplicationController
     return false unless @domain_root_account&.feature_enabled?(:educator_dashboard)
 
     @current_user.educator_dashboard_user?
-  end
-end
+  endend

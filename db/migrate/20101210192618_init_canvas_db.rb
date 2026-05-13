@@ -1085,7 +1085,7 @@ class InitCanvasDb < ActiveRecord::Migration[7.0]
       CREATE TRIGGER attachment_before_insert_verify_active_folder__tr
         BEFORE INSERT ON #{Attachment.quoted_table_name}
         FOR EACH ROW
-        EXECUTE PROCEDURE #{connection.quote_table_name("attachment_before_insert_verify_active_folder__tr_fn")}()
+        EXECUTE FUNCTION #{connection.quote_table_name("attachment_before_insert_verify_active_folder__tr_fn")}()
     SQL
 
     create_table :attachment_associations do |t|
@@ -2654,7 +2654,7 @@ class InitCanvasDb < ActiveRecord::Migration[7.0]
       CREATE TRIGGER folder_before_insert_verify_active_parent_folder__tr
         BEFORE INSERT ON #{Folder.quoted_table_name}
         FOR EACH ROW
-        EXECUTE PROCEDURE #{connection.quote_table_name("folder_before_insert_verify_active_parent_folder__tr_fn")}()
+        EXECUTE FUNCTION #{connection.quote_table_name("folder_before_insert_verify_active_parent_folder__tr_fn")}()
     SQL
 
     create_table :gradebook_csvs do |t|
@@ -5066,14 +5066,14 @@ class InitCanvasDb < ActiveRecord::Migration[7.0]
         AFTER INSERT ON #{SubmissionComment.quoted_table_name}
         FOR EACH ROW
         WHEN (NEW.draft <> 't' AND NEW.provisional_grade_id IS NULL)
-        EXECUTE PROCEDURE #{connection.quote_table_name("submission_comment_after_save_set_last_comment_at__tr_fn")}()
+        EXECUTE FUNCTION #{connection.quote_table_name("submission_comment_after_save_set_last_comment_at__tr_fn")}()
     SQL
 
     execute(<<~SQL.squish)
       CREATE TRIGGER submission_comment_after_update_set_last_comment_at__tr
         AFTER UPDATE OF draft, provisional_grade_id ON #{SubmissionComment.quoted_table_name}
         FOR EACH ROW
-        EXECUTE PROCEDURE #{connection.quote_table_name("submission_comment_after_save_set_last_comment_at__tr_fn")}()
+        EXECUTE FUNCTION #{connection.quote_table_name("submission_comment_after_save_set_last_comment_at__tr_fn")}()
     SQL
 
     execute(<<~SQL.squish)
@@ -5081,7 +5081,7 @@ class InitCanvasDb < ActiveRecord::Migration[7.0]
         AFTER DELETE ON #{SubmissionComment.quoted_table_name}
         FOR EACH ROW
         WHEN (OLD.draft <> 't' AND OLD.provisional_grade_id IS NULL)
-        EXECUTE PROCEDURE #{connection.quote_table_name("submission_comment_after_delete_set_last_comment_at__tr_fn")}()
+        EXECUTE FUNCTION #{connection.quote_table_name("submission_comment_after_delete_set_last_comment_at__tr_fn")}()
     SQL
 
     create_table :switchman_shards do |t|
