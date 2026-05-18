@@ -217,11 +217,14 @@ module CanvasRails
 
             raise "Canvas requires PostgreSQL 12 or newer" unless postgresql_version >= 12_00_00 # rubocop:disable Style/NumericLiterals
 
+            # we're in a nested loop, and we want to break out of both loops on success
             return
           rescue ActiveRecord::DatabaseConnectionError => e
             raise if password_index == passwords.length - 1 || e.message.exclude?("password")
             # else try next password
           end
+        # we _shouldn't_ be catching a NoDatabaseError, but that's what Rails raises
+        # for an error where the database name is in the message (i.e. a hostname lookup failure)
         rescue ActiveRecord::NoDatabaseError, ::ActiveRecord::ConnectionFailed, ActiveRecord::ConnectionNotEstablished, ::PG::Error => e
           if e.is_a?(::PG::Error) && e.message.include?("does not exist")
             raise ActiveRecord::NoDatabaseError, e.message

@@ -138,7 +138,7 @@ class RequestThrottle
           if @access_token
             RequestContext::Generator.add_meta_header("at", @access_token.global_id)
             RequestContext::Generator.add_meta_header("dk", @access_token.global_developer_key_id)
-            RequestContext::Generator.add_meta_header("utid", @access_token.developer_key.unified_tool_id) if @access_token.developer_key&.unified_tool_id
+            RequestContext::Generator.add_meta_header("utid", @access_token.developer_key.unified_tool_id) if @access_token.developer_key.respond_to?(:unified_tool_id) && @access_token.developer_key.unified_tool_id
           end
 
           return false
@@ -186,7 +186,7 @@ class RequestThrottle
 
     [
       # product: a globally unique product id, used to link multiple client_ids for a third-party integration
-      tag_identifier("product", @access_token.developer_key.unified_tool_id),
+      tag_identifier("product", @access_token.developer_key.respond_to?(:unified_tool_id) ? @access_token.developer_key.unified_tool_id : nil),
       # client_id: the OAuth client_id of a DeveloperKey
       tag_identifier("client_id", @access_token.global_developer_key_id),
       *default_identifiers

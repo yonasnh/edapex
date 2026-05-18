@@ -274,7 +274,8 @@ class ApplicationController < ActionController::Base
           current_user_id: @current_user&.id,
           current_user_global_id: @current_user&.global_id,
           current_user_uuid: @current_user&.uuid,
-          current_user_usage_metrics_id: @current_user&.usage_metrics_id,          current_user_roles: @current_user&.roles(@domain_root_account),
+          current_user_usage_metrics_id: @current_user&.usage_metrics_id,
+          current_user_roles: @current_user&.roles(@domain_root_account),
           current_user_is_student: @context.respond_to?(:user_is_student?) && @context.user_is_student?(@current_user),
           current_user_types: @current_user.try { |u| u.account_users.active.map { |au| au.role.name } },
           current_user_disabled_inbox: @current_user&.disabled_inbox?,
@@ -285,7 +286,8 @@ class ApplicationController < ActionController::Base
           DOMAIN_ROOT_ACCOUNT_ID: @domain_root_account&.global_id,
           DOMAIN_ROOT_ACCOUNT_UUID: @domain_root_account&.uuid,
           CAREER_THEME_URL: CanvasCareer::ExperienceResolver.career_affiliated_institution?(@domain_root_account) ? CanvasCareer::Config.new(@domain_root_account).theme_url : nil,
-          CAREER_DARK_THEME_URL: CanvasCareer::ExperienceResolver.career_affiliated_institution?(@domain_root_account) ? CanvasCareer::Config.new(@domain_root_account).dark_theme_url : nil,          k12: k12?,
+          CAREER_DARK_THEME_URL: CanvasCareer::ExperienceResolver.career_affiliated_institution?(@domain_root_account) ? CanvasCareer::Config.new(@domain_root_account).dark_theme_url : nil,
+          k12: k12?,
           help_link_name:,
           help_link_icon:,
           ADA_CHATBOT_ENABLED: @domain_root_account&.feature_enabled?(:ada_chatbot),
@@ -301,10 +303,12 @@ class ApplicationController < ActionController::Base
             collapse_global_nav: @current_user&.collapse_global_nav?,
             release_notes_badge_disabled: @current_user&.release_notes_badge_disabled?,
             can_add_pronouns: @domain_root_account&.can_add_pronouns?,
-            show_sections_in_course_tray: @domain_root_account&.show_sections_in_course_tray?          },
+            show_sections_in_course_tray: @domain_root_account&.show_sections_in_course_tray?
+          },
           RAILS_ENVIRONMENT: Canvas.environment,
         }
-        @js_env[:IN_PACED_COURSE] = @context.account.feature_enabled?(:course_paces) && @context.enable_course_paces? if @context.is_a?(Course)        unless SentryExtensions::Settings.settings.blank?
+        @js_env[:IN_PACED_COURSE] = @context.account.feature_enabled?(:course_paces) && @context.enable_course_paces? if @context.is_a?(Course)
+        unless SentryExtensions::Settings.settings.blank?
           @js_env[:SENTRY_FRONTEND] = {
             dsn: SentryExtensions::Settings.settings[:frontend_dsn],
             org_slug: SentryExtensions::Settings.settings[:org_slug],
@@ -421,7 +425,8 @@ class ApplicationController < ActionController::Base
         @js_env[:ACCOUNT_ID] = effective_account_id(@context)
         @js_env[:user_cache_key] = Base64.encode64("#{@current_user.uuid}vyfW=;[p-0?:{P_=HUpgraqe;njalkhpvoiulkimmaqewg") if @current_user&.workflow_state
         @js_env[:top_navigation_tools] = external_tools_display_hashes(:top_navigation) if !!@domain_root_account&.feature_enabled?(:top_navigation_placement)
-        @js_env[:horizon_course] = @context.is_a?(Course) && @context.horizon_course?        # partner context data
+        @js_env[:horizon_course] = @context.is_a?(Course) && @context.horizon_course?
+        # partner context data
         if @context&.grants_any_right?(@current_user, session, :read, :read_as_admin)
           @js_env[:current_context] = {
             id: @context.id,
@@ -486,16 +491,13 @@ class ApplicationController < ActionController::Base
     disallow_threaded_replies_fix_alert
     horizon_course_setting
     new_quizzes_media_type
-    assign_to_differentiation_tags
     validate_call_to_action
   ].freeze
   JS_ENV_ROOT_ACCOUNT_FEATURES = %i[
     product_tours
     create_course_subaccount_picker
     file_verifiers_for_quiz_links
-    lti_deep_linking_module_index_menu_modal
     lti_registrations_next
-    lti_registrations_page
     lti_asset_processor
     buttons_and_icons_root_account
     extended_submission_state
@@ -505,7 +507,7 @@ class ApplicationController < ActionController::Base
     mobile_offline_mode
     react_discussions_post
     instui_nav
-    lti_registrations_discover_page    account_level_mastery_scales
+    account_level_mastery_scales
     ams_root_account_integration
     ams_advanced_content_organization
     buttons_and_icons_root_account
@@ -546,8 +548,7 @@ class ApplicationController < ActionController::Base
     discussion_checkpoints
     course_pace_allow_bulk_pace_assign  ].freeze
   JS_ENV_BRAND_ACCOUNT_FEATURES = %i[
-    embedded_release_notes
-    consolidated_media_player  ].freeze
+    embedded_release_notes  ].freeze
   JS_ENV_FEATURES_HASH = Digest::SHA256.hexdigest([JS_ENV_SITE_ADMIN_FEATURES + JS_ENV_ROOT_ACCOUNT_FEATURES + JS_ENV_BRAND_ACCOUNT_FEATURES].sort.join(",")).freeze
   def cached_js_env_account_features
     # can be invalidated by a flag change on site admin, the domain root account, or the brand config account
@@ -630,6 +631,10 @@ class ApplicationController < ActionController::Base
     else
       @domain_root_account&.send(attribute)
     end
+  end
+
+  def effective_account_id(context)
+    effective_account_attribute(context, :id)
   end
 
   # add keys to JS environment necessary for the RCE at the given risk level
@@ -3223,7 +3228,8 @@ class ApplicationController < ActionController::Base
     # 2. courses_controller (context of this will be Account)
     # discussion_checkpoints_enabled? works for either context
     account_has_discussion_checkpoints_enabled = @context.discussion_checkpoints_enabled?
-    course_has_peer_reviews_enabled = @context.is_a?(Course) && @context.feature_enabled?(:peer_review_allocation_and_grading)    prefetch_xhr(api_v1_course_assignment_groups_url(
+    course_has_peer_reviews_enabled = @context.is_a?(Course) && @context.feature_enabled?(:peer_review_allocation_and_grading)
+    prefetch_xhr(api_v1_course_assignment_groups_url(
                    @context,
                    include: [
                      "assignments",
@@ -3489,7 +3495,6 @@ class ApplicationController < ActionController::Base
 
   def show_career_switch?
     return false unless @current_user
-    return false unless @domain_root_account&.feature_enabled?(:horizon_learner_app)
 
     resolver = CanvasCareer::ExperienceResolver.new(@current_user, @context, @domain_root_account, session)
     available_apps = resolver.available_apps
@@ -3621,4 +3626,5 @@ class ApplicationController < ActionController::Base
     tools << "Quiz me" if @context.feature_enabled?(:study_assist_quiz_me)
     tools << "Flashcards" if @context.feature_enabled?(:study_assist_flashcards)
     tools
-  endend
+  end
+end

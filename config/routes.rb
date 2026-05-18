@@ -474,7 +474,8 @@ CanvasRails::Application.routes.draw do
     resources :gradebook_uploads
     resources :rubrics
     post "rubrics/llm_criteria", controller: :rubrics, action: :llm_criteria
-    post "rubrics/llm_regenerate_criteria", controller: :rubrics, action: :llm_regenerate_criteria    resources :rubric_associations do
+    post "rubrics/llm_regenerate_criteria", controller: :rubrics, action: :llm_regenerate_criteria
+    resources :rubric_associations do
       post "remind/:assessment_request_id" => "rubric_assessments#remind", :as => :remind_assessee
       resources :rubric_assessments, path: "assessments"
     end
@@ -899,7 +900,8 @@ CanvasRails::Application.routes.draw do
 
   get "images/users/:user_id" => "users#avatar_image", :as => :avatar_image
   get "images/thumbnails/:id/:uuid" => "files#image_thumbnail", :as => :thumbnail_image
-  get "images/thumbnails/show/:id/:uuid" => "files#show_thumbnail", :as => :show_thumbnail_image  post "images/users/:user_id/report" => "users#report_avatar_image", :as => :report_avatar_image
+  get "images/thumbnails/show/:id/:uuid" => "files#show_thumbnail", :as => :show_thumbnail_image
+  post "images/users/:user_id/report" => "users#report_avatar_image", :as => :report_avatar_image
   put "images/users/:user_id" => "users#update_avatar_image", :as => :update_avatar_image
   get "grades" => "users#grades"
   get "grades_for_student" => "users#grades_for_student"
@@ -1006,7 +1008,8 @@ CanvasRails::Application.routes.draw do
     resources :question_banks, only: :index
     get :admin_merge
     get :admin_split
-    post :merge    get :grades
+    post :merge
+    get :grades
     get :manageable_courses
     get "outcomes" => "outcomes#user_outcome_results"
     get "teacher_activity/course/:course_id" => "users#teacher_activity", :as => :course_teacher_activity
@@ -2095,7 +2098,8 @@ CanvasRails::Application.routes.draw do
       delete "accounts/:account_id/lti_registrations/:id", action: :destroy
       get "accounts/:account_id/lti_registrations/:id", action: :show
       get "accounts/:account_id/lti_registrations/:id/overlay_history", action: :overlay_history
-      get "accounts/:account_id/lti_registrations/:id/history", action: :history, as: :lti_registration_history      get "accounts/:account_id/lti_registration_by_client_id/:client_id", action: :show_by_client_id
+      get "accounts/:account_id/lti_registrations/:id/history", action: :history, as: :lti_registration_history
+      get "accounts/:account_id/lti_registration_by_client_id/:client_id", action: :show_by_client_id
       get "accounts/:account_id/lti_registrations/by_utid/:utid", action: :show_by_utid
       get "accounts/:account_id/lti_registrations/install_status/:client_id", action: :install_status
       get "accounts/:account_id/lti_registrations/:id/update_requests/:update_request_id", action: :show_registration_update_request, as: "lti_registration_update_request"

@@ -1,0 +1,58 @@
+{
+  "title": "SchoolApex Modern UI",
+  "description": "Modern Canvas UI powered by Carbon Design System with LTI 1.3 integration",
+  "oidc_initiation_url": "http://localhost:4001/lti/login",
+  "target_link_uri": "http://localhost:4001/lti/launch",
+  "scopes": [
+    "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem",
+    "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly",
+    "https://purl.imsglobal.org/spec/lti-ags/scope/score",
+    "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
+  ],
+  "extensions": [
+    {
+      "domain": "localhost:4001",
+      "tool_id": "schoolapex_modern_ui",
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "text": "SchoolApex Modern UI",
+        "placements": [
+          {
+            "text": "Modern UI",
+            "enabled": true,
+            "placement": "course_navigation",
+            "message_type": "LtiResourceLinkRequest",
+            "target_link_uri": "http://localhost:4001/lti/launch",
+            "canvas_icon_class": "icon-lti",
+            "windowTarget": "_self"
+          },
+          {
+            "text": "Select Modern UI Content",
+            "enabled": true,
+            "placement": "link_selection",
+            "message_type": "LtiDeepLinkingRequest",
+            "target_link_uri": "http://localhost:4001/lti/launch?placement=link_selection",
+            "selection_height": 500,
+            "selection_width": 800
+          },
+          {
+            "text": "Modern UI Assignment",
+            "enabled": true,
+            "placement": "assignment_selection",
+            "message_type": "LtiDeepLinkingRequest",
+            "target_link_uri": "http://localhost:4001/lti/launch?placement=assignment_selection",
+            "selection_height": 500,
+            "selection_width": 800
+          }
+        ]
+      }
+    }
+  ],
+  "public_jwk_url": "http://localhost:4001/.well-known/jwks.json",
+  "custom_fields": {
+    "canvas_user_id": "$Canvas.user.id",
+    "canvas_course_id": "$Canvas.course.id",
+    "canvas_assignment_id": "$Canvas.assignment.id",
+    "canvas_user_login_id": "$Canvas.user.loginId"
+  }
+}

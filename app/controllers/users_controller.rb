@@ -567,7 +567,8 @@ class UsersController < ApplicationController
     if stale?(etag: @stream_items)
       if is_student
         @stream_items = @stream_items.reject { |i| i&.course&.horizon_course? }
-      end      render partial: "shared/recent_activity", layout: false
+      end
+      render partial: "shared/recent_activity", layout: false
     end
   end
 
@@ -3624,4 +3625,5 @@ class UsersController < ApplicationController
     return false unless @domain_root_account&.feature_enabled?(:educator_dashboard)
 
     @current_user.educator_dashboard_user?
-  endend
+  end
+end

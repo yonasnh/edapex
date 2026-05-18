@@ -50,8 +50,8 @@ if Bundler.default_gemfile == gemfile
     active = rails_version == $canvas_rails && !!include_plugins
 
     lockfile(lockfile,
-             active: active,
-             parent: parent,
+             active:,
+             parent:,
              enforce_pinned_additional_dependencies: include_plugins) do
       $canvas_rails = rails_version
       @include_plugins = include_plugins
@@ -63,8 +63,8 @@ if Bundler.default_gemfile == gemfile
     parent = nil unless parent.to_s.match?(/\.rails\d+\.lock$/)
     gemfile = gem_lockfile_name.to_s.sub(/(?:.rails\d+)?\.lock$/, "")
     return unless lockfile(gem_lockfile_name,
-                           gemfile: gemfile,
-                           parent: parent)
+                           gemfile:,
+                           parent:)
   end
 end
 
@@ -87,7 +87,7 @@ module GemOverride # rubocop:disable Style/OneClassPerFile
       super(name, path: vendor_path, **kwargs)
     elsif pinned_github_gems.key?(name)
       repo, ref = pinned_github_gems[name].split(":")
-      super(name, github: repo, ref: ref)
+      super(name, github: repo, ref:)
     else
       super
     end
