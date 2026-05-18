@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  lti-service:
+    build:
+      context: ./packages/lti-service
+      dockerfile: Dockerfile
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - SESSION_SECRET=${SESSION_SECRET}
+      - LTI_TOOL_KID=${LTI_TOOL_KID}
+      - LTI_TOOL_PRIVATE_KEY_PEM=${LTI_TOOL_PRIVATE_KEY_PEM}
+      - LTI_ISSUER=${LTI_ISSUER}
+      - LTI_CLIENT_ID=${LTI_CLIENT_ID}
+      - LTI_AUTHORIZATION_ENDPOINT=${LTI_AUTHORIZATION_ENDPOINT}
+      - LTI_TOKEN_ENDPOINT=${LTI_TOKEN_ENDPOINT}
+      - LTI_JWKS_ENDPOINT=${LTI_JWKS_ENDPOINT}
+      - BASE_URL=${BASE_URL}
+      - LTI_INITIATE_LOGIN_URI=${LTI_INITIATE_LOGIN_URI}
+      - LTI_REDIRECT_URI=${LTI_REDIRECT_URI}
+      - MODERN_UI_URL=${MODERN_UI_URL}
+      - CANVAS_API_BASE_URL=${CANVAS_API_BASE_URL}
+      - CANVAS_OAUTH_CLIENT_ID=${CANVAS_OAUTH_CLIENT_ID}
+      - CANVAS_OAUTH_CLIENT_SECRET=${CANVAS_OAUTH_CLIENT_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+    volumes:
+      - ./packages/lti-service/logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  modern-ui:
+    build:
+      context: .
+      dockerfile: apps/classapex-lms/Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - VITE_LTI_SERVICE_URL=http://lti-service:4001
+      - VITE_CANVAS_API_URL=${CANVAS_API_BASE_URL}
+    depends_on:
+      - lti-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Redis for session storage in production
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - lti-service
+      - modern-ui
+    restart: unless-stopped
+
+volumes:
+  redis_data:

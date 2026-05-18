@@ -1,0 +1,218 @@
+/* Widget component styles */
+/* Shared container styles live in dashboard-v2.css (.cx-widget) */
+
+/* Todo List */
+.cx-todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cx-todo-item {
+  border-bottom: 1px solid var(--cx-border-subtle);
+}
+
+.cx-todo-item:last-child {
+  border-bottom: none;
+}
+
+.cx-todo-item__link {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-3);
+  padding: var(--cx-space-3) 0;
+  text-decoration: none;
+  color: inherit;
+  transition: opacity var(--cx-duration-fast);
+}
+
+.cx-todo-item__link:hover {
+  opacity: 0.8;
+}
+
+.cx-todo-item__type {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.cx-todo-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-todo-item__name {
+  display: block;
+  font-size: var(--cx-text-sm);
+  font-weight: var(--cx-weight-medium);
+  color: var(--cx-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cx-todo-item__context {
+  font-size: var(--cx-text-xs);
+  color: var(--cx-text-tertiary);
+}
+
+.cx-todo-item__due {
+  font-size: var(--cx-text-xs);
+  color: var(--cx-text-secondary);
+  font-weight: var(--cx-weight-medium);
+  flex-shrink: 0;
+}
+
+/* Event List */
+.cx-event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-3);
+}
+
+.cx-event-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-3);
+}
+
+.cx-event-item__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.cx-event-item__month {
+  font-size: 10px;
+  font-weight: var(--cx-weight-semibold);
+  text-transform: uppercase;
+  color: var(--cx-color-primary);
+  line-height: 1;
+}
+
+.cx-event-item__day {
+  font-size: var(--cx-text-xl);
+  font-weight: var(--cx-weight-bold);
+  color: var(--cx-text-primary);
+  line-height: 1.2;
+}
+
+.cx-event-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-event-item__title {
+  display: block;
+  font-size: var(--cx-text-sm);
+  font-weight: var(--cx-weight-medium);
+  color: var(--cx-text-primary);
+}
+
+.cx-event-item__context {
+  font-size: var(--cx-text-xs);
+  color: var(--cx-text-tertiary);
+}
+
+/* Activity Summary */
+.cx-activity-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-space-2);
+}
+
+.cx-activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--cx-text-sm);
+  text-transform: capitalize;
+}
+
+.cx-activity-row__type {
+  color: var(--cx-text-secondary);
+}
+
+/* Favorite Courses (drag-to-reorder) */
+.cx-favorites__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-favorites__item {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-2);
+  padding: var(--cx-space-2) var(--cx-space-1);
+  border-bottom: 1px solid var(--cx-border-subtle);
+  cursor: grab;
+  user-select: none;
+  transition: background var(--cx-duration-fast);
+}
+
+.cx-favorites__item:last-child {
+  border-bottom: none;
+}
+
+.cx-favorites__item:hover {
+  background: var(--cx-bg-hover);
+}
+
+.cx-favorites__item:active {
+  cursor: grabbing;
+}
+
+.cx-favorites__grip {
+  color: var(--cx-text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.cx-favorites__color {
+  width: 3px;
+  height: 28px;
+  border-radius: var(--cx-radius-full);
+  flex-shrink: 0;
+}
+
+.cx-favorites__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-favorites__name {
+  display: block;
+  font-size: var(--cx-text-sm);
+  color: var(--cx-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cx-favorites__code {
+  font-size: var(--cx-text-xs);
+  color: var(--cx-text-tertiary);
+}
+
+.cx-favorites__save {
+  width: 100%;
+  margin-top: var(--cx-space-2);
+  padding: var(--cx-space-1) var(--cx-space-3);
+  background: var(--cx-color-primary);
+  color: var(--cx-text-on-color);
+  border: none;
+  border-radius: var(--cx-radius-sm);
+  font-size: var(--cx-text-xs);
+  font-weight: var(--cx-weight-medium);
+  cursor: pointer;
+}

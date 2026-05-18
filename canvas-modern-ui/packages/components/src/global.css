@@ -1,0 +1,119 @@
+/*
+ * Canvas Modern Global Styles
+ * ============================
+ * Base styles and accessibility utilities.
+ * Import this once at the app root.
+ */
+
+/* ─── Box Sizing ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Body defaults ─── */
+body {
+  margin: 0;
+  font-family: var(--cm-font-family-base, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--cm-text-md, 16px);
+  line-height: var(--cm-line-normal, 1.5);
+  color: var(--cm-text-primary, #111827);
+  background: var(--cm-bg-canvas, #F7F8FA);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Focus visible (accessibility) ─── */
+:focus-visible {
+  outline: var(--cm-focus-ring-width, 2px) solid var(--cm-focus-ring, #3B82F6);
+  outline-offset: var(--cm-focus-ring-offset, 2px);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Skip link (a11y) ─── */
+.cm-skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--cm-space-4, 16px);
+  z-index: var(--cm-z-tooltip, 600);
+  padding: var(--cm-space-2, 8px) var(--cm-space-4, 16px);
+  background: var(--cm-link-default, #2563EB);
+  color: var(--cm-text-inverse, #FFFFFF);
+  border-radius: var(--cm-radius-sm, 8px);
+  font-size: var(--cm-text-sm, 14px);
+  font-weight: var(--cm-font-weight-semibold, 600);
+  text-decoration: none;
+  transition: top var(--cm-duration-fast, 100ms) var(--cm-ease-standard);
+}
+
+.cm-skip-link:focus {
+  top: var(--cm-space-2, 8px);
+}
+
+/* ─── Screen reader only ─── */
+.sr-only,
+.cm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Links ─── */
+a {
+  color: var(--cm-link-default, #2563EB);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: var(--cm-bg-selected, #EAF2FF);
+  color: var(--cm-text-primary, #111827);
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cm-gray-300, #CBD5E1);
+  border-radius: var(--cm-radius-full, 9999px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cm-gray-500, #6B7280);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--cm-gray-600, #4B5563);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--cm-gray-400, #9AA4B2);
+}
+
+/* ─── Reduced motion ─── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

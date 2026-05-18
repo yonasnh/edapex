@@ -1,0 +1,204 @@
+/*
+ * Canvas Modern Component Tokens
+ * ==============================
+ * TIER 3: Component-level tokens.
+ * These define component-specific behavior and may reference
+ * semantic tokens (--cm-bg-*) or primitive tokens (--cm-blue-*).
+ *
+ * Pattern: --cm-<component>-<part>-<property>[-<state>]
+ */
+
+/* ═══════════════════════════════════════════
+   BUTTON
+   ═══════════════════════════════════════════ */
+:root {
+  /* Primary */
+  --cm-btn-primary-bg: var(--cm-blue-600);
+  --cm-btn-primary-bg-hover: var(--cm-blue-700);
+  --cm-btn-primary-bg-active: var(--cm-blue-700);
+  --cm-btn-primary-text: var(--cm-text-inverse);
+  --cm-btn-primary-border: transparent;
+
+  /* Secondary */
+  --cm-btn-secondary-bg: transparent;
+  --cm-btn-secondary-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-secondary-bg-active: var(--cm-gray-200);
+  --cm-btn-secondary-text: var(--cm-text-primary);
+  --cm-btn-secondary-border: var(--cm-gray-300);
+
+  /* Tertiary / Ghost */
+  --cm-btn-ghost-bg: transparent;
+  --cm-btn-ghost-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-ghost-bg-active: var(--cm-gray-200);
+  --cm-btn-ghost-text: var(--cm-text-primary);
+  --cm-btn-ghost-border: transparent;
+
+  /* Destructive */
+  --cm-btn-destructive-bg: var(--cm-status-danger-text);
+  --cm-btn-destructive-bg-hover: var(--cm-red-700);
+  --cm-btn-destructive-bg-active: var(--cm-red-700);
+  --cm-btn-destructive-text: var(--cm-text-inverse);
+  --cm-btn-destructive-border: transparent;
+
+  /* Icon-only */
+  --cm-btn-icon-bg: transparent;
+  --cm-btn-icon-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-icon-bg-active: var(--cm-gray-200);
+  --cm-btn-icon-text: var(--cm-text-secondary);
+  --cm-btn-icon-text-hover: var(--cm-text-primary);
+
+  /* Shared */
+  --cm-btn-radius: var(--cm-radius-sm);
+  --cm-btn-font-weight: var(--cm-font-weight-medium);
+  --cm-btn-disabled-opacity: 0.5;
+  --cm-btn-min-touch-target: 44px;
+}
+
+[data-theme="dark"] {
+  --cm-btn-primary-bg: var(--cm-blue-dark-500);
+  --cm-btn-primary-bg-hover: var(--cm-blue-dark-400);
+  --cm-btn-primary-bg-active: var(--cm-blue-dark-300);
+
+  --cm-btn-secondary-border: var(--cm-gray-600);
+  --cm-btn-secondary-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-secondary-bg-active: var(--cm-gray-700-dark);
+
+  --cm-btn-ghost-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-ghost-bg-active: var(--cm-gray-700-dark);
+
+  --cm-btn-destructive-bg: var(--cm-status-danger-icon);
+  --cm-btn-destructive-bg-hover: var(--cm-red-dark-400);
+
+  --cm-btn-icon-bg-hover: var(--cm-bg-surface-alt);
+  --cm-btn-icon-bg-active: var(--cm-gray-700-dark);
+}
+
+/* ═══════════════════════════════════════════
+   INPUT
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-input-bg: var(--cm-bg-surface);
+  --cm-input-border: var(--cm-gray-300);
+  --cm-input-border-hover: var(--cm-gray-500);
+  --cm-input-border-focus: var(--cm-blue-500);
+  --cm-input-border-invalid: var(--cm-status-danger-border);
+  --cm-input-text: var(--cm-text-primary);
+  --cm-input-placeholder: var(--cm-text-tertiary);
+  --cm-input-label: var(--cm-text-secondary);
+  --cm-input-radius: var(--cm-radius-sm);
+  --cm-input-padding-x: var(--cm-space-3);
+  --cm-input-padding-y: var(--cm-space-2);
+}
+
+[data-theme="dark"] {
+  --cm-input-border: var(--cm-gray-600);
+  --cm-input-border-hover: var(--cm-gray-400);
+  --cm-input-border-focus: var(--cm-blue-dark-400);
+}
+
+/* ═══════════════════════════════════════════
+   CARD
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-card-bg: var(--cm-bg-surface);
+  --cm-card-border: var(--cm-border-subtle);
+  --cm-card-radius: var(--cm-radius-md);
+  --cm-card-shadow: var(--cm-elevation-1);
+  --cm-card-shadow-hover: var(--cm-elevation-2);
+  --cm-card-padding: var(--cm-space-5);
+}
+
+/* ═══════════════════════════════════════════
+   TABLE
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-table-header-bg: var(--cm-bg-surface-alt);
+  --cm-table-header-text: var(--cm-text-secondary);
+  --cm-table-header-font-weight: var(--cm-font-weight-medium);
+  --cm-table-row-bg: transparent;
+  --cm-table-row-bg-hover: var(--cm-bg-surface-alt);
+  --cm-table-row-bg-selected: var(--cm-bg-selected);
+  --cm-table-border: var(--cm-border-subtle);
+  --cm-table-radius: var(--cm-radius-sm);
+}
+
+[data-theme="dark"] {
+  --cm-table-row-bg-selected: var(--cm-bg-selected);
+}
+
+/* ═══════════════════════════════════════════
+   TABS
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-tab-border: transparent;
+  --cm-tab-border-active: var(--cm-link-default);
+  --cm-tab-text: var(--cm-text-tertiary);
+  --cm-tab-text-hover: var(--cm-text-primary);
+  --cm-tab-text-active: var(--cm-link-default);
+  --cm-tab-bg-hover: var(--cm-bg-surface-alt);
+}
+
+/* ═══════════════════════════════════════════
+   ALERT / TOAST
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-alert-radius: var(--cm-radius-sm);
+  --cm-alert-border-width: var(--cm-border-width-standard);
+
+  --cm-alert-success-bg: var(--cm-status-success-bg);
+  --cm-alert-success-border: var(--cm-status-success-border);
+  --cm-alert-success-text: var(--cm-text-primary);
+  --cm-alert-success-icon: var(--cm-status-success-icon);
+
+  --cm-alert-warning-bg: var(--cm-status-warning-bg);
+  --cm-alert-warning-border: var(--cm-status-warning-border);
+  --cm-alert-warning-text: var(--cm-text-primary);
+  --cm-alert-warning-icon: var(--cm-status-warning-icon);
+
+  --cm-alert-danger-bg: var(--cm-status-danger-bg);
+  --cm-alert-danger-border: var(--cm-status-danger-border);
+  --cm-alert-danger-text: var(--cm-text-primary);
+  --cm-alert-danger-icon: var(--cm-status-danger-icon);
+
+  --cm-alert-info-bg: var(--cm-status-info-bg);
+  --cm-alert-info-border: var(--cm-status-info-border);
+  --cm-alert-info-text: var(--cm-text-primary);
+  --cm-alert-info-icon: var(--cm-status-info-icon);
+}
+
+/* ═══════════════════════════════════════════
+   MODAL / DRAWER
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-modal-radius: var(--cm-radius-md);
+  --cm-modal-bg: var(--cm-bg-surface);
+  --cm-modal-shadow: var(--cm-elevation-3);
+  --cm-modal-header-border: var(--cm-border-subtle);
+  --cm-modal-footer-border: var(--cm-border-subtle);
+  --cm-modal-overlay: var(--cm-overlay-scrim);
+  --cm-modal-max-height: 85vh;
+}
+
+/* ═══════════════════════════════════════════
+   BADGE
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-badge-radius: var(--cm-radius-full);
+  --cm-badge-font-weight: var(--cm-font-weight-medium);
+  --cm-badge-dot-size: 6px;
+}
+
+/* ═══════════════════════════════════════════
+   SKELETON / LOADING
+   ═══════════════════════════════════════════ */
+:root {
+  --cm-skeleton-base: var(--cm-bg-surface-alt);
+  --cm-skeleton-shimmer: var(--cm-gray-200);
+  --cm-skeleton-duration: 1.5s;
+}
+
+[data-theme="dark"] {
+  --cm-skeleton-base: rgba(255,255,255,.05);
+  --cm-skeleton-shimmer: rgba(255,255,255,.10);
+  --cm-skeleton-duration: 1.5s;
+}

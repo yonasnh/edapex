@@ -1,0 +1,7 @@
+refine ClassApex layout and responsive shell design
+
+Refines navigation sidebar collapsing width, retract action trigger pill design, hides label logo text on retracted state, adds CSS-driven hover popover flyout submenu, and applies a minimalist bottom footer brand information area.
+
+refs UX-101
+
+flag=none

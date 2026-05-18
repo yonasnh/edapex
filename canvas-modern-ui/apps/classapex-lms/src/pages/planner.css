@@ -1,0 +1,417 @@
+/* ============================================================
+   ClassApex — Student Planner / Task Center
+   Weekly view with day grouping, progress tracking
+   ============================================================ */
+
+.cx-planner {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+
+.cx-planner__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.cx-planner__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cx-text-primary, #0f172a);
+  margin: 0;
+}
+
+.cx-planner__subtitle {
+  font-size: 0.85rem;
+  color: var(--cx-text-muted, #64748b);
+  margin-top: 4px;
+}
+
+.cx-planner__controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cx-planner__week-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--cx-surface-raised, #f1f5f9);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.cx-planner__week-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cx-text-secondary, #475569);
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: all 0.12s;
+}
+
+.cx-planner__week-btn:hover {
+  background: var(--cx-surface, #fff);
+  color: var(--cx-text-primary, #0f172a);
+}
+
+.cx-planner__week-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--cx-text-primary, #0f172a);
+  padding: 0 8px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.cx-planner__filter-group {
+  display: flex;
+  gap: 6px;
+}
+
+.cx-planner__filter-chip {
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid var(--cx-border, #e2e8f0);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--cx-text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+
+.cx-planner__filter-chip:hover {
+  border-color: var(--cx-primary, #6366f1);
+  color: var(--cx-primary, #6366f1);
+}
+
+.cx-planner__filter-chip--active {
+  background: var(--cx-primary, #6366f1);
+  color: #fff;
+  border-color: var(--cx-primary, #6366f1);
+}
+
+/* ── Progress Summary ── */
+
+.cx-planner__progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.cx-planner__progress-card {
+  background: var(--cx-surface, #fff);
+  border: 1px solid var(--cx-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: box-shadow 0.15s;
+}
+
+.cx-planner__progress-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cx-planner__progress-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.cx-planner__progress-icon--assignments {
+  background: var(--cx-status-assignment-bg);
+  color: var(--cx-status-assignment-fg);
+}
+
+.cx-planner__progress-icon--quizzes {
+  background: var(--cx-status-quiz-bg);
+  color: var(--cx-status-quiz-fg);
+}
+
+.cx-planner__progress-icon--discussions {
+  background: var(--cx-status-discussion-bg);
+  color: var(--cx-status-discussion-fg);
+}
+
+.cx-planner__progress-icon--overdue {
+  background: var(--cx-status-overdue-bg);
+  color: var(--cx-status-overdue-fg);
+}
+
+.cx-planner__progress-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--cx-text-primary, #0f172a);
+  line-height: 1;
+}
+
+.cx-planner__progress-label {
+  font-size: 0.72rem;
+  color: var(--cx-text-muted, #64748b);
+  margin-top: 2px;
+}
+
+/* ── Day Groups ── */
+
+.cx-planner__days {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cx-planner__day {
+  background: var(--cx-surface, #fff);
+  border: 1px solid var(--cx-border, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cx-planner__day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--cx-surface-raised, #f8fafc);
+  border-bottom: 1px solid var(--cx-border, #e2e8f0);
+}
+
+.cx-planner__day-header--today {
+  background: var(--cx-today-bg);
+  border-bottom-color: var(--cx-today-border);
+}
+
+.cx-planner__day-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--cx-text-primary, #0f172a);
+}
+
+.cx-planner__day-name--today {
+  color: var(--cx-primary, #6366f1);
+}
+
+.cx-planner__day-date {
+  font-size: 0.78rem;
+  color: var(--cx-text-muted, #64748b);
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.cx-planner__day-count {
+  font-size: 0.72rem;
+  color: var(--cx-text-muted, #94a3b8);
+}
+
+/* ── Planner Items ── */
+
+.cx-planner__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cx-planner-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--cx-border-light, #f1f5f9);
+  transition: background 0.1s;
+  cursor: pointer;
+}
+
+.cx-planner-item:last-child {
+  border-bottom: none;
+}
+
+.cx-planner-item:hover {
+  background: var(--cx-surface-hover, #fafafa);
+}
+
+.cx-planner-item--completed {
+  opacity: 0.55;
+}
+
+.cx-planner-item--overdue {
+  border-left: 3px solid #ef4444;
+}
+
+.cx-planner-item__check {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--cx-border, #cbd5e1);
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  background: transparent;
+  padding: 0;
+}
+
+.cx-planner-item__check:hover {
+  border-color: var(--cx-primary, #6366f1);
+}
+
+.cx-planner-item--completed .cx-planner-item__check {
+  background: var(--cx-primary, #6366f1);
+  border-color: var(--cx-primary, #6366f1);
+}
+
+.cx-planner-item__check-mark {
+  color: #fff;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.cx-planner-item__type-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.cx-planner-item__type-icon--assignment {
+  background: var(--cx-status-assignment-bg);
+  color: var(--cx-status-assignment-fg);
+}
+
+.cx-planner-item__type-icon--quiz {
+  background: var(--cx-status-quiz-bg);
+  color: var(--cx-status-quiz-fg);
+}
+
+.cx-planner-item__type-icon--discussion {
+  background: var(--cx-status-discussion-bg);
+  color: var(--cx-status-discussion-fg);
+}
+
+.cx-planner-item__type-icon--event {
+  background: var(--cx-status-event-bg);
+  color: var(--cx-status-event-fg);
+}
+
+.cx-planner-item__type-icon--announcement {
+  background: var(--cx-status-announce-bg);
+  color: var(--cx-status-announce-fg);
+}
+
+.cx-planner-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cx-planner-item__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--cx-text-primary, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cx-planner-item--completed .cx-planner-item__title {
+  text-decoration: line-through;
+}
+
+.cx-planner-item__course {
+  font-size: 0.75rem;
+  color: var(--cx-text-muted, #64748b);
+  margin-top: 1px;
+}
+
+.cx-planner-item__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.cx-planner-item__time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--cx-text-secondary, #475569);
+  white-space: nowrap;
+}
+
+.cx-planner-item__points {
+  font-size: 0.7rem;
+  color: var(--cx-text-muted, #94a3b8);
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: var(--cx-surface-raised, #f1f5f9);
+  border-radius: 4px;
+}
+
+.cx-planner-item__overdue-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--cx-status-overdue-fg);
+  background: var(--cx-status-overdue-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ── Empty Day ── */
+
+.cx-planner__day-empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--cx-text-muted, #94a3b8);
+}
+
+/* ── Completion Bar ── */
+
+.cx-planner__completion-bar {
+  height: 4px;
+  background: var(--cx-border, #e2e8f0);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.cx-planner__completion-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .cx-planner {
+    padding: 16px;
+  }
+  .cx-planner__progress {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cx-planner__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

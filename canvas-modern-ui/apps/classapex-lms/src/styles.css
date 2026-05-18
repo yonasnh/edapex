@@ -1,0 +1,108 @@
+/* ClassApex Additional Styles */
+
+/* Add these to the existing index.css or create a new CSS file and import it */
+
+/* Course Card Progress - Optimized Spacing */
+.course-card__progress {
+  margin: var(--classapex-spacing-md) 0;
+}
+
+.course-card__progress-label {
+  font-size: 0.875rem;
+  color: #a8a8a8;
+  margin-bottom: var(--classapex-spacing-sm);
+}
+
+.course-card__progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #c6c6c6;
+  margin-top: var(--classapex-spacing-xs);
+}
+
+.course-card__button {
+  margin-top: var(--classapex-spacing-md);
+}
+
+/* Assignment Card - Optimized Spacing */
+.assignment-card__course {
+  font-size: 0.875rem;
+  color: #a8a8a8;
+  display: flex;
+  align-items: center;
+  gap: var(--classapex-spacing-sm);
+  margin-bottom: var(--classapex-spacing-md);
+}
+
+.assignment-card__action {
+  margin-top: var(--classapex-spacing-sm);
+}
+
+/* Section Footer - Optimized Spacing */
+.section-footer {
+  margin-top: var(--classapex-spacing-xl);
+  text-align: right;
+}
+
+/* Header Styling */
+.classapex-header {
+  background-color: #161616;
+  border-bottom: 1px solid #393939;
+}
+
+.classapex-header-action:hover {
+  background-color: rgba(15, 98, 254, 0.1);
+}
+
+/* Additional spacing */
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+/* Page Content Layout - Optimized Spacing */
+.classapex-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--classapex-spacing-lg);
+}
+
+/* Enhance Analytics Metric Icons - Optimized Spacing */
+.analytics-metric__icon {
+  color: #78a9ff;
+  margin-bottom: var(--classapex-spacing-sm);
+}
+
+/* Tablet adjustments */
+@media (max-width: 1056px) {
+  .classapex-title {
+    font-size: 2.5rem;
+  }
+  
+  .analytics-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 672px) {
+  .classapex-title {
+    font-size: 2rem;
+  }
+  
+  .classapex-subtitle {
+    font-size: 1rem;
+  }
+  
+  .analytics-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .classapex-courses {
+    grid-template-columns: 1fr;
+  }
+  
+  .assignment-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

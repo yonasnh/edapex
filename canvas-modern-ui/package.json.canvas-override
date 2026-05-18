@@ -1,0 +1,12 @@
+{
+  "name": "@instructure/browserslist-config-canvas-lms",
+  "version": "1.0.0",
+  "description": "SchoolApex override for Canvas LMS browserslist config",
+  "main": "index.js",
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
+}

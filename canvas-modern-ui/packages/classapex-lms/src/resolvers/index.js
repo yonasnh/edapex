@@ -1,0 +1,421 @@
+import { GraphQLScalarType } from 'graphql';
+import { Kind } from 'graphql/language';
+// Custom scalar types
+const DateTimeScalar = new GraphQLScalarType({
+    name: 'DateTime',
+    description: 'Date custom scalar type',
+    serialize(value) {
+        return value instanceof Date ? value.toISOString() : value;
+    },
+    parseValue(value) {
+        return new Date(value);
+    },
+    parseLiteral(ast) {
+        if (ast.kind === Kind.STRING) {
+            return new Date(ast.value);
+        }
+        return null;
+    },
+});
+const BigIntScalar = new GraphQLScalarType({
+    name: 'BigInt',
+    description: 'BigInt custom scalar type',
+    serialize(value) {
+        return value.toString();
+    },
+    parseValue(value) {
+        return BigInt(value);
+    },
+    parseLiteral(ast) {
+        if (ast.kind === Kind.STRING || ast.kind === Kind.INT) {
+            return BigInt(ast.value);
+        }
+        return null;
+    },
+});
+export const resolvers = {
+    DateTime: DateTimeScalar,
+    BigInt: BigIntScalar,
+    Query: {
+        // User queries
+        users: async (_, { limit, offset }, { prisma }) => {
+            return await prisma.user.findMany({
+                take: limit,
+                skip: offset,
+                where: {
+                    workflow_state: 'active',
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+        },
+        user: async (_, { id }, { prisma }) => {
+            return await prisma.user.findUnique({
+                where: { id },
+            });
+        },
+        // Course queries
+        courses: async (_, { limit, offset }, { prisma }) => {
+            return await prisma.course.findMany({
+                take: limit,
+                skip: offset,
+                where: {
+                    workflow_state: {
+                        in: ['available', 'published'],
+                    },
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+        },
+        course: async (_, { id }, { prisma }) => {
+            return await prisma.course.findUnique({
+                where: { id },
+            });
+        },
+        // Assignment queries
+        assignments: async (_, { courseId, limit, offset }, { prisma }) => {
+            return await prisma.assignment.findMany({
+                take: limit,
+                skip: offset,
+                where: {
+                    ...(courseId && { context_id: courseId }),
+                    workflow_state: {
+                        in: ['published', 'available'],
+                    },
+                },
+                orderBy: {
+                    due_at: 'asc',
+                },
+            });
+        },
+        assignment: async (_, { id }, { prisma }) => {
+            return await prisma.assignment.findUnique({
+                where: { id },
+            });
+        },
+        // Enrollment queries
+        enrollments: async (_, { courseId, userId, limit, offset }, { prisma }) => {
+            return await prisma.enrollment.findMany({
+                take: limit,
+                skip: offset,
+                where: {
+                    ...(courseId && { course_id: courseId }),
+                    ...(userId && { user_id: userId }),
+                    workflow_state: 'active',
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+        },
+        // Submission queries
+        submissions: async (_, { assignmentId, userId, limit, offset }, { prisma }) => {
+            return await prisma.submission.findMany({
+                take: limit,
+                skip: offset,
+                where: {
+                    ...(assignmentId && { assignment_id: assignmentId }),
+                    ...(userId && { user_id: userId }),
+                    workflow_state: {
+                        in: ['submitted', 'graded'],
+                    },
+                },
+                orderBy: {
+                    submitted_at: 'desc',
+                },
+            });
+        },
+        // Dashboard stats
+        dashboardStats: async (_, __, { prisma }) => {
+            const [totalUsers, totalCourses, totalAssignments, totalSubmissions, activeUsers, activeCourses] = await Promise.all([
+                prisma.user.count({ where: { workflow_state: 'active' } }),
+                prisma.course.count({ where: { workflow_state: { in: ['available', 'published'] } } }),
+                prisma.assignment.count({ where: { workflow_state: { in: ['published', 'available'] } } }),
+                prisma.submission.count({ where: { workflow_state: { in: ['submitted', 'graded'] } } }),
+                prisma.user.count({
+                    where: {
+                        workflow_state: 'active',
+                        updated_at: {
+                            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+                        },
+                    }
+                }),
+                prisma.course.count({
+                    where: {
+                        workflow_state: { in: ['available', 'published'] },
+                        updated_at: {
+                            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+                        },
+                    }
+                }),
+            ]);
+            return {
+                totalUsers,
+                totalCourses,
+                totalAssignments,
+                totalSubmissions,
+                activeUsers,
+                activeCourses,
+            };
+        },
+        // Course analytics
+        courseAnalytics: async (_, { courseId }, { prisma }) => {
+            const [enrollmentCount, submissionStats] = await Promise.all([
+                prisma.enrollment.count({
+                    where: {
+                        course_id: courseId,
+                        workflow_state: 'active',
+                        type: 'StudentEnrollment',
+                    },
+                }),
+                prisma.submission.aggregate({
+                    where: {
+                        assignment: {
+                            context_id: courseId,
+                        },
+                        workflow_state: 'graded',
+                    },
+                    _avg: {
+                        score: true,
+                    },
+                    _count: {
+                        id: true,
+                    },
+                }),
+            ]);
+            const totalAssignments = await prisma.assignment.count({
+                where: {
+                    context_id: courseId,
+                    workflow_state: { in: ['published', 'available'] },
+                },
+            });
+            const submissionRate = totalAssignments > 0 ? (submissionStats._count.id / (enrollmentCount * totalAssignments)) * 100 : 0;
+            return {
+                courseId,
+                studentEngagement: 85.5, // Placeholder - would calculate from activity data
+                averageGrade: submissionStats._avg.score || 0,
+                submissionRate,
+                activityTrend: [], // Placeholder - would calculate from activity logs
+            };
+        },
+        // Search functions
+        searchUsers: async (_, { query }, { prisma }) => {
+            return await prisma.user.findMany({
+                where: {
+                    OR: [
+                        { name: { contains: query, mode: 'insensitive' } },
+                        { sortable_name: { contains: query, mode: 'insensitive' } },
+                    ],
+                    workflow_state: 'active',
+                },
+                take: 20,
+            });
+        },
+        searchCourses: async (_, { query }, { prisma }) => {
+            return await prisma.course.findMany({
+                where: {
+                    OR: [
+                        { name: { contains: query, mode: 'insensitive' } },
+                        { course_code: { contains: query, mode: 'insensitive' } },
+                    ],
+                    workflow_state: { in: ['available', 'published'] },
+                },
+                take: 20,
+            });
+        },
+    },
+    // Type resolvers for computed fields and relationships
+    User: {
+        displayName: (user) => user.name || user.sortable_name || 'Unknown User',
+        isActive: (user) => user.workflow_state === 'active',
+        enrollments: async (user, _, { prisma }) => {
+            return await prisma.enrollment.findMany({
+                where: {
+                    user_id: user.id,
+                    workflow_state: 'active',
+                },
+            });
+        },
+        submissions: async (user, _, { prisma }) => {
+            return await prisma.submission.findMany({
+                where: {
+                    user_id: user.id,
+                },
+                take: 50,
+                orderBy: {
+                    submitted_at: 'desc',
+                },
+            });
+        },
+        courses: async (user, _, { prisma }) => {
+            const enrollments = await prisma.enrollment.findMany({
+                where: {
+                    user_id: user.id,
+                    workflow_state: 'active',
+                },
+                include: {
+                    course: true,
+                },
+            });
+            return enrollments.map(e => e.course);
+        },
+    },
+    Course: {
+        isActive: (course) => ['available', 'published'].includes(course.workflow_state),
+        isPublished: (course) => course.workflow_state === 'published',
+        studentCount: async (course, _, { prisma }) => {
+            return await prisma.enrollment.count({
+                where: {
+                    course_id: course.id,
+                    type: 'StudentEnrollment',
+                    workflow_state: 'active',
+                },
+            });
+        },
+        teacherCount: async (course, _, { prisma }) => {
+            return await prisma.enrollment.count({
+                where: {
+                    course_id: course.id,
+                    type: 'TeacherEnrollment',
+                    workflow_state: 'active',
+                },
+            });
+        },
+        assignmentCount: async (course, _, { prisma }) => {
+            return await prisma.assignment.count({
+                where: {
+                    context_id: course.id,
+                    workflow_state: { in: ['published', 'available'] },
+                },
+            });
+        },
+        enrollments: async (course, _, { prisma }) => {
+            return await prisma.enrollment.findMany({
+                where: {
+                    course_id: course.id,
+                    workflow_state: 'active',
+                },
+            });
+        },
+        assignments: async (course, _, { prisma }) => {
+            return await prisma.assignment.findMany({
+                where: {
+                    context_id: course.id,
+                    workflow_state: { in: ['published', 'available'] },
+                },
+                orderBy: {
+                    due_at: 'asc',
+                },
+            });
+        },
+        students: async (course, _, { prisma }) => {
+            const enrollments = await prisma.enrollment.findMany({
+                where: {
+                    course_id: course.id,
+                    type: 'StudentEnrollment',
+                    workflow_state: 'active',
+                },
+                include: {
+                    user: true,
+                },
+            });
+            return enrollments.map(e => e.user);
+        },
+        teachers: async (course, _, { prisma }) => {
+            const enrollments = await prisma.enrollment.findMany({
+                where: {
+                    course_id: course.id,
+                    type: 'TeacherEnrollment',
+                    workflow_state: 'active',
+                },
+                include: {
+                    user: true,
+                },
+            });
+            return enrollments.map(e => e.user);
+        },
+    },
+    Assignment: {
+        isPublished: (assignment) => ['published', 'available'].includes(assignment.workflow_state),
+        isOverdue: (assignment) => assignment.due_at && new Date(assignment.due_at) < new Date(),
+        submissionCount: async (assignment, _, { prisma }) => {
+            return await prisma.submission.count({
+                where: {
+                    assignment_id: assignment.id,
+                    workflow_state: { in: ['submitted', 'graded'] },
+                },
+            });
+        },
+        gradedCount: async (assignment, _, { prisma }) => {
+            return await prisma.submission.count({
+                where: {
+                    assignment_id: assignment.id,
+                    workflow_state: 'graded',
+                },
+            });
+        },
+        averageScore: async (assignment, _, { prisma }) => {
+            const result = await prisma.submission.aggregate({
+                where: {
+                    assignment_id: assignment.id,
+                    workflow_state: 'graded',
+                    score: { not: null },
+                },
+                _avg: {
+                    score: true,
+                },
+            });
+            return result._avg.score;
+        },
+        course: async (assignment, _, { prisma }) => {
+            return await prisma.course.findUnique({
+                where: { id: assignment.context_id },
+            });
+        },
+        submissions: async (assignment, _, { prisma }) => {
+            return await prisma.submission.findMany({
+                where: {
+                    assignment_id: assignment.id,
+                },
+                orderBy: {
+                    submitted_at: 'desc',
+                },
+            });
+        },
+    },
+    Enrollment: {
+        isActive: (enrollment) => enrollment.workflow_state === 'active',
+        isStudent: (enrollment) => enrollment.type === 'StudentEnrollment',
+        isTeacher: (enrollment) => enrollment.type === 'TeacherEnrollment',
+        isTA: (enrollment) => enrollment.type === 'TaEnrollment',
+        user: async (enrollment, _, { prisma }) => {
+            return await prisma.user.findUnique({
+                where: { id: enrollment.user_id },
+            });
+        },
+        course: async (enrollment, _, { prisma }) => {
+            return await prisma.course.findUnique({
+                where: { id: enrollment.course_id },
+            });
+        },
+    },
+    Submission: {
+        isSubmitted: (submission) => ['submitted', 'graded'].includes(submission.workflow_state),
+        isGraded: (submission) => submission.workflow_state === 'graded',
+        isLate: (submission) => submission.late_policy_status === 'late',
+        assignment: async (submission, _, { prisma }) => {
+            return await prisma.assignment.findUnique({
+                where: { id: submission.assignment_id },
+            });
+        },
+        user: async (submission, _, { prisma }) => {
+            return await prisma.user.findUnique({
+                where: { id: submission.user_id },
+            });
+        },
+    },
+};
+//# sourceMappingURL=index.js.map

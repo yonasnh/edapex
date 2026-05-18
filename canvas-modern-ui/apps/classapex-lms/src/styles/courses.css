@@ -1,0 +1,314 @@
+/* ClassApex Course Management Styles */
+
+/* Course Management Layout */
+.course-management {
+  margin-top: var(--spacing-08);
+}
+
+.course-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-06);
+  padding: var(--spacing-05);
+  background: var(--classapex-surface-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--classapex-surface-03);
+}
+
+.course-filters {
+  display: flex;
+  gap: var(--spacing-04);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.course-filters .cds--search {
+  min-width: 300px;
+}
+
+@media (max-width: 768px) {
+  .course-toolbar {
+    flex-direction: column;
+    gap: var(--spacing-04);
+    align-items: stretch;
+  }
+  
+  .course-filters {
+    flex-direction: column;
+    gap: var(--spacing-03);
+  }
+  
+  .course-filters .cds--search {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Course Grid Layout */
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: var(--spacing-06);
+  margin: var(--spacing-06) 0;
+}
+
+@media (max-width: 768px) {
+  .course-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-05);
+  }
+}
+
+@media (min-width: 1056px) {
+  .course-grid {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: var(--spacing-07);
+  }
+}
+
+/* Course Statistics Grid */
+.course-stats-grid {
+  margin-bottom: var(--spacing-08);
+}
+
+/* Course Pagination */
+.course-pagination {
+  margin-top: var(--spacing-08);
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-06);
+  background: var(--classapex-surface-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--classapex-surface-03);
+}
+
+/* Enhanced DataTable Styling for Course Table */
+.cds--data-table-container {
+  background: var(--classapex-surface-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--classapex-surface-03);
+  overflow: hidden;
+}
+
+.cds--data-table {
+  background: transparent;
+}
+
+.cds--data-table thead {
+  background: var(--classapex-surface-03);
+}
+
+.cds--data-table th {
+  background: transparent;
+  color: var(--classapex-text-primary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--classapex-surface-04);
+}
+
+.cds--data-table td {
+  color: var(--classapex-text-primary);
+  border-bottom: 1px solid var(--classapex-surface-03);
+}
+
+.cds--data-table tbody tr:hover {
+  background: rgba(15, 98, 254, 0.05);
+}
+
+/* Enhanced Search Styling */
+.cds--search {
+  background: var(--classapex-surface-02);
+  border: 1px solid var(--classapex-surface-03);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.cds--search:focus-within {
+  border-color: var(--classapex-primary);
+  box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.2);
+}
+
+.cds--search-input {
+  background: transparent;
+  color: var(--classapex-text-primary);
+}
+
+.cds--search-input::placeholder {
+  color: var(--classapex-text-helper);
+}
+
+/* Enhanced Dropdown Styling */
+.cds--dropdown {
+  background: var(--classapex-surface-02);
+  border: 1px solid var(--classapex-surface-03);
+  border-radius: var(--radius-md);
+  min-width: 160px;
+}
+
+.cds--dropdown:focus {
+  border-color: var(--classapex-primary);
+  box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.2);
+}
+
+.cds--dropdown .cds--list-box__field {
+  background: transparent;
+  color: var(--classapex-text-primary);
+}
+
+.cds--dropdown .cds--list-box__menu {
+  background: var(--classapex-surface-02);
+  border: 1px solid var(--classapex-surface-03);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-03);
+}
+
+.cds--dropdown .cds--list-box__menu-item {
+  color: var(--classapex-text-primary);
+}
+
+.cds--dropdown .cds--list-box__menu-item:hover {
+  background: var(--classapex-surface-03);
+}
+
+.cds--dropdown .cds--list-box__menu-item--highlighted {
+  background: rgba(15, 98, 254, 0.1);
+}
+
+/* Enhanced Tabs Styling */
+.cds--tabs {
+  border-bottom: 1px solid var(--classapex-surface-03);
+}
+
+.cds--tab--list {
+  border-bottom: none;
+}
+
+.cds--tabs__nav-item {
+  background: transparent;
+}
+
+.cds--tabs__nav-link {
+  color: var(--classapex-text-secondary);
+  border-bottom: 2px solid transparent;
+  padding: var(--spacing-04) var(--spacing-06);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.cds--tabs__nav-link:hover {
+  color: var(--classapex-text-primary);
+  background: rgba(15, 98, 254, 0.05);
+}
+
+.cds--tabs__nav-item--selected .cds--tabs__nav-link {
+  color: var(--classapex-primary);
+  border-bottom-color: var(--classapex-primary);
+  background: rgba(15, 98, 254, 0.1);
+}
+
+/* Enhanced Pagination Styling */
+.cds--pagination {
+  background: transparent;
+  border: none;
+}
+
+.cds--pagination__control-buttons {
+  background: var(--classapex-surface-03);
+  border-radius: var(--radius-md);
+}
+
+.cds--pagination__button {
+  background: transparent;
+  color: var(--classapex-text-primary);
+  border: 1px solid var(--classapex-surface-03);
+  transition: all 0.2s ease;
+}
+
+.cds--pagination__button:hover:not(:disabled) {
+  background: var(--classapex-primary);
+  border-color: var(--classapex-primary);
+  color: var(--classapex-text-on-color);
+}
+
+.cds--pagination__button:disabled {
+  opacity: 0.4;
+}
+
+/* Course Card Enhancements */
+.course-card {
+  transition: all 0.3s cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+.course-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+/* Loading States */
+.course-management .cds--loading {
+  background: var(--classapex-surface-02);
+}
+
+/* Empty States */
+.course-empty-state {
+  text-align: center;
+  padding: var(--spacing-10);
+  background: var(--classapex-surface-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--classapex-surface-03);
+}
+
+.course-empty-state h3 {
+  color: var(--classapex-text-primary);
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-04);
+}
+
+.course-empty-state p {
+  color: var(--classapex-text-secondary);
+  margin-bottom: var(--spacing-06);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 672px) {
+  .analytics-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .course-filters {
+    gap: var(--spacing-03);
+  }
+  
+  .course-toolbar {
+    padding: var(--spacing-04);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .cds--search {
+    border-width: 2px;
+  }
+  
+  .cds--dropdown {
+    border-width: 2px;
+  }
+  
+  .course-card {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .course-card,
+  .cds--search,
+  .cds--dropdown,
+  .cds--tabs__nav-link,
+  .cds--pagination__button {
+    transition: none;
+  }
+  
+  .course-card:hover {
+    transform: none;
+  }
+}

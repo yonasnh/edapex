@@ -1,0 +1,26 @@
+.cm-popover-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.cm-popover-trigger {
+  cursor: pointer;
+  display: inline-flex;
+}
+
+.cm-popover {
+  position: absolute;
+  z-index: var(--cm-z-popover, 1060);
+  background: var(--cm-bg-surface-raised, #FFFFFF);
+  border: 1px solid var(--cm-border-subtle, #E5E7EB);
+  border-radius: var(--cm-radius-sm, 8px);
+  box-shadow: var(--cm-elevation-2, 0 8px 24px rgba(15,23,42,.12));
+  padding: var(--cm-space-3, 12px);
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.cm-popover--bottom { top: calc(100% + var(--cm-space-2, 8px)); left: 50%; transform: translateX(-50%); }
+.cm-popover--top { bottom: calc(100% + var(--cm-space-2, 8px)); left: 50%; transform: translateX(-50%); }
+.cm-popover--left { right: calc(100% + var(--cm-space-2, 8px)); top: 50%; transform: translateY(-50%); }
+.cm-popover--right { left: calc(100% + var(--cm-space-2, 8px)); top: 50%; transform: translateY(-50%); }

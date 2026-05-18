@@ -1,0 +1,19 @@
+# SchoolApex Browser Support
+# Modern browsers for optimal performance and features
+
+# Production browsers
+> 0.5%
+last 2 versions
+not dead
+not ie 11
+not op_mini all
+
+# Development browsers
+Chrome >= 90
+Firefox >= 88
+Safari >= 14
+Edge >= 90
+
+# Mobile browsers
+iOS >= 14
+Android >= 90
