@@ -10,25 +10,30 @@ import CourseCatalog from './CourseCatalog';
 import CourseHome from './CourseHome';
 import AssignmentList from './AssignmentList';
 import AssignmentDetail from './AssignmentDetail';
-import { useCourses } from '../hooks/useCanvasApi';
+import { useCanvasQuery } from '../hooks/useCanvasQuery';
 import './courses-page.css';
 
+// Canvas API course shape
 interface Course {
-  id: string;
+  id: string | number;
   name: string;
   course_code: string;
-  workflow_state: string;
+  workflow_state: 'available' | 'completed' | 'unpublished' | string;
   start_at?: string;
   end_at?: string;
   created_at: string;
-  isActive: boolean;
-  isPublished: boolean;
-  total_students: number;
+  total_students?: number;
   teachers?: { id: string; display_name?: string }[];
-  assignment_count: number;
+  assignment_count?: number;
   syllabus_body?: string;
   image_download_url?: string;
+  course_image?: string;
   public_description?: string;
+  term?: { name: string };
+  course_progress?: {
+    requirement_count: number;
+    requirement_completed_count: number;
+  };
 }
 
 const CoursesOverview: React.FC = () => {
@@ -38,29 +43,30 @@ const CoursesOverview: React.FC = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [sortBy, setSortBy] = useState('name');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const pageSize = 12;
 
-  const { data: courses, loading, error } = useCourses({ per_page: pageSize * 3 });
+  // ── Live Canvas API via TanStack-style useCanvasQuery ──
+  const { data: rawCourses, isLoading, isError } = useCanvasQuery<Course[]>(
+    '/api/v1/courses',
+    {
+      per_page: 100,
+      include: ['term', 'total_students', 'teachers', 'course_image', 'course_progress'],
+    } as any
+  );
 
-  const mockCourses: Course[] = [
-    { id: '1', name: 'Computer Science 101', course_code: 'CS101', workflow_state: 'available', created_at: '2024-01-15T00:00:00Z', isActive: true, isPublished: true, total_students: 45, teachers: [{ id: 't1', display_name: 'Dr. Smith' }], assignment_count: 12, syllabus_body: 'Introduction to computer science fundamentals.' },
-    { id: '2', name: 'Advanced Mathematics', course_code: 'MATH301', workflow_state: 'available', created_at: '2024-01-15T00:00:00Z', isActive: true, isPublished: true, total_students: 28, teachers: [{ id: 't1', display_name: 'Prof. Johnson' }], assignment_count: 8, syllabus_body: 'Advanced topics in calculus and linear algebra.' },
-    { id: '3', name: 'English Literature', course_code: 'ENG201', workflow_state: 'available', created_at: '2024-01-15T00:00:00Z', isActive: true, isPublished: true, total_students: 32, teachers: [{ id: 't1', display_name: 'Dr. Williams' }], assignment_count: 6, syllabus_body: 'Survey of English literature.' },
-    { id: '4', name: 'Physics Fundamentals', course_code: 'PHYS101', workflow_state: 'unpublished', created_at: '2024-01-10T00:00:00Z', isActive: false, isPublished: false, total_students: 0, teachers: [{ id: 't1', display_name: 'Dr. Brown' }], assignment_count: 0 },
-    { id: '5', name: 'Data Structures', course_code: 'CS201', workflow_state: 'completed', created_at: '2023-07-01T00:00:00Z', isActive: false, isPublished: true, total_students: 38, teachers: [{ id: 't2', display_name: 'Prof. Davis' }], assignment_count: 15, syllabus_body: 'Advanced data structures and algorithm design.' },
-  ];
-
-  const effectiveCourses = courses && courses.length > 0 ? courses : mockCourses;
+  const courses = rawCourses ?? [];
+  const loading = isLoading;
+  const error = isError;
 
   const filteredCourses = useMemo(() => {
-    if (!effectiveCourses.length) return [];
-    let filtered = effectiveCourses;
+    if (!courses.length) return [];
+    let filtered = [...courses];
 
     if (filterState !== 'all') {
       filtered = filtered.filter(course => {
         switch (filterState) {
-          case 'active': return course.workflow_state === 'available';
-          case 'inactive': return course.workflow_state !== 'available';
+          case 'active': return course.workflow_state === 'available' || course.workflow_state === 'unpublished';
+          case 'inactive': return course.workflow_state !== 'available' && course.workflow_state !== 'unpublished';
           case 'completed': return course.workflow_state === 'completed';
           default: return true;
         }
@@ -87,27 +93,27 @@ const CoursesOverview: React.FC = () => {
     });
 
     return filtered;
-  }, [effectiveCourses, searchTerm, filterState, sortBy]);
+  }, [courses, searchTerm, filterState, sortBy]);
 
   const totalPages = Math.ceil(filteredCourses.length / pageSize);
   const paginatedCourses = filteredCourses.slice((page - 1) * pageSize, page * pageSize);
   const displayCourses = paginatedCourses || [];
 
   const stats = useMemo(() => {
-    if (!effectiveCourses.length) {
+    if (!courses.length) {
       return { total: 0, active: 0, students: 0, assignments: 0, avgStudents: 0 };
     }
-    const activeCourses = effectiveCourses.filter(c => c.workflow_state === 'available');
-    const totalStudents = effectiveCourses.reduce((sum, c) => sum + (c.total_students || 0), 0);
-    const totalAssignments = effectiveCourses.reduce((sum, c) => sum + (c.assignment_count || 0), 0);
+    const activeCourses = courses.filter(c => c.workflow_state === 'available' || c.workflow_state === 'unpublished');
+    const totalStudents = courses.reduce((sum, c) => sum + (c.total_students || 0), 0);
+    const totalAssignments = courses.reduce((sum, c) => sum + (c.assignment_count || 0), 0);
     return {
-      total: effectiveCourses.length,
+      total: courses.length,
       active: activeCourses.length,
       students: totalStudents,
       assignments: totalAssignments,
-      avgStudents: effectiveCourses.length > 0 ? Math.round(totalStudents / effectiveCourses.length) : 0,
+      avgStudents: courses.length > 0 ? Math.round(totalStudents / courses.length) : 0,
     };
-  }, [effectiveCourses]);
+  }, [courses]);
 
   const getStatusBadgeVariant = (state: string) => {
     switch (state) {
@@ -126,7 +132,7 @@ const CoursesOverview: React.FC = () => {
     }
   };
 
-  const showLoading = loading && (!courses || courses.length === 0);
+  const showLoading = loading && courses.length === 0;
 
   if (showLoading) {
     return (
@@ -141,11 +147,7 @@ const CoursesOverview: React.FC = () => {
 
   return (
     <div className="cx-courses">
-      <div className="cx-courses__header">
-        <div>
-          <h1 className="cx-courses__title">Course Management</h1>
-          <p className="cx-courses__subtitle">Manage and organize all your courses from one centralized dashboard.</p>
-        </div>
+      <div className="cx-courses__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <div className="cx-courses__view-toggle" role="radiogroup" aria-label="View mode">
           <button
             className={clsx('cx-courses-view-btn', viewMode === 'cards' && 'cx-courses-view-btn--active')}
@@ -187,8 +189,8 @@ const CoursesOverview: React.FC = () => {
 
       {error && (
         <div className="cx-notification cx-notification--warning" role="alert">
-          <span className="cx-notification__title">Data not available</span>
-          <span className="cx-notification__subtitle">Using sample data. Connect to GraphQL for real course data.</span>
+          <span className="cx-notification__title">Canvas API unavailable</span>
+          <span className="cx-notification__subtitle">Could not load courses from Canvas. Check that Canvas is running at localhost:3000 and your API token is valid.</span>
         </div>
       )}
 
@@ -246,7 +248,9 @@ const CoursesOverview: React.FC = () => {
               {displayCourses.map(course => {
                 const statusVariant = getStatusBadgeVariant(course.workflow_state);
                 const statusLabel = getStatusLabel(course.workflow_state);
-                const colorIndex = parseInt(course.id) % 8;
+                // Canvas returns numeric IDs; coerce safely for color index
+                const colorIndex = (typeof course.id === 'number' ? course.id : parseInt(String(course.id), 10) || 0) % 8;
+                const bannerImage = course.course_image || course.image_download_url;
 
                 return (
                   <div
@@ -260,8 +264,8 @@ const CoursesOverview: React.FC = () => {
                   >
                     <div
                       className={`cx-courses-card__banner cx-courses-card__banner--c${colorIndex}`}
-                      style={course.image_download_url ? {
-                        background: `url(${course.image_download_url}) center/cover`,
+                      style={bannerImage ? {
+                        background: `url(${bannerImage}) center/cover`,
                       } : undefined}
                     >
                       <div className="cx-courses-card__status">

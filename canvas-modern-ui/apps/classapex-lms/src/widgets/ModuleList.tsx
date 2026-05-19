@@ -19,8 +19,9 @@ interface ModuleListProps {
   onReorder?: (modules: ModuleData[]) => void
 }
 
-function ModuleCollapse({ module: mod, defaultOpen = true, isTeacher, onDragStart, onDragOver, onDrop, dragIndex, onTogglePublish }: {
+function ModuleCollapse({ module: mod, courseId, defaultOpen = true, isTeacher, onDragStart, onDragOver, onDrop, dragIndex, onTogglePublish }: {
   module: ModuleData
+  courseId?: string
   defaultOpen?: boolean
   isTeacher?: boolean
   onDragStart?: (e: React.DragEvent, index: number) => void
@@ -75,7 +76,7 @@ function ModuleCollapse({ module: mod, defaultOpen = true, isTeacher, onDragStar
       {open && mod.items.length > 0 && (
         <div className="cx-module__items">
           {mod.items.map(item => (
-            <ModuleItem key={item.id} item={item} />
+            <ModuleItem key={item.id} item={item} courseId={courseId} moduleId={mod.id} />
           ))}
         </div>
       )}
@@ -135,12 +136,49 @@ export function ModuleList({ modules, isLoading = false, isTeacher = false, cour
     onReorder?.(updated)
   }, [dragIndex, sorted, onReorder])
 
-  const handleSaveOrder = useCallback(() => {
-    if (orderedModules) {
-      const payload = orderedModules.map(m => ({ id: m.id, position: m.position }))
-      console.log('Saving module order:', payload)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  const handleSaveOrder = useCallback(async () => {
+    if (!orderedModules) return
+    setIsSaving(true)
+    setSaveError(null)
+    setSaveSuccess(false)
+
+    try {
+      // Canvas requires individual PUT per module to update position
+      const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-CSRF-Token': decodeURIComponent(token),
+      }
+
+      const results = await Promise.allSettled(
+        orderedModules.map(mod =>
+          fetch(`/api/v1/courses/${courseId}/modules/${mod.id}`, {
+            method: 'PUT',
+            headers,
+            credentials: 'include',
+            body: JSON.stringify({ module: { position: mod.position } }),
+          })
+        )
+      )
+
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok))
+      if (failed.length > 0) {
+        setSaveError(`${failed.length} module(s) failed to save. Please try again.`)
+      } else {
+        setSaveSuccess(true)
+        setTimeout(() => setSaveSuccess(false), 3000)
+      }
+    } catch {
+      setSaveError('Network error saving module order.')
+    } finally {
+      setIsSaving(false)
     }
-  }, [orderedModules])
+  }, [orderedModules, courseId])
 
   const handleTogglePublish = useCallback(async (id: number, published: boolean) => {
     setLocalPublishState(prev => ({ ...prev, [id]: published }))
@@ -176,6 +214,7 @@ export function ModuleList({ modules, isLoading = false, isTeacher = false, cour
         <ModuleCollapse
           key={mod.id}
           module={mod}
+          courseId={courseId}
           defaultOpen={mod.position <= 2}
           isTeacher={isTeacher}
           onDragStart={handleDragStart}
@@ -186,9 +225,21 @@ export function ModuleList({ modules, isLoading = false, isTeacher = false, cour
         />
       ))}
       {isTeacher && orderedModules && (
-        <button className="cx-module-list__save" onClick={handleSaveOrder}>
-          Save Module Order
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          <button
+            className="cx-module-list__save"
+            onClick={handleSaveOrder}
+            disabled={isSaving}
+            aria-busy={isSaving}
+          >
+            {isSaving ? 'Saving…' : saveSuccess ? '✓ Saved!' : 'Save Module Order'}
+          </button>
+          {saveError && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--cx-color-error, #ef4444)', margin: 0 }}>
+              {saveError}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

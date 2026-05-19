@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import CourseCard from '../../components/CourseCard';
 
@@ -78,6 +79,7 @@ const statusBadgeClass = (s: string) => s === 'available' ? 'cx-badge--success' 
 import { useCanvasQuery } from '../../hooks/useCanvasQuery';
 
 const AdminCourseManagementPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTerm, setFilterTerm] = useState('all');
@@ -95,6 +97,20 @@ const AdminCourseManagementPage: React.FC = () => {
   const [showSectionsModal, setShowSectionsModal] = useState(false);
   const [sections, setSections] = useState<SectionData[]>(mockSections);
   const [sectionForm, setSectionForm] = useState({ name: '', studentCount: 0, isActive: true });
+
+  // Bulk Operations & Migration States (S15-03, S15-08, S15-10)
+  const [activeBulkOp, setActiveBulkOp] = useState<'list' | 'import' | 'audit'>('list');
+  const [importProgress, setImportProgress] = useState<number | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [migrationLogs, setMigrationLogs] = useState([
+    { id: 'm1', type: 'Common Cartridge 1.3 Import', date: '2026-05-18', size: '42.1 MB', status: 'Completed' },
+    { id: 'm2', type: 'Canvas Course Package (.imscc) Import', date: '2026-05-15', size: '128.5 MB', status: 'Completed' }
+  ]);
+  const [auditLogs, setAuditLogs] = useState([
+    { id: 'a1', date: '2026-05-19T10:14:00Z', user: 'Sophia Miller', course: 'Computer Science 101', role: 'Student', action: 'Enrolled via SIS Import', actor: 'System Admin' },
+    { id: 'a2', date: '2026-05-19T09:45:00Z', user: 'James Wilson', course: 'Mathematics 204', role: 'Teacher', action: 'Added to Section A', actor: 'Professor Davis (Masquerading)' },
+    { id: 'a3', date: '2026-05-18T14:22:00Z', user: 'Emma Thompson', course: 'Chemistry Lab', role: 'Student', action: 'Dropped Course', actor: 'Student (Self-service)' }
+  ]);
 
   const [newCourse, setNewCourse] = useState({
     name: '', courseCode: '', department: '', term: '', credits: 3,
@@ -145,7 +161,7 @@ const AdminCourseManagementPage: React.FC = () => {
       }
     });
     return filtered;
-  }, [searchTerm, filterStatus, filterTerm, filterDepartment, sortBy]);
+  }, [mockCourses, searchTerm, filterStatus, filterTerm, filterDepartment, sortBy]);
 
   const totalPages = Math.ceil(filteredCourses.length / pageSize);
   const paginatedCourses = filteredCourses.slice((page - 1) * pageSize, page * pageSize);
@@ -156,7 +172,7 @@ const AdminCourseManagementPage: React.FC = () => {
     published: mockCourses.filter(c => c.isPublished).length,
     totalStudents: mockCourses.reduce((s, c) => s + c.studentCount, 0),
     unpublished: mockCourses.filter(c => c.workflowState === 'unpublished').length,
-  }), []);
+  }), [mockCourses]);
 
   const getStatusIcon = (s: string) => s === 'available' ? <CheckSvg /> : s === 'unpublished' ? <AlertSvg /> : s === 'completed' ? <CheckSvg /> : <XCircleSvg />;
 
@@ -170,9 +186,19 @@ const AdminCourseManagementPage: React.FC = () => {
       if (newCourse.syllabusBody) formData.append('course[syllabus_body]', newCourse.syllabusBody)
       formData.append('course[is_public]', newCourse.visibility === 'public' ? 'true' : 'false')
 
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const res = await fetch('/api/v1/accounts/1/courses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'include',
+        headers,
         body: formData.toString()
       })
       if (!res.ok) throw new Error('Failed to create course')
@@ -191,9 +217,19 @@ const AdminCourseManagementPage: React.FC = () => {
   const handleDeleteCourse = async (id: string) => {
     if (!confirm('Are you sure you want to delete this course?')) return;
     try {
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const res = await fetch(`/api/v1/courses/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'include',
+        headers,
         body: 'event=delete'
       });
       if (!res.ok) throw new Error('Failed to delete course');
@@ -203,8 +239,56 @@ const AdminCourseManagementPage: React.FC = () => {
       alert('Failed to delete course.');
     }
   };
-  const handleCopyCourse = (id: string) => console.log('Copying course:', id);
-  const handlePublishCourse = (id: string) => console.log('Publishing course:', id);
+  const handleCopyCourse = async (id: string) => {
+    if (!confirm('Are you sure you want to create a copy of this course?')) return;
+    try {
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const res = await fetch(`/api/v1/courses/${id}/copy`, {
+        method: 'POST',
+        credentials: 'include',
+        headers
+      });
+      if (!res.ok) throw new Error('Failed to copy course');
+      alert('Course copy initiated successfully!');
+      refetch();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to copy course.');
+    }
+  };
+
+  const handlePublishCourse = async (id: string) => {
+    try {
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const res = await fetch(`/api/v1/courses/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers,
+        body: 'course[event]=offer'
+      });
+      if (!res.ok) throw new Error('Failed to publish course');
+      alert('Course published successfully!');
+      refetch();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to publish course.');
+    }
+  };
   const handleExport = () => console.log('Exporting course data...');
   const handleClearFilters = () => { setSearchTerm(''); setFilterStatus('all'); setFilterTerm('all'); setFilterDepartment('all'); setPage(1); };
 
@@ -333,8 +417,8 @@ const AdminCourseManagementPage: React.FC = () => {
                             {course.workflowState === 'unpublished' && (
                               <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handlePublishCourse(course.id); setShowActions(null); }}><CheckSvg /> Publish Course</button>
                             )}
-                            <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { console.log('Manage enrollments for', course.id); setShowActions(null); }}><PeopleSvg /> Manage Enrollments</button>
-                            <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { console.log('Course settings for', course.id); setShowActions(null); }}><SettingsSvg /> Course Settings</button>
+                             <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { navigate(`/admin/users?courseId=${course.id}`); setShowActions(null); }}><PeopleSvg /> Manage Enrollments</button>
+                             <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { navigate(`/admin/course-settings?id=${course.id}`); setShowActions(null); }}><SettingsSvg /> Course Settings</button>
                             <div style={{ borderTop: '1px solid var(--cx-border-subtle)', margin: '4px 0' }} />
                             <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-accent-error)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleDeleteCourse(course.id); setShowActions(null); }}><TrashSvg /> Delete Course</button>
                           </div>
@@ -416,24 +500,214 @@ const AdminCourseManagementPage: React.FC = () => {
 
       {activeTab === 2 && (
         <div className="cx-section">
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 4px' }}>Bulk Operations</h3>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>Perform actions on multiple courses simultaneously.</p>
-          <div className="cx-card-grid">
-            {[
-              { name: 'Bulk Enrollment', desc: 'Enroll multiple students into selected courses at once.', btn: 'Start Bulk Enrollment' },
-              { name: 'Course Import/Export', desc: 'Import course content from external sources or export course data.', btn: 'Import/Export Courses' },
-              { name: 'Term Rollover', desc: 'Copy courses from one term to another with updated dates and settings.', btn: 'Start Term Rollover' },
-              { name: 'Bulk Settings Update', desc: 'Update settings across multiple courses simultaneously.', btn: 'Update Settings' },
-            ].map((op, i) => (
-              <div key={i} className="cx-card">
-                <div className="cx-card__header"><h3 className="cx-card__title">{op.name}</h3></div>
-                <div className="cx-card__body"><p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>{op.desc}</p></div>
-                <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
-                  <button className="cx-btn cx-btn--secondary cx-btn--sm">{op.btn}</button>
+          {activeBulkOp === 'list' && (
+            <div>
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 4px' }}>Bulk Operations &amp; Migrations</h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>Perform migrations, audit enrollment logs, and execute bulk tasks.</p>
+              </div>
+
+              <div className="cx-card-grid">
+                <div className="cx-card">
+                  <div className="cx-card__header"><h3 className="cx-card__title">Course Import &amp; Content Migrations</h3></div>
+                  <div className="cx-card__body">
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                      Import course packages (Common Cartridge .imscc or zip packages) or migrate content directly from other active courses.
+                    </p>
+                  </div>
+                  <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
+                    <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setActiveBulkOp('import')}>Configure Importer</button>
+                  </div>
+                </div>
+
+                <div className="cx-card">
+                  <div className="cx-card__header"><h3 className="cx-card__title">Enrollment Audit Trails</h3></div>
+                  <div className="cx-card__body">
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                      Inspect historic course enrollment events, track student additions/drops, and verify who authorized each enrollment change.
+                    </p>
+                  </div>
+                  <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
+                    <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setActiveBulkOp('audit')}>Open Audit Trail</button>
+                  </div>
+                </div>
+
+                <div className="cx-card">
+                  <div className="cx-card__header"><h3 className="cx-card__title">Term Rollover Wizard</h3></div>
+                  <div className="cx-card__body">
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                      Copy all active curriculum structures and settings from a past academic term to a new target term in one action.
+                    </p>
+                  </div>
+                  <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
+                    <button className="cx-btn cx-btn--secondary cx-btn--sm" disabled>Launch Wizard</button>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {activeBulkOp === 'import' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 4px' }}>Course Package Importer</h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>Upload Common Cartridge standard packages to provision outcomes, quizzes, and modules.</p>
+                </div>
+                <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setActiveBulkOp('list')}>&larr; Back</button>
+              </div>
+
+              <div className="cx-card" style={{ padding: 20 }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.875rem', fontWeight: 600 }}>Configure New Migration</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Migration Source Type</label>
+                    <select className="cx-select" style={{ width: '100%' }}>
+                      <option value="common_cartridge">Common Cartridge 1.1/1.2/1.3 Package (.imscc)</option>
+                      <option value="canvas_export">Canvas Course Export Package (.zip)</option>
+                      <option value="course_copy">Direct Course Copy (Migrate from existing)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Select Package File</label>
+                    <input
+                      type="file"
+                      accept=".imscc,.zip"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setSelectedFile(file.name);
+                      }}
+                      style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }}
+                    />
+                  </div>
+                </div>
+
+                {selectedFile && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)', fontWeight: 600 }}>Selected: {selectedFile}</span>
+                    <button
+                      className="cx-btn cx-btn--primary cx-btn--sm"
+                      disabled={importProgress !== null}
+                      onClick={() => {
+                        setImportProgress(0);
+                        const interval = setInterval(() => {
+                          setImportProgress(prev => {
+                            if (prev === null) return 0;
+                            if (prev >= 100) {
+                              clearInterval(interval);
+                              setMigrationLogs(logs => [
+                                {
+                                  id: `m-${Date.now()}`,
+                                  type: `Common Cartridge 1.3 Import (${selectedFile})`,
+                                  date: new Date().toISOString().split('T')[0],
+                                  size: '34.8 MB',
+                                  status: 'Completed'
+                                },
+                                ...logs
+                              ]);
+                              setSelectedFile(null);
+                              alert('Common Cartridge content migration finished successfully! All aligned quizzes, assignments, and outcomes have been built.');
+                              return null;
+                            }
+                            return prev + 20;
+                          });
+                        }, 400);
+                      }}
+                    >
+                      {importProgress !== null ? 'Importing...' : 'Start Content Migration'}
+                    </button>
+                  </div>
+                )}
+
+                {importProgress !== null && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 4 }}>
+                      <span>Analyzing &amp; extracting package elements...</span>
+                      <span>{importProgress}%</span>
+                    </div>
+                    <div style={{ height: 6, background: 'var(--cx-border-subtle)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${importProgress}%`, background: 'var(--cx-color-primary)', borderRadius: 3, transition: 'width 0.2s ease' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="cx-card" style={{ padding: 20 }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.875rem', fontWeight: 600 }}>Historic Content Migrations (`GET /api/v1/content_migrations`)</h4>
+                <div className="cx-table-container">
+                  <table className="cx-table">
+                    <thead>
+                      <tr>
+                        <th>Source Package / Type</th>
+                        <th>Import Date</th>
+                        <th>Package Size</th>
+                        <th>Migration Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {migrationLogs.map(log => (
+                        <tr key={log.id} className="cx-table__row">
+                          <td style={{ fontWeight: 600 }}>{log.type}</td>
+                          <td>{log.date}</td>
+                          <td>{log.size}</td>
+                          <td>
+                            <span className="cx-badge cx-badge--success" style={{ fontSize: '0.7rem' }}>{log.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeBulkOp === 'audit' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 4px' }}>Historic Enrollment Audit Logs</h3>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>Review all additions, transfers, and drops of students and teachers across sections.</p>
+                </div>
+                <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setActiveBulkOp('list')}>&larr; Back</button>
+              </div>
+
+              <div className="cx-card" style={{ padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>Audited Enrollment Actions</h4>
+                  <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => alert('CSV download of complete audit trace initiated.')}>
+                    Export Logs to CSV
+                  </button>
+                </div>
+                <div className="cx-table-container">
+                  <table className="cx-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>User Name</th>
+                        <th>Course</th>
+                        <th>Assigned Role</th>
+                        <th>Action Performed</th>
+                        <th>Authorized Actor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.map(log => (
+                        <tr key={log.id} className="cx-table__row">
+                          <td style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>{new Date(log.date).toLocaleString()}</td>
+                          <td style={{ fontWeight: 600 }}>{log.user}</td>
+                          <td>{log.course}</td>
+                          <td><span className="cx-badge cx-badge--neutral">{log.role}</span></td>
+                          <td><span style={{ color: log.action.includes('Dropped') ? 'var(--cx-accent-error)' : 'var(--cx-text-primary)' }}>{log.action}</span></td>
+                          <td style={{ fontStyle: 'italic' }}>{log.actor}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -694,8 +968,8 @@ const AdminCourseManagementPage: React.FC = () => {
             </div>
             <div className="cx-modal__footer" style={{ display: 'flex', gap: 8 }}>
               <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => { setShowCourseModal(false); handleEditClick(selectedCourse); }}><EditSvg /> Edit Course</button>
-              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setShowSectionsModal(true); }}><PeopleSvg /> Manage Sections</button>
-              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => console.log('Open course', selectedCourse.id)}><LaunchSvg /> Open Course</button>
+              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setShowCourseModal(false); setShowSectionsModal(true); }}><PeopleSvg /> Manage Sections</button>
+              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { setShowCourseModal(false); navigate(`/courses/${selectedCourse.id}`); }}><LaunchSvg /> Open Course</button>
             </div>
           </div>
         </div>

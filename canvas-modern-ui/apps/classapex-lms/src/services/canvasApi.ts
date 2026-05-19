@@ -311,7 +311,8 @@ class CanvasApiService {
 // Create and export the Canvas API service instance
 const canvasApi = new CanvasApiService({
   baseUrl: '', // Use relative URLs since we're using Vite proxy
-  apiToken: process.env.VITE_CANVAS_API_TOKEN, // Optional: can be set via localStorage too
+  // Vite exposes env vars via import.meta.env, NOT process.env
+  apiToken: (import.meta as any).env?.VITE_CANVAS_API_TOKEN,
 });
 
 export default canvasApi;

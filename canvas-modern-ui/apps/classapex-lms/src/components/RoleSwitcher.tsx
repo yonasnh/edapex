@@ -100,7 +100,7 @@ export function RoleSwitcher() {
                       {cfg.label}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--cx-text-muted)' }}>
-                      {key === 'student' ? 'Alex Johnson' : key === 'teacher' ? 'Dr. Sarah Chen' : 'System Admin'}
+                      {key === 'student' ? 'PlayStudent lMRL5n2z16' : key === 'teacher' ? 'Dr. Sarah Chen' : 'System Admin'}
                     </div>
                   </div>
                   {isActive && (

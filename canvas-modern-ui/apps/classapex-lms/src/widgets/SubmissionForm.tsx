@@ -9,22 +9,53 @@ interface SubmissionFormProps {
   courseId?: number | string
   onProgress?: (pct: number) => void
   onSubmit?: (data: { type: SubmissionType; body?: string; url?: string; files?: File[]; fileIds?: (string | number)[] }) => void
+  onSuccess?: () => void
 }
 
-export function SubmissionForm({ assignmentId, submissionTypes = ['online_text_entry'], courseId, onProgress, onSubmit }: SubmissionFormProps) {
+async function postSubmissionToCanvas(
+  courseId: number | string,
+  assignmentId: number,
+  payload: {
+    submission_type: string
+    body?: string
+    url?: string
+    file_ids?: (string | number)[]
+  }
+): Promise<boolean> {
+  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
+  const res = await fetch(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-CSRF-Token': decodeURIComponent(token),
+    },
+    body: JSON.stringify({ submission: payload }),
+  })
+  return res.ok
+}
+
+export function SubmissionForm({ assignmentId, submissionTypes = ['online_text_entry'], courseId, onProgress, onSubmit, onSuccess }: SubmissionFormProps) {
   const [subType, setSubType] = useState<SubmissionType>(submissionTypes[0])
   const [textBody, setTextBody] = useState('')
   const [url, setUrl] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!courseId) { setErrorMessage('Missing course ID'); return }
     setIsSubmitting(true)
+    setSubmitStatus('idle')
+    setErrorMessage(null)
 
-    if (subType === 'online_upload' && files.length > 0) {
-      try {
+    try {
+      if (subType === 'online_upload' && files.length > 0) {
+        // Step 1: Upload each file to Canvas
         const fileIds: (string | number)[] = []
         for (const file of files) {
           const result = await canvasApi.uploadFile(file, courseId as any)
@@ -33,16 +64,43 @@ export function SubmissionForm({ assignmentId, submissionTypes = ['online_text_e
           setUploadProgress(pct)
           onProgress?.(pct)
         }
+        // Step 2: POST submission with file IDs
+        const ok = await postSubmissionToCanvas(courseId, assignmentId, {
+          submission_type: 'online_upload',
+          file_ids: fileIds,
+        })
+        if (!ok) throw new Error('Submission failed after upload')
         onSubmit?.({ type: subType, files, fileIds })
-      } catch (err) {
-        console.error('Upload failed:', err)
+      } else if (subType === 'online_text_entry') {
+        const ok = await postSubmissionToCanvas(courseId, assignmentId, {
+          submission_type: 'online_text_entry',
+          body: textBody,
+        })
+        if (!ok) throw new Error('Submission failed')
+        onSubmit?.({ type: subType, body: textBody })
+      } else if (subType === 'online_url') {
+        const ok = await postSubmissionToCanvas(courseId, assignmentId, {
+          submission_type: 'online_url',
+          url,
+        })
+        if (!ok) throw new Error('Submission failed')
+        onSubmit?.({ type: subType, url })
       }
-    } else {
-      onSubmit?.({ type: subType, body: textBody, url, files })
+
+      setSubmitStatus('success')
+      setTextBody('')
+      setUrl('')
+      setFiles([])
+      onSuccess?.()
+    } catch (err: any) {
+      console.error('Submission error:', err)
+      setSubmitStatus('error')
+      setErrorMessage(err?.message || 'Submission failed. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+      setUploadProgress(null)
     }
-    setIsSubmitting(false)
-    setUploadProgress(null)
-  }, [subType, textBody, url, files, courseId, onSubmit, onProgress])
+  }, [subType, textBody, url, files, courseId, assignmentId, onSubmit, onProgress, onSuccess])
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {

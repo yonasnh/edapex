@@ -2,7 +2,9 @@ import React, { useState, useMemo } from 'react'
 
 interface Person {
   id: number
-  display_name: string
+  display_name?: string
+  name?: string
+  short_name?: string
   avatar_url?: string
   email?: string
   enrollments?: { role: string; type: string }[]
@@ -28,7 +30,10 @@ export function PeopleList({ people, isLoading = false }: PeopleListProps) {
     let result = people
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      result = result.filter(p => p.display_name.toLowerCase().includes(q))
+      result = result.filter(p => {
+        const name = p.display_name || p.name || p.short_name || ''
+        return name.toLowerCase().includes(q)
+      })
     }
     if (filterRole !== 'all') {
       result = result.filter(p => p.enrollments?.some(e => e.role === filterRole))
@@ -69,12 +74,13 @@ export function PeopleList({ people, isLoading = false }: PeopleListProps) {
       <ul className="cx-people__list">
         {filtered.map(person => {
           const role = person.enrollments?.[0]?.role?.replace('Enrollment', '').replace(/([A-Z])/g, ' $1').trim() || ''
-          const initials = person.display_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+          const displayName = person.display_name || person.name || person.short_name || 'Unknown User'
+          const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
           return (
             <li key={person.id} className="cx-people__item">
               <span className="cx-people__avatar">{initials}</span>
               <div className="cx-people__info">
-                <span className="cx-people__name">{person.display_name}</span>
+                <span className="cx-people__name">{displayName}</span>
                 <span className="cx-people__role">{role}</span>
               </div>
               {person.bio && <span className="cx-people__bio" title={person.bio}>i</span>}

@@ -316,3 +316,10 @@
 .cx-skeleton--list {
   height: 120px;
 }
+
+@media (max-width: 480px) {
+  .cx-dashboard__stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: var(--cx-space-3) !important;
+  }
+}

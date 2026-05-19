@@ -30,6 +30,20 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   retries?: number
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return decodeURIComponent(parts.pop()!.split(';').shift() || '')
+  return null
+}
+
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null
+  const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null
+  return meta?.content || getCookie('_csrf_token') || getCookie('authenticity_token')
+}
+
 export class CanvasApiClient {
   private config: ApiClientConfig
   private rateLimitRemaining = 700
@@ -59,6 +73,11 @@ export class CanvasApiClient {
       headers['Authorization'] = `Bearer ${this.config.accessToken}`
     }
 
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken
+    }
+
     if (body && !(body instanceof FormData)) {
       headers['Content-Type'] = 'application/json'
     }
@@ -74,7 +93,9 @@ export class CanvasApiClient {
     let lastError: Error | null = null
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        const credentialsOption = fetchOptions.credentials || (this.config.accessToken ? 'same-origin' : 'include')
         const response = await fetch(url, {
+          credentials: credentialsOption,
           ...fetchOptions,
           headers,
           body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
@@ -141,7 +162,13 @@ export class CanvasApiClient {
       headers['Authorization'] = `Bearer ${this.config.accessToken}`
     }
 
-    const response = await fetch(url, { ...fetchOptions, headers })
+    const csrfToken = getCsrfToken()
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken
+    }
+
+    const credentialsOption = fetchOptions.credentials || (this.config.accessToken ? 'same-origin' : 'include')
+    const response = await fetch(url, { credentials: credentialsOption, ...fetchOptions, headers })
 
     if (!response.ok) {
       throw new CanvasApiError(`API Error: ${response.status}`, response.status)

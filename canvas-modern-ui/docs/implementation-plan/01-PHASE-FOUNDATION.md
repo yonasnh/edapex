@@ -35,20 +35,20 @@
 ## Sprint 3: Navigation Shell & Routing
 
 ### Tasks
-- [x] **S3-01** Implement React Router with lazy-loaded route splits *(existing)*
-- [x] **S3-02** Build responsive `Sidebar` with role-based menu *(existing)*
+- [x] **S3-01** Implement React Router with lazy-loaded route splits *(existing)* ✅
+- [x] **S3-02** Build responsive `Sidebar` with role-based menu *(existing)* ✅
 - [x] **S3-03** Build `TopBar` with search, notifications, theme toggle, user menu ✅
 - [x] **S3-04** Create breadcrumb system → `navigation/Breadcrumb.tsx` ✅
 - [x] **S3-05** Build `NotificationDropdown` fetching activity stream ✅
 - [x] **S3-06** Implement global search bar hitting Canvas search API ✅
 - [x] **S3-07** Create loading skeletons for all shell sections ✅
 - [x] **S3-08** Implement tenant config loader → `config/tenant.config.ts` ✅
-- [x] **S3-09** Build `ErrorBoundary` and error pages *(existing)*
+- [x] **S3-09** Build `ErrorBoundary` and error pages *(existing)* ✅
 - [x] **S3-10** Add keyboard navigation (Cmd+K, Escape close, skip links) — WCAG 2.1 ✅
 
 ---
 
-## 📊 Sprint 1–3 Progress: **29/30 tasks done (97%)**
+## 📊 Sprint 1–3 Progress: **30/30 tasks done (100%)**
 
 ### Files Created This Session
 

@@ -1,42 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import clsx from 'clsx';
 import FileCard from '../components/FileCard';
+import { useCanvasQuery } from '../hooks/useCanvasQuery';
 
 interface FileItem {
   id: string;
   name: string;
+  // Canvas API mime_class: 'folder', 'pdf', 'image', 'video', 'audio', 'doc', 'zip'
   type: 'folder' | 'document' | 'pdf' | 'image' | 'video' | 'audio' | 'other';
   size?: number;
   modifiedAt: string;
   modifiedBy?: string;
   isShared?: boolean;
   downloadCount?: number;
-  parentId?: string;
-  courseId?: string;
-  courseName?: string;
+  url?: string;
+  thumbnail_url?: string;
 }
 
-const mockFiles: FileItem[] = [
-  { id: 'f1', name: 'Course Materials', type: 'folder', modifiedAt: '2024-01-15T10:30:00Z', modifiedBy: 'Dr. Wilson' },
-  { id: 'f2', name: 'Lecture Notes', type: 'folder', modifiedAt: '2024-01-14T14:00:00Z', modifiedBy: 'Dr. Wilson', isShared: true },
-  { id: 'f3', name: 'Syllabus.pdf', type: 'pdf', size: 245000, modifiedAt: '2024-01-10T09:00:00Z', modifiedBy: 'Dr. Wilson', downloadCount: 45 },
-  { id: 'f4', name: 'Homework1.pdf', type: 'pdf', size: 180000, modifiedAt: '2024-01-12T11:20:00Z', modifiedBy: 'Admin', downloadCount: 32 },
-  { id: 'f5', name: 'Lecture_Week1.pptx', type: 'document', size: 3200000, modifiedAt: '2024-01-08T08:00:00Z', modifiedBy: 'Dr. Wilson', downloadCount: 28 },
-  { id: 'f6', name: 'Diagram.png', type: 'image', size: 560000, modifiedAt: '2024-01-13T16:45:00Z', modifiedBy: 'TA', downloadCount: 15, isShared: true },
-  { id: 'f7', name: 'Lecture_Recording.mp4', type: 'video', size: 45000000, modifiedAt: '2024-01-11T10:00:00Z', modifiedBy: 'Dr. Wilson', downloadCount: 38 },
-  { id: 'f8', name: 'Audio_Notes.mp3', type: 'audio', size: 5200000, modifiedAt: '2024-01-09T13:30:00Z', modifiedBy: 'TA' },
-  { id: 'f9', name: 'References', type: 'folder', modifiedAt: '2024-01-07T09:15:00Z', modifiedBy: 'Librarian' },
-  { id: 'f10', name: 'Lab_Report_Template.docx', type: 'document', size: 95000, modifiedAt: '2024-01-14T12:00:00Z', modifiedBy: 'Admin', downloadCount: 22 },
-  { id: 'f11', name: 'Grade_Spreadsheet.xlsx', type: 'document', size: 420000, modifiedAt: '2024-01-15T08:30:00Z', modifiedBy: 'Dr. Wilson', isShared: true },
-  { id: 'f12', name: 'Project_Guidelines.pdf', type: 'pdf', size: 310000, modifiedAt: '2024-01-06T16:00:00Z', modifiedBy: 'Dr. Wilson', downloadCount: 50 },
-];
-
-const mockCourses = [
-  { id: 'cs101', name: 'Computer Science 101' },
-  { id: 'eng201', name: 'English Literature' },
-  { id: 'math301', name: 'Advanced Mathematics' },
-];
-
+// Canvas mime_class → our FileItem.type
+function toFileType(mimeClass: string): FileItem['type'] {
+  switch (mimeClass) {
+    case 'folder': return 'folder';
+    case 'pdf': return 'pdf';
+    case 'image': return 'image';
+    case 'video': return 'video';
+    case 'audio': return 'audio';
+    case 'doc': case 'xls': case 'ppt': case 'text': return 'document';
+    default: return 'other';
+  }
+}
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function UploadSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 11V3M4 7l4-4 4 4"/><path d="M2 13h12"/></svg>; }
 function FolderAddSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 11a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1h4l1.5 2H13a1 1 0 011 1z"/><path d="M8 8v4M6 10h4"/></svg>; }
@@ -51,20 +43,118 @@ function DownloadSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" 
 function EyeSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 7s2.5-4 6-4 6 4 6 4-2.5 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.5"/></svg>; }
 
 const FilesPage: React.FC = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('name');
   const [filterType, setFilterType] = useState('all');
-  const [filterCourse, setFilterCourse] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const pageSize = 12;
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [uploadCourseId, setUploadCourseId] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // ── Live Canvas API ──
+  const { data: rawFiles, isLoading, refetch: refetchFiles } = useCanvasQuery<any[]>(
+    '/api/v1/users/self/files',
+    { per_page: 100, sort: 'created_at', order: 'desc' } as any
+  )
+  const { data: rawFolders, refetch: refetchFolders } = useCanvasQuery<any[]>(
+    '/api/v1/users/self/folders',
+    { per_page: 50 } as any
+  )
+  const { data: rawCourses } = useCanvasQuery<any[]>(
+    '/api/v1/courses',
+    { enrollment_state: 'active', per_page: 50 } as any
+  )
+
+  const courses = Array.isArray(rawCourses) ? rawCourses : []
+
+  // Merge files + folders into unified FileItem list
+  const allFiles: FileItem[] = useMemo(() => {
+    const folders = Array.isArray(rawFolders) ? rawFolders.map(f => ({
+      id: `folder_${f.id}`,
+      name: f.name,
+      type: 'folder' as const,
+      modifiedAt: f.updated_at || f.created_at,
+      modifiedBy: undefined,
+    })) : []
+    const files = Array.isArray(rawFiles) ? rawFiles.map(f => ({
+      id: String(f.id),
+      name: f.display_name || f.filename,
+      type: toFileType(f.mime_class || ''),
+      size: f.size,
+      modifiedAt: f.updated_at || f.created_at,
+      modifiedBy: f.user?.name,
+      url: f.url,
+      thumbnail_url: f.thumbnail_url,
+    })) : []
+    return [...folders, ...files]
+  }, [rawFiles, rawFolders])
+
+  // ── Upload handler using Canvas 3-step upload protocol ──
+  const handleFileUpload = async (file: File) => {
+    if (!file) return
+    setIsUploading(true)
+    try {
+      const endpoint = uploadCourseId
+        ? `/api/v1/courses/${uploadCourseId}/files`
+        : '/api/v1/users/self/files'
+
+      // Step 1: Notify Canvas
+      const notifyRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: file.name, size: file.size, content_type: file.type }),
+      })
+      if (!notifyRes.ok) throw new Error('Upload notify failed')
+      const { upload_url, upload_params } = await notifyRes.json()
+
+      // Step 2: Upload file to pre-signed URL
+      const formData = new FormData()
+      Object.entries(upload_params || {}).forEach(([k, v]) => formData.append(k, v as string))
+      formData.append('file', file)
+      const uploadRes = await fetch(upload_url, { method: 'POST', body: formData })
+      if (!uploadRes.ok) throw new Error('File upload failed')
+
+      // Step 3: Confirm upload (follow redirect)
+      const confirmUrl = uploadRes.headers.get('Location') || (await uploadRes.json()).location
+      if (confirmUrl) await fetch(confirmUrl, { method: 'GET' })
+
+      refetchFiles()
+      refetchFolders()
+      setShowUploadModal(false)
+    } catch (err) {
+      console.error('[Files] Upload failed:', err)
+      alert('Upload failed. Check console for details.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return
+    try {
+      const res = await fetch('/api/v1/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFolderName, parent_folder_path: '/' }),
+      })
+      if (!res.ok) throw new Error('Create folder failed')
+      refetchFolders()
+      setNewFolderName('');
+      setShowCreateFolderModal(false);
+    } catch (err) {
+      console.error('[Files] Create folder failed:', err)
+      alert('Failed to create folder.')
+    }
+  };
 
   const filteredFiles = useMemo(() => {
-    let filtered = [...mockFiles];
+    let filtered = [...allFiles];
     if (filterType !== 'all') filtered = filtered.filter(f => f.type === filterType);
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -81,19 +171,20 @@ const FilesPage: React.FC = () => {
       }
     });
     return filtered;
-  }, [searchTerm, filterType, sortBy]);
+  }, [allFiles, searchTerm, filterType, sortBy]);
 
   const totalPages = Math.ceil(filteredFiles.length / pageSize);
   const paginatedFiles = filteredFiles.slice((page - 1) * pageSize, page * pageSize);
 
   const stats = useMemo(() => ({
-    totalFiles: mockFiles.filter(f => f.type !== 'folder').length,
-    totalFolders: mockFiles.filter(f => f.type === 'folder').length,
-    totalSize: mockFiles.reduce((s, f) => s + (f.size || 0), 0),
-    sharedFiles: mockFiles.filter(f => f.isShared).length,
-  }), []);
+    totalFiles: allFiles.filter(f => f.type !== 'folder').length,
+    totalFolders: allFiles.filter(f => f.type === 'folder').length,
+    totalSize: allFiles.reduce((s, f) => s + (f.size || 0), 0),
+    sharedFiles: allFiles.filter(f => f.isShared).length,
+  }), [allFiles]);
 
   const formatFileSize = (bytes: number): string => {
+    if (!bytes) return '0 B';
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
@@ -102,14 +193,6 @@ const FilesPage: React.FC = () => {
   const formatDate = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const handleClearFilters = () => { setSearchTerm(''); setFilterType('all'); setPage(1); };
-
-  const handleCreateFolder = () => {
-    if (newFolderName.trim()) {
-      console.log('Creating folder:', newFolderName);
-      setNewFolderName('');
-      setShowCreateFolderModal(false);
-    }
-  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -120,19 +203,25 @@ const FilesPage: React.FC = () => {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Files</h1>
-          <p className="cx-page__subtitle">Upload, organize, and share files across your courses</p>
-        </div>
-      </div>
+      {/* Hidden file input for upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const file = e.target.files?.[0]
+          if (file) handleFileUpload(file)
+          e.target.value = ''
+        }}
+      />
+
 
       <div className="cx-stats-grid">
         {[
-          { label: 'Total Files', value: stats.totalFiles, icon: <DocumentSvg /> },
-          { label: 'Folders', value: stats.totalFolders, icon: <FolderSvg /> },
-          { label: 'Storage Used', value: formatFileSize(stats.totalSize), icon: <CloudSvg /> },
-          { label: 'Shared Files', value: stats.sharedFiles, icon: <ShareSvg /> },
+          { label: 'Total Files', value: isLoading ? '…' : stats.totalFiles, icon: <DocumentSvg /> },
+          { label: 'Folders', value: isLoading ? '…' : stats.totalFolders, icon: <FolderSvg /> },
+          { label: 'Storage Used', value: isLoading ? '…' : formatFileSize(stats.totalSize), icon: <CloudSvg /> },
+          { label: 'Shared Files', value: isLoading ? '…' : stats.sharedFiles, icon: <ShareSvg /> },
         ].map((s, i) => (
           <div key={i} className="cx-stat-card">
             <div className="cx-stat-card__icon">{s.icon}</div>
@@ -282,16 +371,32 @@ const FilesPage: React.FC = () => {
             </div>
             <div className="cx-modal__body">
               <div className="cx-upload-form">
-                <div className="cx-file-upload-area" onClick={() => {}}>
+                <div
+                  className="cx-file-upload-area"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault()
+                    const file = e.dataTransfer.files?.[0]
+                    if (file) handleFileUpload(file)
+                  }}
+                >
                   <div className="cx-file-upload-area__icon"><UploadSvg /></div>
-                  <p style={{ fontWeight: 500, marginBottom: 4 }}>Choose files or drag them here</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Max file size is 500MB. Supported formats: PDF, DOC, PPT, XLS, images, videos.</p>
+                  <p style={{ fontWeight: 500, marginBottom: 4 }}>
+                    {isUploading ? 'Uploading…' : 'Choose files or drag them here'}
+                  </p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Max file size 500MB. PDF, DOC, PPT, XLS, images, videos.</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>Course (optional)</label>
-                  <select className="cx-select" style={{ width: '100%' }} defaultValue="">
+                  <select
+                    className="cx-select"
+                    style={{ width: '100%' }}
+                    value={uploadCourseId}
+                    onChange={e => setUploadCourseId(e.target.value)}
+                  >
                     <option value="">Personal files</option>
-                    {mockCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>

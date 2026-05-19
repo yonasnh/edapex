@@ -7,7 +7,7 @@
  *  - Current user info for TopBar
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useCanvasQuery } from './useCanvasQuery'
 import type { ActivityStreamItem } from '../../../../packages/components/src/ui/layout/NotificationDropdown'
 import type { SearchResult } from '../../../../packages/components/src/ui/layout/GlobalSearchModal'
@@ -61,6 +61,7 @@ interface CanvasUser {
   display_name?: string
   avatar_url?: string
   primary_email?: string
+  login_id?: string
   bio?: string
 }
 

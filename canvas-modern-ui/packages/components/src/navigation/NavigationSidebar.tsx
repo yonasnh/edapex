@@ -18,6 +18,9 @@ function ChevronDownIcon(props: any) { return <svg width="14" height="14" viewBo
 function GroupIcon(props: any) { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 17v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 002 15.5V17"/><circle cx="7.5" cy="6" r="3.5"/><path d="M18 17v-1.5a3.5 3.5 0 00-2.5-3.4"/><circle cx="14" cy="6" r="3.5"/></svg>; }
 function HomeIcon(props: any) { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10l7-7 7 7"/><path d="M5 8v8h4v-5h4v5h4V8"/></svg>; }
 
+function SunIcon(props: any) { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="5"/><path d="M10 1v2M10 17v2M1 10h2M17 10h2M3.64 3.64l1.41 1.41M14.95 14.95l1.41 1.41M3.64 16.36l1.41-1.41M14.95 5.05l1.41-1.41"/></svg>; }
+function MoonIcon(props: any) { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17.29 13.9A8 8 0 118.9 3.5a6 6 0 008.39 10.4z"/></svg>; }
+
 interface NavigationItem {
   id: string
   label: string
@@ -40,6 +43,8 @@ interface NavigationSidebarProps {
   logo?: React.ReactNode
   className?: string
   'data-testid'?: string
+  theme?: 'light' | 'dark'
+  onThemeToggle?: () => void
 }
 
 export const NavigationSidebar = memo<NavigationSidebarProps>(
@@ -54,6 +59,8 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
     logo,
     className,
     'data-testid': testId,
+    theme = 'light',
+    onThemeToggle,
   }) => {
     const [expandedMenus, setExpandedMenus] = useState<string[]>([])
 
@@ -75,6 +82,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
     ]
 
     const navigationItems = customItems.length > 0 ? customItems : defaultNavigationItems
+    const mainNavigationItems = navigationItems.filter(item => item.id !== 'help')
 
     const handleItemClick = (item: NavigationItem, event?: React.MouseEvent) => {
       if (event) event.preventDefault()
@@ -146,12 +154,16 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
             className={clsx('navigation-sidebar__link', isActive && 'navigation-sidebar__link--active')}
             onClick={(e) => handleItemClick(item, e)}
           >
-            <span className="navigation-sidebar__link-icon"><Icon size={20} /></span>
+            <span className="navigation-sidebar__link-icon">
+              <Icon size={20} />
+            </span>
             {!isCollapsed && (
-              <span className="navigation-sidebar__link-label">{item.label}</span>
-            )}
-            {!isCollapsed && showBadges && item.badge && item.badge > 0 && (
-              <span className="navigation-sidebar__badge">{item.badge > 99 ? '99+' : item.badge}</span>
+              <span className="navigation-sidebar__link-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span>{item.label}</span>
+                {showBadges && item.badge && item.badge > 0 && (
+                  <span className="navigation-sidebar__badge">{item.badge > 99 ? '99+' : item.badge}</span>
+                )}
+              </span>
             )}
           </button>
         </li>
@@ -166,25 +178,57 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
         <div className="navigation-sidebar__scroll">
           {logo && <div className="navigation-sidebar__logo">{logo}</div>}
 
-          <div className="navigation-sidebar__user">
-            {currentUser.avatar_url && (
-              <img src={currentUser.avatar_url} alt={`${currentUser.name} avatar`} className="navigation-sidebar__user-avatar" />
-            )}
-            {!isCollapsed && (
-              <div className="navigation-sidebar__user-info">
-                <span className="navigation-sidebar__user-name">{currentUser.name}</span>
-                <span className="navigation-sidebar__user-role">
-                  {currentUser.roles[0]?.charAt(0).toUpperCase() + currentUser.roles[0]?.slice(1)}
-                </span>
-              </div>
-            )}
-          </div>
-
           <nav aria-label="Main navigation" className="navigation-sidebar__content">
             <ul className="navigation-sidebar__list">
-              {navigationItems.map(renderNavItem)}
+              {mainNavigationItems.map(renderNavItem)}
             </ul>
           </nav>
+
+          {onThemeToggle && (
+            <div className="navigation-sidebar__theme-section">
+              <div className="navigation-sidebar__divider" />
+              <button
+                className="navigation-sidebar__theme-toggle"
+                onClick={onThemeToggle}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span className="navigation-sidebar__theme-icon">
+                  {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+                </span>
+                {!isCollapsed && (
+                  <span className="navigation-sidebar__theme-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                    <span className={clsx('navigation-sidebar__switch', theme === 'dark' && 'navigation-sidebar__switch--active')}>
+                      <span className="navigation-sidebar__switch-handle" />
+                    </span>
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          <div className="navigation-sidebar__help-section">
+            <div className="navigation-sidebar__divider" />
+            <button
+              className={clsx('navigation-sidebar__help-button', activeItem === 'help' && 'navigation-sidebar__help-button--active')}
+              onClick={() => {
+                const helpItem = navigationItems.find(item => item.id === 'help')
+                if (helpItem) {
+                  handleItemClick(helpItem)
+                } else if (onNavigate) {
+                  onNavigate('help', '/help')
+                }
+              }}
+              aria-label="Help & Support"
+            >
+              <span className="navigation-sidebar__help-icon">
+                <HelpIcon size={20} />
+              </span>
+              {!isCollapsed && (
+                <span className="navigation-sidebar__help-label">Help & Support</span>
+              )}
+            </button>
+          </div>
 
           {onToggleCollapse && (
             <div className="navigation-sidebar__toggle">

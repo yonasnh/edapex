@@ -30,20 +30,29 @@ export function AppShell({
       </a>
 
       {!hideSidebar && sidebar && (
-        <aside
-          className={clsx('cm-shell__sidebar', mobileOpen && 'cm-shell__sidebar--open')}
-          aria-label="Main navigation"
-        >
-          {React.isValidElement(sidebar)
-            ? React.cloneElement(sidebar as React.ReactElement<any>, {
-                isCollapsed: collapsed,
-                onToggleCollapse: (c: boolean) => {
-                  setCollapsed(c)
-                  setMobileOpen(false)
-                },
-              })
-            : sidebar}
-        </aside>
+        <>
+          {mobileOpen && (
+            <div
+              className="cm-shell__backdrop"
+              onClick={() => setMobileOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+          <aside
+            className={clsx('cm-shell__sidebar', mobileOpen && 'cm-shell__sidebar--open')}
+            aria-label="Main navigation"
+          >
+            {React.isValidElement(sidebar)
+              ? React.cloneElement(sidebar as React.ReactElement<any>, {
+                  isCollapsed: collapsed,
+                  onToggleCollapse: (c: boolean) => {
+                    setCollapsed(c)
+                    setMobileOpen(false)
+                  },
+                })
+              : sidebar}
+          </aside>
+        </>
       )}
 
       <div className="cm-shell__body">

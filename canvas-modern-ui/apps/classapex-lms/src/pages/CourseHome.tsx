@@ -63,9 +63,6 @@ export default function CourseHome() {
     { include: ['items'] } as any
   )
 
-  const { data: syllabus } = useCanvasQuery<any>(
-    `/api/v1/courses/${courseId}/syllabus`
-  )
 
   const { data: people, isLoading: peopleLoading } = useCanvasQuery<any[]>(
     `/api/v1/courses/${courseId}/users`,
@@ -145,8 +142,8 @@ export default function CourseHome() {
             {tab.label}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>
+        <div className="cx-course-home__tabs-actions">
+          <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', whiteSpace: 'nowrap' }}>
             Home: {customLabel}
           </span>
           <button
@@ -191,9 +188,7 @@ export default function CourseHome() {
 
           {activeTab === 'syllabus' && (
             <div className="cx-course-syllabus">
-              {syllabus?.syllabus_body ? (
-                <div className="cx-course-syllabus__body" dangerouslySetInnerHTML={{ __html: syllabus.syllabus_body }} />
-              ) : course.syllabus_body ? (
+              {course.syllabus_body ? (
                 <div className="cx-course-syllabus__body" dangerouslySetInnerHTML={{ __html: course.syllabus_body }} />
               ) : (
                 <p className="cx-widget__empty">No syllabus available for this course</p>

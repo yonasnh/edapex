@@ -70,12 +70,7 @@ export default function AssignmentList() {
 
   return (
     <div className="cx-assignment-list">
-      <div className="cx-assignment-list__header">
-        <h1 className="cx-assignment-list__title">Assignments</h1>
-        <p className="cx-assignment-list__subtitle">
-          {courseId ? `Course assignments` : 'All your assignments across courses'}
-        </p>
-      </div>
+
 
       <div className="cx-assignment-list__controls">
         <input

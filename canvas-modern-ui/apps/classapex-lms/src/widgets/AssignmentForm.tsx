@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useCanvasQuery } from '../hooks/useCanvasQuery'
 
 interface AssignmentFormData {
   name: string
@@ -26,12 +27,6 @@ interface AssignmentFormProps {
   initialOverrides?: DateOverride[]
 }
 
-const MOCK_SECTIONS = [
-  { id: 's1', name: 'Section A - Morning' },
-  { id: 's2', name: 'Section B - Afternoon' },
-  { id: 's3', name: 'Section C - Evening' },
-  { id: 's4', name: 'Online Only' },
-]
 
 function PlusCircleSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="5.5"/><path d="M7 4.5v5M4.5 7h5"/></svg>; }
 function TrashSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3.5h10M5 3.5V2.5a1 1 0 011-1h2a1 1 0 011 1v1M11 5v7a1 1 0 01-1 1H4a1 1 0 01-1-1V5"/></svg>; }
@@ -69,6 +64,14 @@ export default function AssignmentForm({ initialData, courseId, onSubmit, onCanc
   const [overrides, setOverrides] = useState<DateOverride[]>(initialOverrides || [])
   const [submitting, setSubmitting] = useState(false)
 
+  // Load real course sections from Canvas
+  const { data: sectionsData } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/sections` : '',
+    { per_page: 50 } as any,
+    { enabled: !!courseId } as any
+  )
+  const SECTIONS = (sectionsData ?? []).map((s: any) => ({ id: String(s.id), name: s.name }))
+
   const update = (field: keyof AssignmentFormData, value: any) => setForm(p => ({ ...p, [field]: value }))
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,7 +94,7 @@ export default function AssignmentForm({ initialData, courseId, onSubmit, onCanc
   }
 
   const addOverride = () => {
-    const section = MOCK_SECTIONS.find(s => !overrides.find(o => o.sectionId === s.id))
+    const section = SECTIONS.find(s => !overrides.find(o => o.sectionId === s.id))
     if (!section) return
     setOverrides(prev => [...prev, { id: nextOverrideId(), sectionId: section.id, dueAt: '', unlockAt: '', lockAt: '' }])
   }
@@ -104,7 +107,7 @@ export default function AssignmentForm({ initialData, courseId, onSubmit, onCanc
     setOverrides(prev => prev.map(o => o.id === id ? { ...o, [field]: value } : o))
   }
 
-  const remainingSections = MOCK_SECTIONS.filter(s => !overrides.find(o => o.sectionId === s.id))
+  const remainingSections = SECTIONS.filter(s => !overrides.find(o => o.sectionId === s.id))
 
   return (
     <form className="cx-assignment-form" onSubmit={handleSubmit}>
@@ -185,7 +188,7 @@ export default function AssignmentForm({ initialData, courseId, onSubmit, onCanc
               <div>
                 <label style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', display: 'block', marginBottom: 2 }}>Section</label>
                 <select className="cx-select" style={{ width: '100%' }} value={o.sectionId} onChange={e => updateOverride(o.id, 'sectionId', e.target.value)}>
-                  {MOCK_SECTIONS.map(s => (
+                  {SECTIONS.map(s => (
                     <option key={s.id} value={s.id} disabled={!!overrides.find(ov => ov.sectionId === s.id && ov.id !== o.id)}>{s.name}</option>
                   ))}
                 </select>

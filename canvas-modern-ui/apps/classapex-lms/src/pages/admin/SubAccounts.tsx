@@ -31,6 +31,7 @@ export default function SubAccountsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newParent, setNewParent] = useState('root')
+  const [editingAccount, setEditingAccount] = useState<{ id: string; name: string } | null>(null)
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => {
@@ -66,7 +67,6 @@ export default function SubAccountsPage() {
       const formData = new URLSearchParams()
       formData.append('account[name]', newName)
       
-      // We POST to the parent account's sub_accounts endpoint
       const parentEndpoint = newParent && newParent !== 'root' 
         ? `/api/v1/accounts/${newParent}/sub_accounts`
         : `/api/v1/accounts/1/sub_accounts`
@@ -84,6 +84,25 @@ export default function SubAccountsPage() {
     } catch (err) {
       console.error(err)
       alert('Failed to create sub-account.')
+    }
+  }
+
+  const handleRename = async () => {
+    if (!editingAccount || !editingAccount.name.trim()) return
+    try {
+      const formData = new URLSearchParams()
+      formData.append('account[name]', editingAccount.name)
+      const res = await fetch(`/api/v1/accounts/${editingAccount.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      })
+      if (!res.ok) throw new Error('Failed to rename account')
+      setEditingAccount(null)
+      refetch()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to rename account.')
     }
   }
 
@@ -106,14 +125,35 @@ export default function SubAccountsPage() {
                 </button>
               ) : <span style={{ width: 24 }} />}
               <BuildingSvg />
-              <span style={{ fontWeight: 500 }}>{account.name}</span>
+              {editingAccount?.id === account.id ? (
+                <>
+                  <input
+                    className="cx-input"
+                    style={{ fontSize: '0.875rem', padding: '2px 8px', maxWidth: 200 }}
+                    value={editingAccount.name}
+                    onChange={e => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingAccount(null) }}
+                    autoFocus
+                  />
+                  <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={handleRename}>Save</button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setEditingAccount(null)}>Cancel</button>
+                </>
+              ) : (
+                <span style={{ fontWeight: 500 }}>{account.name}</span>
+              )}
             </div>
             <span className="cx-admin-row__stat">{account.courseCount} courses</span>
             <span className="cx-admin-row__stat">{account.userCount} users</span>
             <span className="cx-admin-row__stat">{account.enrollmentCount} enrollments</span>
             <span className="cx-admin-row__stat">{formatStorage(account.storageUsedMb)}</span>
             <div className="cx-admin-row__actions">
-              <button className="cx-btn cx-btn--ghost cx-btn--sm" aria-label="Edit"><EditSvg /></button>
+              <button
+                className="cx-btn cx-btn--ghost cx-btn--sm"
+                aria-label="Edit"
+                onClick={() => setEditingAccount({ id: account.id, name: account.name })}
+              >
+                <EditSvg />
+              </button>
               {account.parentId && (
                 <button className="cx-btn cx-btn--ghost cx-btn--sm" aria-label="Delete" onClick={async () => {
                   if (confirm('Delete this account?')) {

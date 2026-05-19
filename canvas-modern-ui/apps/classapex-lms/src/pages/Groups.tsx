@@ -20,8 +20,7 @@ interface GroupData {
   tags?: string[];
 }
 
-// We will fetch these from Canvas API instead
-// const mockGroups = ...
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function GroupSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 16v-1a3 3 0 00-3-3H5a3 3 0 00-3 3v1"/><circle cx="8" cy="6" r="3"/><path d="M18 16v-1a3 3 0 00-2-2.87"/><path d="M13 3.13a3 3 0 010 5.75"/></svg>; }
@@ -31,7 +30,110 @@ function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill
 
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 
+function GroupDetail({ groupId, onBack }: { groupId: string, onBack: () => void }) {
+  const [activeTab, setActiveTab] = useState<'members' | 'files' | 'conferences'>('members');
+
+  const { data: group } = useCanvasQuery<any>(`/api/v1/groups/${groupId}`);
+  const { data: members } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/users`);
+  const { data: files } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/files`);
+  const { data: conferences } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/conferences`);
+
+  if (!group) return <div className="cx-loading"><div className="cx-loading__spinner" /></div>;
+
+  return (
+    <div className="cx-page" style={{ paddingTop: 0 }}>
+      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={onBack} style={{ marginBottom: 16 }}>← Back to Groups</button>
+      
+      <div className="cx-page__header" style={{ paddingTop: 0, paddingBottom: 16, borderBottom: '1px solid var(--cx-border-subtle)', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ margin: 0, fontWeight: 700, fontSize: '1.5rem', color: 'var(--cx-text-primary)' }}>{group.name}</h2>
+          {group.description && <p style={{ marginTop: 8, color: 'var(--cx-text-secondary)' }}>{group.description}</p>}
+        </div>
+      </div>
+
+      <div className="cx-toolbar" style={{ marginBottom: 20 }}>
+        <div className="cx-calendar-views" style={{ display: 'flex', gap: 8 }}>
+          <button className={clsx('cx-tab', activeTab === 'members' && 'cx-tab--active')} onClick={() => setActiveTab('members')}>Members</button>
+          <button className={clsx('cx-tab', activeTab === 'files' && 'cx-tab--active')} onClick={() => setActiveTab('files')}>Files</button>
+          <button className={clsx('cx-tab', activeTab === 'conferences' && 'cx-tab--active')} onClick={() => setActiveTab('conferences')}>Conferences</button>
+        </div>
+      </div>
+
+      {activeTab === 'members' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+          {members?.map(m => (
+            <div key={m.id} className="cx-card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--cx-bg-surface-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: 'var(--cx-text-secondary)' }}>
+                {m.short_name?.charAt(0) || 'U'}
+              </div>
+              <div style={{ fontWeight: 500, color: 'var(--cx-text-primary)', fontSize: '0.875rem' }}>{m.name}</div>
+            </div>
+          ))}
+          {!members?.length && <p style={{ color: 'var(--cx-text-tertiary)' }}>No members found.</p>}
+        </div>
+      )}
+
+      {activeTab === 'files' && (
+        <div className="cx-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <thead style={{ background: 'var(--cx-bg-surface-raised)' }}>
+              <tr>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Filename</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Size</th>
+                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Modified</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files?.map(f => (
+                <tr key={f.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--cx-text-primary)' }}>
+                    <a href={f.url} target="_blank" rel="noreferrer" style={{ color: 'var(--cx-color-primary)', textDecoration: 'none', fontWeight: 500 }}>{f.display_name}</a>
+                  </td>
+                  <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>{Math.round(f.size / 1024)} KB</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>{new Date(f.updated_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+              {!files?.length && (
+                <tr>
+                  <td colSpan={3} style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--cx-text-tertiary)' }}>No files shared in this group.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'conferences' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+             <button className="cx-btn cx-btn--primary cx-btn--sm"><PlusSvg /> New Conference</button>
+          </div>
+          {conferences?.map(c => (
+            <div key={c.id} className="cx-card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--cx-text-primary)', marginBottom: 4 }}>{c.title}</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)' }}>
+                  {c.description} • {c.conference_type}
+                </div>
+              </div>
+              <a href={c.join_url} target="_blank" rel="noreferrer" className="cx-btn cx-btn--secondary cx-btn--sm">Join (WebRTC)</a>
+            </div>
+          ))}
+          {!conferences?.length && (
+             <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface-raised)', borderRadius: 12 }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📹</div>
+                <h3 style={{ fontSize: '1.1rem', color: 'var(--cx-text-primary)', marginBottom: 4 }}>No Active Conferences</h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>Start a BigBlueButton or Zoom conference for your group.</p>
+             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const GroupsPage: React.FC = () => {
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterJoined, setFilterJoined] = useState<'all' | 'joined' | 'available'>('all');
   const [sortBy, setSortBy] = useState('name');
@@ -40,7 +142,7 @@ const GroupsPage: React.FC = () => {
 
   const { data: groupsData } = useCanvasQuery<any[]>('/api/v1/users/self/groups', { include: ['users'] } as any)
   
-  const mockGroups = useMemo<GroupData[]>(() => {
+  const groups = useMemo<GroupData[]>(() => {
     if (!Array.isArray(groupsData)) return [];
     return groupsData.map(g => ({
       id: String(g.id),
@@ -61,7 +163,7 @@ const GroupsPage: React.FC = () => {
   }, [groupsData]);
 
   const filteredGroups = useMemo(() => {
-    let filtered = [...mockGroups];
+    let filtered = [...groups];
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(g => g.name.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q));
@@ -82,20 +184,20 @@ const GroupsPage: React.FC = () => {
   const paginatedGroups = filteredGroups.slice((page - 1) * pageSize, page * pageSize);
 
   const stats = useMemo(() => ({
-    total: mockGroups.length,
-    joined: mockGroups.filter(g => g.isJoined).length,
-    messages: mockGroups.reduce((s, g) => s + (g.unreadMessages || 0), 0),
-  }), []);
+    total: groups.length,
+    joined: groups.filter(g => g.isJoined).length,
+    messages: groups.reduce((s, g) => s + (g.unreadMessages || 0), 0),
+  }), [groups]);
 
   const handleClearFilters = () => { setSearchTerm(''); setFilterJoined('all'); setPage(1); };
 
+  if (selectedGroupId) {
+    return <GroupDetail groupId={selectedGroupId} onBack={() => setSelectedGroupId(null)} />
+  }
+
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Groups</h1>
-          <p className="cx-page__subtitle">Collaborate with peers in study groups and project teams</p>
-        </div>
+      <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => {}}><PlusSvg /> Create Group</button>
       </div>
 
@@ -158,7 +260,7 @@ const GroupsPage: React.FC = () => {
               pendingTasks={group.pendingTasks}
               unreadMessages={group.unreadMessages}
               tags={group.tags}
-              onClick={() => console.log('View group:', group.name)}
+              onClick={() => setSelectedGroupId(group.id)}
               onJoin={() => console.log('Join group:', group.name)}
               onLeave={() => console.log('Leave group:', group.name)}
               onManage={() => console.log('Manage group:', group.name)}

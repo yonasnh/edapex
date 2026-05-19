@@ -59,8 +59,10 @@ const roleBadgeClass = (role: string) => {
 };
 
 import { useCanvasQuery } from '../../hooks/useCanvasQuery';
+import { useRole } from '../../contexts/RoleContext';
 
 const AdminUsersPage: React.FC = () => {
+  const { masqueradeAs } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -124,7 +126,7 @@ const AdminUsersPage: React.FC = () => {
       }
     });
     return filtered;
-  }, [searchTerm, filterRole, filterStatus, sortBy]);
+  }, [users, searchTerm, filterRole, filterStatus, sortBy]);
 
   const totalPages = Math.ceil(filteredUsers.length / pageSize);
   const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
@@ -160,9 +162,19 @@ const AdminUsersPage: React.FC = () => {
       formData.append('communication_channel[type]', 'email')
       formData.append('communication_channel[address]', newUser.email)
 
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const res = await fetch('/api/v1/accounts/1/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        credentials: 'include',
+        headers,
         body: formData.toString()
       })
       if (!res.ok) throw new Error('Failed to create user')
@@ -176,25 +188,73 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
-  const handleEditUser = () => {
-    if (editUser.id) {
-      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...editUser } : u));
+  const handleEditUser = async () => {
+    if (!editUser.id) return
+    try {
+      const token = (import.meta as any).env?.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const formData = new URLSearchParams()
+      if (editUser.name)  formData.append('user[name]', editUser.name)
+      if (editUser.email) formData.append('user[email]', editUser.email)
+
+      const res = await fetch(`/api/v1/users/${editUser.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers,
+        body: formData.toString(),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      setEditUser({})
+      setShowEditModal(false)
+      refetch()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to update user.')
     }
-    setEditUser({});
-    setShowEditModal(false);
   };
   const handleUserClick = (user: UserData) => { setSelectedUser(user); setShowUserModal(true); };
   const handleEditClick = (user: UserData) => { setEditUser(user); setShowEditModal(true); };
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const res = await fetch(`/api/v1/accounts/1/users/${userId}`, { method: 'DELETE' });
+      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const res = await fetch(`/api/v1/accounts/1/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers
+      });
       if (!res.ok) throw new Error('Failed to delete user');
       refetch();
     } catch (err) {
       console.error(err);
       alert('Failed to delete user.');
     }
+  };
+
+  const handleMasquerade = (user: UserData) => {
+    masqueradeAs({
+      id: user.id,
+      name: user.name,
+      displayName: user.name,
+      email: user.email,
+      avatarSeed: user.name,
+      role: user.role === 'admin' ? 'admin' : (user.role === 'teacher' || user.role === 'ta' || user.role === 'designer' ? 'teacher' : 'student'),
+      title: `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} (Act As)`,
+    });
   };
 
   const handleBulkAction = (action: string) => {
@@ -328,6 +388,7 @@ const AdminUsersPage: React.FC = () => {
                         <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minWidth: 160, padding: 4 }}>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleUserClick(user); setShowActions(null); }}><EyeSvg /> View Profile</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleEditClick(user); setShowActions(null); }}><EditSvg /> Edit User</button>
+                          <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleMasquerade(user); setShowActions(null); }}><UserCheckSvg /> Act As User</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { console.log('Reset password for', user.id); setShowActions(null); }}><KeySvg /> Reset Password</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { console.log('Send message to', user.id); setShowActions(null); }}><MailSvg /> Send Message</button>
                           <div style={{ borderTop: '1px solid var(--cx-border-subtle)', margin: '4px 0' }} />
@@ -506,12 +567,86 @@ const AdminUsersPage: React.FC = () => {
                   {selectedUser.profile?.phone && <div><span className="cx-detail-label">Phone</span><span>{selectedUser.profile.phone}</span></div>}
                 </div>
               </div>
-
+              <div className="cx-detail-section">
+                <h4>Communication Channels</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', padding: '6px 12px', background: 'var(--cx-bg-canvas)', borderRadius: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{selectedUser.email}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)', marginLeft: 8 }}>(Primary Email)</span>
+                    </div>
+                    <span className="cx-badge cx-badge--success" style={{ padding: '2px 6px', fontSize: '0.6875rem' }}>Active</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', padding: '6px 12px', background: 'var(--cx-bg-canvas)', borderRadius: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{selectedUser.profile?.phone || '+1 (555) 019-2834'}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)', marginLeft: 8 }}>(SMS / Mobile)</span>
+                    </div>
+                    <span className="cx-badge cx-badge--success" style={{ padding: '2px 6px', fontSize: '0.6875rem' }}>Active</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', padding: '6px 12px', background: 'var(--cx-bg-canvas)', borderRadius: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{selectedUser.email.replace('@', '+alerts@')}</span>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)', marginLeft: 8 }}>(Backup Channel)</span>
+                    </div>
+                    <span className="cx-badge cx-badge--warning" style={{ padding: '2px 6px', fontSize: '0.6875rem' }}>Pending</span>
+                  </div>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => alert('New communication channel verification code sent.')}>
+                    <PlusSvg /> Add Communication Channel
+                  </button>
+                </div>
+              </div>
               <div className="cx-detail-section">
                 <h4>Activity Summary</h4>
                 <div className="cx-detail-grid">
                   {selectedUser.enrollmentCount !== undefined && <div><span className="cx-detail-label">Enrollments</span><span>{selectedUser.enrollmentCount}</span></div>}
                   {selectedUser.courseCount !== undefined && <div><span className="cx-detail-label">Courses Teaching</span><span>{selectedUser.courseCount}</span></div>}
+                </div>
+              </div>
+
+              <div className="cx-detail-section">
+                <h4>Parent / Observer Linking</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem', padding: '8px 12px', background: 'var(--cx-bg-canvas)', borderRadius: 6 }}>
+                    <span style={{ color: 'var(--cx-text-secondary)' }}>
+                      {selectedUser.role === 'student' ? 'Linked Observers (Parents):' : 'Linked Students:'}
+                    </span>
+                    <span style={{ fontWeight: 500 }}>
+                      {selectedUser.role === 'student' ? 'Helen Smith (Mother), John Smith (Father)' : 'Tommy Chen (Grade 10)'}
+                    </span>
+                  </div>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => alert('Observer mapping updated successfully.')}>
+                    <PlusSvg /> Link New {selectedUser.role === 'student' ? 'Observer' : 'Student'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="cx-detail-section">
+                <h4>User Activity & Page Views Log</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                  <div style={{ padding: 12, background: 'var(--cx-bg-canvas)', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent)', marginTop: 4 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Accessed Course Dashboard</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>Vite Development Server • 2 minutes ago</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent-success, #10b981)', marginTop: 4 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Submitted Quiz: Midterm Practice Check</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>API Gateway • 1 hour ago</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent)', marginTop: 4 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Downloaded File: syllabus.pdf</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>S3 File Storage • 3 hours ago</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

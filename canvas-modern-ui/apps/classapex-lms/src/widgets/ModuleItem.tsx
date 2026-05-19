@@ -39,22 +39,53 @@ export interface ModuleItemData {
 
 interface ModuleItemProps {
   item: ModuleItemData
+  courseId?: string
+  moduleId?: number
 }
 
-export function ModuleItem({ item }: ModuleItemProps) {
+export function ModuleItem({ item, courseId, moduleId }: ModuleItemProps) {
   const [completed, setCompleted] = useState(item.completion_requirement?.completed ?? false)
   const isSubHeader = item.type === 'SubHeader'
   const isExternal = item.type === 'ExternalUrl'
   const href = isExternal && item.external_url ? item.external_url : item.url || '#'
   const reqType = item.completion_requirement?.type
 
-  const handleToggleComplete = useCallback((e: React.MouseEvent) => {
+  const handleToggleComplete = useCallback(async (e: React.MouseEvent) => {
     if (reqType === 'must_view' || reqType === 'must_mark_done') {
       e.preventDefault()
       e.stopPropagation()
-      setCompleted(prev => !prev)
+      const nextState = !completed
+      setCompleted(nextState)
+
+      if (courseId && moduleId) {
+        try {
+          const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
+          const headers = {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-Token': decodeURIComponent(token),
+          }
+
+          if (reqType === 'must_mark_done') {
+            await fetch(`/api/v1/courses/${courseId}/modules/${moduleId}/items/${item.id}/done`, {
+              method: nextState ? 'PUT' : 'DELETE',
+              headers,
+              credentials: 'include'
+            })
+          } else if (reqType === 'must_view' && nextState) {
+            await fetch(`/api/v1/courses/${courseId}/modules/${moduleId}/items/${item.id}/mark_read`, {
+              method: 'POST',
+              headers,
+              credentials: 'include'
+            })
+          }
+        } catch (err) {
+          console.error('Failed to update completion status', err)
+          setCompleted(!nextState)
+        }
+      }
     }
-  }, [reqType])
+  }, [reqType, completed, courseId, moduleId, item.id])
 
   if (isSubHeader) {
     return (

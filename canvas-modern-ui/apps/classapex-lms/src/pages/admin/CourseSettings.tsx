@@ -57,8 +57,48 @@ export default function CourseSettingsPage() {
   const [settings, setSettings] = useState<CourseSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
-  const [sections, setSections] = useState(['General', 'Course Content', 'Enrollment', 'Grading', 'System'])
+  const [sections, setSections] = useState(['General', 'Course Content', 'Enrollment', 'Grading', 'Blueprint Settings', 'Navigation Tabs', 'System'])
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+
+  // Blueprint states (S15-06)
+  const [isBlueprint, setIsBlueprint] = useState(false)
+  const [syncingBlueprint, setSyncingBlueprint] = useState(false)
+  const [associatedCourses, setAssociatedCourses] = useState([
+    { id: '101', name: 'Computer Science 101 - Section A', status: 'In Sync' },
+    { id: '102', name: 'Computer Science 101 - Section B', status: 'Pending Changes' },
+    { id: '103', name: 'Computer Science 101 - Section C', status: 'In Sync' }
+  ])
+
+  // Navigation tab states (S15-09)
+  const [navTabs, setNavTabs] = useState([
+    { id: 'home', label: 'Home', visible: true },
+    { id: 'modules', label: 'Modules', visible: true },
+    { id: 'syllabus', label: 'Syllabus', visible: true },
+    { id: 'assignments', label: 'Assignments', visible: true },
+    { id: 'quizzes', label: 'Quizzes', visible: true },
+    { id: 'grades', label: 'Grades', visible: true },
+    { id: 'discussions', label: 'Discussions', visible: true },
+    { id: 'outcomes', label: 'Outcomes', visible: false },
+    { id: 'rubrics', label: 'Rubrics', visible: false },
+    { id: 'files', label: 'Files', visible: true },
+    { id: 'settings', label: 'Settings', visible: true }
+  ])
+  const [dragTabIdx, setDragTabIdx] = useState<number | null>(null)
+
+  const handleTabDragStart = (idx: number) => setDragTabIdx(idx)
+  const handleTabDrop = (idx: number) => {
+    if (dragTabIdx === null || dragTabIdx === idx) {
+      setDragTabIdx(null)
+      return
+    }
+    setNavTabs(prev => {
+      const updated = [...prev]
+      const [moved] = updated.splice(dragTabIdx, 1)
+      updated.splice(idx, 0, moved)
+      return updated
+    })
+    setDragTabIdx(null)
+  }
 
   const update = (key: keyof CourseSettings, value: any) => setSettings(p => ({ ...p, [key]: value }))
 
@@ -272,6 +312,112 @@ export default function CourseSettingsPage() {
           )}
 
           {activeSection === 4 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 6px' }}>Blueprint Course Management</h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>
+                  Marking this course as a Blueprint Course allows you to lock specific settings and content items, then sync them down to associated courses.
+                </p>
+                <label className="cx-toggle" style={{ marginBottom: 20 }}>
+                  <input type="checkbox" checked={isBlueprint} onChange={e => setIsBlueprint(e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
+                    Enable Blueprint Course Mode
+                  </span>
+                </label>
+              </div>
+
+              {isBlueprint && (
+                <div className="cx-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Associated Course Sections</h4>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>These courses inherit updates from this Blueprint template.</p>
+                    </div>
+                    <button
+                      className="cx-btn cx-btn--primary cx-btn--sm"
+                      disabled={syncingBlueprint}
+                      onClick={() => {
+                        setSyncingBlueprint(true)
+                        setTimeout(() => {
+                          setSyncingBlueprint(false)
+                          setAssociatedCourses(prev => prev.map(c => ({ ...c, status: 'In Sync' })))
+                          alert('Blueprint content synchronized successfully across all associated courses!')
+                        }, 2500)
+                      }}
+                    >
+                      {syncingBlueprint ? 'Syncing...' : 'Sync Content Now'}
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                    {associatedCourses.map(c => (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>{c.name}</span>
+                        <span className={clsx('cx-badge', c.status === 'In Sync' ? 'cx-badge--success' : 'cx-badge--warning')} style={{ fontSize: '0.6875rem' }}>
+                          {c.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSection === 5 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 6px' }}>Course Navigation Tabs</h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>
+                  Drag items to reorder the sidebar navigation tabs for this course, or toggle visibility to hide folders from student views.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {navTabs.map((tab, idx) => (
+                  <div
+                    key={tab.id}
+                    draggable
+                    onDragStart={() => handleTabDragStart(idx)}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => handleTabDrop(idx)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 16px', borderRadius: 8, border: '1px solid var(--cx-border-subtle)',
+                      background: dragTabIdx === idx ? 'rgba(99,102,241,0.05)' : 'var(--cx-bg-surface)',
+                      cursor: 'grab', transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span style={{ marginRight: 12, color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}><GripSvg /></span>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: tab.visible ? 'var(--cx-text-primary)' : 'var(--cx-text-tertiary)' }}>
+                        {tab.label}
+                      </span>
+                      {!tab.visible && (
+                        <span style={{ marginLeft: 8, fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)', fontStyle: 'italic' }}>
+                          (hidden from students)
+                        </span>
+                      )}
+                    </div>
+                    <label className="cx-toggle" style={{ margin: 0 }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={tab.visible}
+                        onChange={e => {
+                          const vis = e.target.checked
+                          setNavTabs(prev => prev.map((t, i) => i === idx ? { ...t, visible: vis } : t))
+                        }}
+                      />
+                      <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeSection === 6 && (
             <div style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem' }}>
               <p>System settings for this course are managed in <strong>Account &gt; System Settings</strong>.</p>
               <p style={{ marginTop: 8 }}>Course-level settings include:</p>

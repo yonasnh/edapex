@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { useCanvasQuery, useCanvasMutation } from '../hooks/useCanvasQuery'
+import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import './inbox.css'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -49,87 +49,9 @@ interface Conversation {
   properties: string[]
 }
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6']
-
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: 1, subject: 'Question about Assignment 3', workflow_state: 'unread',
-    last_message: 'Hi, I wanted to ask about the requirements for the third assignment. Specifically, do we need to include unit tests?',
-    last_message_at: '2026-05-18T14:30:00Z', message_count: 3,
-    participants: [{ id: 1, name: 'You' }, { id: 2, name: 'Dr. Sarah Chen', avatar_url: '' }],
-    audience: [2], context_name: 'CS 301 — Data Structures', context_code: 'course_1', starred: false,
-    properties: ['last_author'],
-    messages: [
-      { id: 101, author_id: 2, body: 'Great question! Yes, unit tests are required. Please include at least 5 test cases covering edge cases. I have updated the rubric to clarify this.', created_at: '2026-05-18T14:30:00Z', generated: false },
-      { id: 102, author_id: 1, body: 'Hi, I wanted to ask about the requirements for the third assignment. Specifically, do we need to include unit tests?', created_at: '2026-05-18T13:15:00Z', generated: false },
-      { id: 103, author_id: 2, body: 'Hello! Feel free to ask any questions about the assignments. I am available during office hours as well.', created_at: '2026-05-18T10:00:00Z', generated: false },
-    ],
-  },
-  {
-    id: 2, subject: 'Study Group — Final Exam Prep', workflow_state: 'read',
-    last_message: 'Who is available Saturday at 2pm for our last study session before the exam?',
-    last_message_at: '2026-05-18T11:00:00Z', message_count: 12,
-    participants: [{ id: 1, name: 'You' }, { id: 3, name: 'Alex Rivera' }, { id: 4, name: 'Priya Patel' }, { id: 5, name: 'Marcus Johnson' }],
-    audience: [3, 4, 5], context_name: 'CS 301 — Data Structures', context_code: 'course_1', starred: true,
-    properties: [],
-    messages: [
-      { id: 201, author_id: 3, body: 'Who is available Saturday at 2pm for our last study session before the exam?', created_at: '2026-05-18T11:00:00Z', generated: false },
-      { id: 202, author_id: 4, body: 'I can make it! Should we focus on graph algorithms or dynamic programming?', created_at: '2026-05-18T10:45:00Z', generated: false },
-      { id: 203, author_id: 1, body: 'Both would be great. I am struggling with Dijkstra\'s especially.', created_at: '2026-05-18T10:30:00Z', generated: false },
-      { id: 204, author_id: 5, body: 'Count me in. I can bring my notes on DP.', created_at: '2026-05-18T10:20:00Z', generated: false },
-    ],
-  },
-  {
-    id: 3, subject: 'Lab Report Feedback', workflow_state: 'read',
-    last_message: 'Your lab report was excellent. I especially liked your analysis section. Grade: A',
-    last_message_at: '2026-05-17T16:00:00Z', message_count: 1,
-    participants: [{ id: 1, name: 'You' }, { id: 6, name: 'Prof. James Walker' }],
-    audience: [6], context_name: 'PHYS 201 — Modern Physics', context_code: 'course_2', starred: false,
-    properties: [],
-    messages: [
-      { id: 301, author_id: 6, body: 'Your lab report was excellent. I especially liked your analysis section where you connected the quantum tunneling probabilities to real-world applications. Grade: A', created_at: '2026-05-17T16:00:00Z', generated: false },
-    ],
-  },
-  {
-    id: 4, subject: 'Office Hours Cancellation', workflow_state: 'read',
-    last_message: 'Due to a faculty meeting, my Thursday office hours are cancelled this week. Please use the discussion board for questions.',
-    last_message_at: '2026-05-17T09:00:00Z', message_count: 1,
-    participants: [{ id: 1, name: 'You' }, { id: 7, name: 'Dr. Lisa Park' }],
-    audience: [7], context_name: 'MATH 401 — Abstract Algebra', context_code: 'course_3', starred: false,
-    properties: [],
-    messages: [
-      { id: 401, author_id: 7, body: 'Due to a faculty meeting, my Thursday office hours are cancelled this week. Please use the discussion board for questions, or email me directly for urgent matters. I will resume normal hours next week.', created_at: '2026-05-17T09:00:00Z', generated: false },
-    ],
-  },
-  {
-    id: 5, subject: 'Group Project — Milestone 2', workflow_state: 'unread',
-    last_message: 'I\'ve pushed the updated wireframes to the shared drive. Can everyone review by Wednesday?',
-    last_message_at: '2026-05-18T08:00:00Z', message_count: 8,
-    participants: [{ id: 1, name: 'You' }, { id: 8, name: 'Jordan Kim' }, { id: 9, name: 'Taylor Morgan' }],
-    audience: [8, 9], context_name: 'CS 410 — Software Engineering', context_code: 'course_4', starred: false,
-    properties: [],
-    messages: [
-      { id: 501, author_id: 8, body: 'I\'ve pushed the updated wireframes to the shared drive. Can everyone review by Wednesday? We need to finalize the UI before Sprint 3 begins.', created_at: '2026-05-18T08:00:00Z', generated: false },
-      { id: 502, author_id: 9, body: 'Got it. I\'ll review tomorrow. Also, I finished the backend API for the user authentication module.', created_at: '2026-05-18T07:30:00Z', generated: false },
-      { id: 503, author_id: 1, body: 'Nice work! I am wrapping up the database schema. Should be done by tonight.', created_at: '2026-05-18T07:00:00Z', generated: false },
-    ],
-  },
-  {
-    id: 6, subject: 'Welcome to the Spring Semester!', workflow_state: 'archived',
-    last_message: 'Welcome to all students enrolled in CS 301 this semester...',
-    last_message_at: '2026-01-15T10:00:00Z', message_count: 1,
-    participants: [{ id: 1, name: 'You' }, { id: 2, name: 'Dr. Sarah Chen' }],
-    audience: [2], context_name: 'CS 301 — Data Structures', context_code: 'course_1', starred: false,
-    properties: [],
-    messages: [
-      { id: 601, author_id: 2, body: 'Welcome to all students enrolled in CS 301 this semester! I look forward to an exciting journey through data structures and algorithms. Please review the syllabus posted on the course page and come prepared for our first lab session next week.', created_at: '2026-01-15T10:00:00Z', generated: false },
-    ],
-  },
-]
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -161,23 +83,67 @@ function formatMessageTime(dateStr: string): string {
 interface ComposeModalProps {
   isOpen: boolean
   onClose: () => void
-  onSend: (to: string, subject: string, body: string) => void
+  onSend: (recipients: string[], subject: string, body: string) => void
+}
+
+interface Recipient {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  type?: string;
 }
 
 function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
-  const [to, setTo] = useState('')
+  const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Recipient[]>([])
+  const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+
+  // Search Canvas recipients API
+  useEffect(() => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const res = await fetch(`/api/v1/search/recipients?search=${encodeURIComponent(query)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setSearchResults(data)
+        }
+      } catch (err) {
+        console.error('Recipient search failed:', err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
 
   if (!isOpen) return null
 
   const handleSend = () => {
-    if (to.trim() && body.trim()) {
-      onSend(to, subject, body)
-      setTo('')
+    if (selectedRecipients.length > 0 && body.trim()) {
+      onSend(selectedRecipients.map(r => r.id), subject, body)
+      setSelectedRecipients([])
+      setQuery('')
       setSubject('')
       setBody('')
       onClose()
+    }
+  }
+
+  const toggleRecipient = (rec: Recipient) => {
+    if (selectedRecipients.find(r => r.id === rec.id)) {
+      setSelectedRecipients(prev => prev.filter(r => r.id !== rec.id))
+    } else {
+      setSelectedRecipients(prev => [...prev, rec])
+      setQuery('')
+      setSearchResults([])
     }
   }
 
@@ -191,13 +157,32 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
         <div className="cx-compose__body">
           <div className="cx-compose__field">
             <label className="cx-compose__label">To</label>
-            <input
-              className="cx-compose__input"
-              placeholder="Search for a person or course..."
-              value={to}
-              onChange={e => setTo(e.target.value)}
-              autoFocus
-            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+              {selectedRecipients.map(rec => (
+                <span key={rec.id} className="cx-badge cx-badge--primary" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {rec.name}
+                  <button onClick={() => toggleRecipient(rec)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>&times;</button>
+                </span>
+              ))}
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                className="cx-compose__input"
+                placeholder={selectedRecipients.length === 0 ? "Search for a person or course..." : "Add another..."}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                autoFocus
+              />
+              {searchResults.length > 0 && (
+                <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', zIndex: 10, listStyle: 'none', padding: 0, margin: '4px 0 0', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                  {searchResults.map(rec => (
+                    <li key={rec.id} onClick={() => toggleRecipient(rec)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.875rem' }}>
+                      {rec.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <div className="cx-compose__field">
             <label className="cx-compose__label">Subject</label>
@@ -220,7 +205,7 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
         </div>
         <div className="cx-compose__footer">
           <button className="cx-compose__cancel" onClick={onClose}>Cancel</button>
-          <button className="cx-compose__send" disabled={!to.trim() || !body.trim()} onClick={handleSend}>
+          <button className="cx-compose__send" disabled={selectedRecipients.length === 0 || !body.trim()} onClick={handleSend}>
             Send Message
           </button>
         </div>
@@ -241,11 +226,20 @@ export default function InboxPage() {
   const [replyText, setReplyText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Canvas API — with fallback to mock
-  const { data: apiConversations } = useCanvasQuery<Conversation[]>(
+  // Canvas API — live conversations list
+  const { data: apiConversations, refetch: refetchConversations } = useCanvasQuery<Conversation[]>(
     '/api/v1/conversations',
-    { per_page: 50, include_all_conversation_ids: false, scope: filter === 'all' ? undefined : filter } as any
+    { per_page: 50, scope: filter === 'all' ? undefined : filter } as any
   )
+  
+  // Canvas API - full thread for selected conversation
+  const { data: apiSelectedThread, refetch: refetchThread } = useCanvasQuery<Conversation | Conversation[]>(
+    selectedId ? `/api/v1/conversations/${selectedId}` : ''
+  )
+
+  // Current user — needed to identify self in message threads
+  const { data: currentUser } = useCanvasQuery<{ id: number }>('/api/v1/users/self')
+  const selfId = currentUser?.id ?? null
 
   const conversations = Array.isArray(apiConversations) ? apiConversations : []
 
@@ -270,17 +264,24 @@ export default function InboxPage() {
     return list.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
   }, [conversations, filter, searchQuery])
 
-  const selected = useMemo(
+  const selectedListInfo = useMemo(
     () => conversations.find(c => c.id === selectedId) || null,
     [conversations, selectedId]
   )
+  
+  // Use the detailed thread if available, fallback to list info
+  const selected = useMemo(() => {
+    if (!selectedId) return null;
+    const threadData = Array.isArray(apiSelectedThread) ? apiSelectedThread[0] : apiSelectedThread;
+    return threadData || selectedListInfo;
+  }, [selectedId, apiSelectedThread, selectedListInfo])
 
   const unreadCount = conversations.filter(c => c.workflow_state === 'unread').length
 
   // Scroll to bottom of messages on selection
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [selectedId])
+  }, [selectedId, selected?.messages])
 
   const handleReply = useCallback(async () => {
     if (!replyText.trim() || !selected) return
@@ -292,17 +293,16 @@ export default function InboxPage() {
       })
       if (!res.ok) throw new Error('Failed to send reply')
       setReplyText('')
-      // Ideally trigger a refetch of conversations here
+      refetchConversations()
+      refetchThread()
     } catch (err) {
       console.error('Reply failed:', err)
       alert('Failed to send reply. Please try again.')
     }
-  }, [replyText, selected])
+  }, [replyText, selected, refetchConversations, refetchThread])
 
-  const handleCompose = useCallback(async (to: string, subject: string, body: string) => {
+  const handleCompose = useCallback(async (recipients: string[], subject: string, body: string) => {
     try {
-      // Note: Canvas API expects `recipients` as an array of IDs
-      const recipients = to.split(',').map(s => s.trim())
       const res = await fetch('/api/v1/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -310,11 +310,54 @@ export default function InboxPage() {
       })
       if (!res.ok) throw new Error('Failed to create conversation')
       alert('Message sent successfully')
+      refetchConversations()
     } catch (err) {
       console.error('Compose failed:', err)
-      alert('Failed to send message. Please ensure the recipient ID is valid.')
+      alert('Failed to send message. Please try again.')
     }
-  }, [])
+  }, [refetchConversations])
+
+  const handleToggleStar = useCallback(async (conv: Conversation) => {
+    try {
+      await fetch(`/api/v1/conversations/${conv.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation: { starred: !conv.starred } })
+      })
+      refetchConversations()
+      if (selectedId === conv.id) refetchThread()
+    } catch (err) {
+      console.error('Star failed:', err)
+    }
+  }, [refetchConversations, refetchThread, selectedId])
+
+  const handleToggleArchive = useCallback(async (conv: Conversation) => {
+    try {
+      const newState = conv.workflow_state === 'archived' ? 'read' : 'archived'
+      await fetch(`/api/v1/conversations/${conv.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation: { workflow_state: newState } })
+      })
+      refetchConversations()
+      if (selectedId === conv.id) setSelectedId(null)
+    } catch (err) {
+      console.error('Archive failed:', err)
+    }
+  }, [refetchConversations, selectedId])
+
+  const handleDelete = useCallback(async (conv: Conversation) => {
+    if (!confirm('Are you sure you want to delete this conversation?')) return
+    try {
+      await fetch(`/api/v1/conversations/${conv.id}`, {
+        method: 'DELETE'
+      })
+      refetchConversations()
+      if (selectedId === conv.id) setSelectedId(null)
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+  }, [refetchConversations, selectedId])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -329,13 +372,11 @@ export default function InboxPage() {
 
   return (
     <div className="cx-inbox">
-      {/* ── Header ── */}
-      <div className="cx-inbox__header">
+      <div className="cx-inbox__header" style={{ paddingTop: 0 }}>
         <div>
-          <h1 className="cx-inbox__title">Inbox</h1>
-          <p className="cx-inbox__subtitle">
+          <span className="cx-inbox__subtitle" style={{ margin: 0 }}>
             {unreadCount > 0 ? `${unreadCount} unread message${unreadCount !== 1 ? 's' : ''}` : 'All caught up'}
-          </p>
+          </span>
         </div>
         <div className="cx-inbox__actions">
           <button
@@ -450,8 +491,9 @@ export default function InboxPage() {
                 <div className="cx-inbox__detail-actions">
                   <button
                     className="cx-btn cx-btn--ghost cx-btn--sm"
-                    title="Archive"
+                    title={selected.workflow_state === 'archived' ? 'Unarchive' : 'Archive'}
                     aria-label="Archive conversation"
+                    onClick={() => handleToggleArchive(selected)}
                   >
                     📁
                   </button>
@@ -459,15 +501,24 @@ export default function InboxPage() {
                     className="cx-btn cx-btn--ghost cx-btn--sm"
                     title={selected.starred ? 'Unstar' : 'Star'}
                     aria-label={selected.starred ? 'Remove star' : 'Star conversation'}
+                    onClick={() => handleToggleStar(selected)}
                   >
                     {selected.starred ? '⭐' : '☆'}
+                  </button>
+                  <button
+                    className="cx-btn cx-btn--ghost cx-btn--sm"
+                    title="Delete"
+                    aria-label="Delete conversation"
+                    onClick={() => handleDelete(selected)}
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
 
               <div className="cx-inbox__messages">
                 {(selected.messages || []).slice().reverse().map(msg => {
-                  const isSelf = msg.author_id === 1
+                  const isSelf = selfId !== null ? msg.author_id === selfId : false
                   const author = selected.participants.find(p => p.id === msg.author_id)
                   const authorName = author?.name || 'Unknown'
 

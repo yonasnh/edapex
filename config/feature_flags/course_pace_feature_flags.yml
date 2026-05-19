@@ -57,3 +57,9 @@ course_paces_for_students:
   applies_to: RootAccount
   display_name: Course Paces for Students
   description: Enables course paces functionality for students
+
+course_pace_remove_overrides_on_disable:
+  state: hidden
+  applies_to: RootAccount
+  display_name: Remove course pacing overrides if disabled
+  description: Automatically remove course pacing overrides if course pacing is disabled

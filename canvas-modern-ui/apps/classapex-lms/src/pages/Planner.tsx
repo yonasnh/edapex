@@ -46,96 +46,6 @@ interface PlannerItem {
   new_activity?: boolean
 }
 
-// ─── Mock Data ──────────────────────────────────────────────────────────────
-
-function getMockItems(): PlannerItem[] {
-  const now = new Date()
-  const d = (offset: number, hours = 23, minutes = 59) => {
-    const dt = new Date(now)
-    dt.setDate(dt.getDate() + offset)
-    dt.setHours(hours, minutes, 0, 0)
-    return dt.toISOString()
-  }
-
-  return [
-    // Today
-    {
-      plannable_id: 1, plannable_type: 'assignment',
-      plannable: { id: 1, title: 'Binary Search Tree Implementation', due_at: d(0, 23, 59), points_possible: 100, course_id: 1, created_at: d(-7) },
-      context_name: 'CS 301 — Data Structures', course_id: 1,
-      planner_override: { id: 1, plannable_id: 1, marked_complete: false },
-      submissions: { submitted: false, graded: false, excused: false, late: false, missing: false },
-    },
-    {
-      plannable_id: 2, plannable_type: 'quiz',
-      plannable: { id: 2, title: 'Chapter 7 Quiz: Graphs', due_at: d(0, 17, 0), points_possible: 25, course_id: 1, created_at: d(-3) },
-      context_name: 'CS 301 — Data Structures', course_id: 1,
-      planner_override: { id: 2, plannable_id: 2, marked_complete: true },
-      submissions: { submitted: true, graded: false, excused: false, late: false, missing: false },
-    },
-    {
-      plannable_id: 3, plannable_type: 'discussion_topic',
-      plannable: { id: 3, title: 'Discuss: Ethical Implications of AI in Education', due_at: d(0, 20, 0), course_id: 5, created_at: d(-2) },
-      context_name: 'PHIL 210 — Ethics in Tech', course_id: 5,
-      planner_override: { id: 3, plannable_id: 3, marked_complete: false },
-    },
-    // Tomorrow
-    {
-      plannable_id: 4, plannable_type: 'assignment',
-      plannable: { id: 4, title: 'Lab Report: Quantum Tunneling', due_at: d(1, 23, 59), points_possible: 50, course_id: 2, created_at: d(-5) },
-      context_name: 'PHYS 201 — Modern Physics', course_id: 2,
-      planner_override: { id: 4, plannable_id: 4, marked_complete: false },
-      submissions: { submitted: false, graded: false, excused: false, late: false, missing: false },
-    },
-    {
-      plannable_id: 5, plannable_type: 'calendar_event',
-      plannable: { id: 5, title: 'Study Group Session — Library Room 204', due_at: d(1, 14, 0), course_id: 1, created_at: d(-1) },
-      context_name: 'CS 301 — Data Structures', course_id: 1,
-    },
-    // Day after tomorrow
-    {
-      plannable_id: 6, plannable_type: 'assignment',
-      plannable: { id: 6, title: 'Essay: Romanticism vs. Realism', due_at: d(2, 23, 59), points_possible: 150, course_id: 3, created_at: d(-10) },
-      context_name: 'ENG 201 — English Literature', course_id: 3,
-      planner_override: { id: 6, plannable_id: 6, marked_complete: false },
-      submissions: { submitted: false, graded: false, excused: false, late: false, missing: false },
-    },
-    {
-      plannable_id: 7, plannable_type: 'quiz',
-      plannable: { id: 7, title: 'Abstract Algebra Midterm', due_at: d(2, 10, 0), points_possible: 100, course_id: 4, created_at: d(-14) },
-      context_name: 'MATH 401 — Abstract Algebra', course_id: 4,
-      planner_override: { id: 7, plannable_id: 7, marked_complete: false },
-    },
-    // 3 days from now
-    {
-      plannable_id: 8, plannable_type: 'assignment',
-      plannable: { id: 8, title: 'Group Project: Milestone 2 Deliverable', due_at: d(3, 23, 59), points_possible: 200, course_id: 6, created_at: d(-7) },
-      context_name: 'CS 410 — Software Engineering', course_id: 6,
-      planner_override: { id: 8, plannable_id: 8, marked_complete: false },
-    },
-    // 5 days from now
-    {
-      plannable_id: 9, plannable_type: 'discussion_topic',
-      plannable: { id: 9, title: 'Weekly Reflection: Research Methods', due_at: d(5, 23, 59), course_id: 5, created_at: d(-1) },
-      context_name: 'PHIL 210 — Ethics in Tech', course_id: 5,
-    },
-    {
-      plannable_id: 10, plannable_type: 'assignment',
-      plannable: { id: 10, title: 'Problem Set 8: Ring Homomorphisms', due_at: d(5, 23, 59), points_possible: 50, course_id: 4, created_at: d(-3) },
-      context_name: 'MATH 401 — Abstract Algebra', course_id: 4,
-      planner_override: { id: 10, plannable_id: 10, marked_complete: false },
-    },
-    // Overdue
-    {
-      plannable_id: 11, plannable_type: 'assignment',
-      plannable: { id: 11, title: 'Reading Response: Chapter 12', due_at: d(-2, 23, 59), points_possible: 20, course_id: 3, created_at: d(-14) },
-      context_name: 'ENG 201 — English Literature', course_id: 3,
-      planner_override: { id: 11, plannable_id: 11, marked_complete: false },
-      submissions: { submitted: false, graded: false, excused: false, late: false, missing: true },
-    },
-  ]
-}
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const TYPE_ICONS: Record<string, { icon: string; className: string }> = {
@@ -313,14 +223,13 @@ export default function PlannerPage() {
 
   return (
     <div className="cx-planner">
-      {/* ── Header ── */}
-      <div className="cx-planner__header">
-        <div>
-          <h1 className="cx-planner__title">Task Planner</h1>
-          <p className="cx-planner__subtitle">
+      {/* ── Stats & Controls ── */}
+      <div className="cx-planner__header" style={{ paddingTop: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <span className="cx-planner__subtitle" style={{ margin: 0 }}>
             {stats.completed} of {stats.total} tasks completed · {stats.pct}% done
-          </p>
-          <div className="cx-planner__completion-bar" style={{ width: 200, marginTop: 6 }}>
+          </span>
+          <div className="cx-planner__completion-bar" style={{ width: 120, margin: 0, height: 6 }}>
             <div className="cx-planner__completion-fill" style={{ width: `${stats.pct}%` }} />
           </div>
         </div>

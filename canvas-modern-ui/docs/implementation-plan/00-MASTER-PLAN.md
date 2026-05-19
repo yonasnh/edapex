@@ -31,13 +31,13 @@
 
 | Phase | Name | Sprints | Focus | Progress |
 |-------|------|---------|-------|----------|
-| **1** | [Foundation & Auth](./01-PHASE-FOUNDATION.md) | S1–S3 | Project scaffold, OAuth2, design system | **29/30 (97%)** |
-| **2** | [Core LMS Features](./02-PHASE-CORE-LMS.md) | S4–S8 | Dashboard, courses, assignments, grades | **40/50 (80%)** |
-| **3** | [Collaboration & Communication](./03-PHASE-COLLABORATION.md) | S9–S12 | Discussions, messaging, calendar, groups | **10/40 (25%)** |
-| **4** | [Administration & Analytics](./04-PHASE-ADMIN.md) | S13–S16 | Admin panel, reports, user management | **20/40 (50%)** |
-| **5** | [Advanced Features](./05-PHASE-ADVANCED.md) | S17–S20 | Quizzes, rubrics, outcomes, LTI | **0/40 (0%)** |
-| **6** | [AI & Polish](./06-PHASE-AI-POLISH.md) | S21–S24 | AI tutoring, mobile PWA, performance | **12/40 (30%)** |
-| **Total** | | | | **112/240 (47%)** |
+| **1** | [Foundation & Auth](./01-PHASE-FOUNDATION.md) | S1–S3 | Project scaffold, OAuth2, design system | **30/30 (100%)** |
+| **2** | [Core LMS Features](./02-PHASE-CORE-LMS.md) | S4–S8 | Dashboard, courses, assignments, grades | **50/50 (100%)** |
+| **3** | [Collaboration & Communication](./03-PHASE-COLLABORATION.md) | S9–S12 | Discussions, messaging, calendar, groups | **40/40 (100%)** |
+| **4** | [Administration & Analytics](./04-PHASE-ADMIN.md) | S13–S16 | Admin panel, reports, user management | **40/40 (100%)** |
+| **5** | [Advanced Features](./05-PHASE-ADVANCED.md) | S17–S20 | Quizzes, rubrics, outcomes, LTI | **40/40 (100%)** |
+| **6** | [AI & Polish](./06-PHASE-AI-POLISH.md) | S21–S24 | AI tutoring, mobile PWA, performance | **22/40 (55%)** |
+| **Total** | | | | **222/240 (93%)** |
 
 ---
 

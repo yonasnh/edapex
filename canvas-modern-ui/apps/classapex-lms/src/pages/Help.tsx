@@ -66,12 +66,7 @@ const HelpPage: React.FC = () => {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Help & Support</h1>
-          <p className="cx-page__subtitle">Find answers to common questions, access documentation, and contact our support team</p>
-        </div>
-      </div>
+
 
       <div className="cx-stats-grid">
         {[

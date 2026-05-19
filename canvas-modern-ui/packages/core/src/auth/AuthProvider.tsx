@@ -143,10 +143,21 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
 
   // ── Login: redirect to Canvas OAuth authorize endpoint ──
   const login = useCallback(() => {
-    console.log('[ClassApex Auth] login() called — redirecting to Canvas OAuth')
-    console.log('[ClassApex Auth] CLIENT_ID:', CLIENT_ID || '(empty!)')
-    console.log('[ClassApex Auth] CANVAS_BASE_URL:', CANVAS_BASE_URL || '(empty)')
+    console.log('[ClassApex Auth] login() called')
+    
+    if (!CLIENT_ID) {
+      console.warn('[ClassApex Auth] No CLIENT_ID configured. Cannot initiate OAuth flow.')
+      if (apiToken) {
+         // Fallback to static token if OAuth isn't configured
+         localStorage.setItem(TOKEN_KEY, apiToken)
+         window.location.reload()
+      } else {
+         alert('OAuth is not configured and no static token is available.')
+      }
+      return
+    }
 
+    console.log('[ClassApex Auth] Redirecting to Canvas OAuth')
     const oauthState = crypto.randomUUID()
     sessionStorage.setItem(STATE_KEY, oauthState)
 
@@ -159,7 +170,7 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
     })
 
     window.location.href = `${CANVAS_BASE_URL}/login/oauth2/auth?${params}`
-  }, [])
+  }, [apiToken])
 
   // ── Handle OAuth callback: exchange code for tokens ──
   const handleOAuthCallback = useCallback(async (code: string, returnedState: string) => {
@@ -217,8 +228,9 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
   const logout = useCallback(async () => {
     const token = localStorage.getItem(TOKEN_KEY)
 
-    // Revoke token on Canvas side
-    if (token) {
+    // Revoke token on Canvas side only if we are using a real OAuth client
+    // If there is no CLIENT_ID, we are using a static dev token, which we should NOT destroy!
+    if (token && CLIENT_ID) {
       try {
         await fetch(`${CANVAS_BASE_URL}/login/oauth2/token`, {
           method: 'DELETE',
@@ -270,16 +282,43 @@ interface RequireAuthProps {
  */
 export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
   const { isAuthenticated, isLoading, user, login, devMode, devLogin } = useAuth()
-  const hasRedirected = useRef(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('cm-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
+    return 'light'
+  })
 
-  // Use useEffect for the redirect — NEVER redirect during render
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !devMode && !hasRedirected.current) {
-      console.log('[ClassApex Auth] RequireAuth: not authenticated, triggering login redirect')
-      hasRedirected.current = true
-      login()
+    const root = document.querySelector('html')
+    if (root) {
+      root.setAttribute('data-theme', theme)
+      root.classList.remove('light-theme', 'dark-theme')
+      root.classList.add(`${theme}-theme`)
     }
-  }, [isLoading, isAuthenticated, devMode, login])
+  }, [theme])
+
+  const toggleLoginTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(newTheme)
+    localStorage.setItem('cm-theme', newTheme)
+  }
+
+  const isDark = theme === 'dark'
+  const colors = {
+    bgPage: isDark ? '#0f172a' : 'var(--cx-bg-canvas, #f5f5f5)',
+    bgCard: isDark ? '#1e293b' : 'var(--cx-bg-surface, #ffffff)',
+    textPrimary: isDark ? '#f8fafc' : 'var(--cx-text-primary, #1a1a1a)',
+    textSecondary: isDark ? '#94a3b8' : 'var(--cx-text-secondary, #666666)',
+    textTertiary: isDark ? '#64748b' : 'var(--cx-text-tertiary, #999999)',
+    textBrand: isDark ? '#ffffff' : '#000000',
+    border: isDark ? '#334155' : 'var(--cx-border-subtle, #e5e5e5)',
+    inputBg: isDark ? '#0f172a' : 'var(--cx-bg-canvas, #f9fafb)',
+    inputBorder: isDark ? '#334155' : 'var(--cx-border-subtle, #e5e5e5)',
+    inputColor: isDark ? '#f8fafc' : 'var(--cx-text-primary, #1a1a1a)',
+    shadow: isDark ? '0 10px 25px rgba(0,0,0,0.3)' : '0 10px 25px rgba(0,0,0,0.05)',
+  }
 
   if (isLoading) {
     return fallback || <div className="cx-auth-loading">Loading...</div>
@@ -290,26 +329,325 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
       // In dev mode, show a login button instead of redirecting to Canvas
       return (
         <div className="cx-dev-login" style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          height: '100vh', fontFamily: 'system-ui, sans-serif', gap: '1rem',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          overflowY: 'auto',
+          fontFamily: 'system-ui, sans-serif',
+          background: colors.bgPage,
+          color: colors.textPrimary,
+          transition: 'background-color 0.2s, color 0.2s',
+          padding: '2rem 1rem',
         }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>ClassApex LMS — Dev Mode</h1>
-          <p style={{ color: '#666' }}>No Canvas OAuth configured. Use dev login to continue.</p>
-          <button
-            onClick={() => devLogin()}
-            style={{
-              padding: '0.75rem 2rem', fontSize: '1rem', fontWeight: 500,
-              background: '#2563eb', color: '#fff', border: 'none', borderRadius: '0.5rem',
-              cursor: 'pointer',
-            }}
-          >
-            Continue as Developer
-          </button>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100%',
+            width: '100%',
+            maxWidth: '400px',
+            margin: 'auto',
+            gap: '1.5rem',
+            textAlign: 'center',
+          }}>
+            {/* Header row with logo and theme switcher */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              width: '100%', 
+              marginBottom: '0.5rem' 
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left' }}>
+                <img 
+                  src="/classapex_logo_transparent.png" 
+                  alt="ClassApex Logo" 
+                  style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h1 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, lineHeight: 1.1, letterSpacing: '-0.025em', color: colors.textBrand }}>
+                    ClassApex
+                  </h1>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textSecondary }}>
+                    Learning Management
+                  </span>
+                </div>
+              </div>
+              
+              <button
+                type="button"
+                onClick={toggleLoginTheme}
+                style={{
+                  background: colors.bgCard,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: colors.textPrimary,
+                  boxShadow: colors.shadow,
+                  transition: 'all 0.2s',
+                }}
+                aria-label="Toggle theme"
+              >
+                {isDark ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                )}
+              </button>
+            </div>
+
+            <div style={{
+              background: colors.bgCard,
+              padding: '2rem 1.5rem',
+              borderRadius: '1rem',
+              boxShadow: colors.shadow,
+              width: '100%',
+              textAlign: 'center',
+              transition: 'background-color 0.2s, box-shadow 0.2s',
+              border: `1px solid ${colors.border}`
+            }}>
+              <h1 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 0.5rem 0' }}>Dev Mode Sign In</h1>
+              <p style={{ color: colors.textSecondary, fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                No Canvas OAuth configured. Use the dev login flow below to proceed.
+              </p>
+              <button
+                onClick={() => devLogin()}
+                style={{
+                  padding: '0.75rem 2rem', fontSize: '1rem', fontWeight: 600,
+                  background: 'var(--cx-color-primary, #2563eb)', color: '#fff', border: 'none', borderRadius: '0.5rem',
+                  cursor: 'pointer', width: '100%', boxShadow: '0 4px 6px rgba(37,99,235,0.2)'
+                }}
+              >
+                Continue as Developer
+              </button>
+            </div>
+
+            <div style={{
+              marginTop: '1rem',
+              fontSize: '0.8125rem',
+              color: colors.textSecondary,
+              textAlign: 'center',
+            }}>
+              <span>&copy; {new Date().getFullYear()} ClassApex LMS. Dev Environment.</span>
+            </div>
+          </div>
         </div>
       )
     }
-    // Show loading while redirect is pending
-    return fallback || <div className="cx-auth-loading">Redirecting to login...</div>
+    // Production mode sign-in screen
+    return (
+      <div className="cx-dev-login" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        overflowY: 'auto',
+        fontFamily: 'system-ui, sans-serif',
+        background: colors.bgPage,
+        color: colors.textPrimary,
+        transition: 'background-color 0.2s, color 0.2s',
+        padding: '2rem 1rem',
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100%',
+          width: '100%',
+          maxWidth: '400px',
+          margin: 'auto',
+        }}>
+          {/* Brand Logo Area */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            width: '100%', 
+            marginBottom: '1.5rem' 
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <img 
+                src="/classapex_logo_transparent.png" 
+                alt="ClassApex Logo" 
+                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h1 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, lineHeight: 1.1, letterSpacing: '-0.025em', color: colors.textBrand }}>
+                  ClassApex
+                </h1>
+                <span style={{ fontSize: '0.7rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textSecondary }}>
+                  Learning Management
+                </span>
+              </div>
+            </div>
+            
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleLoginTheme}
+              style={{
+                background: colors.bgCard,
+                border: `1px solid ${colors.border}`,
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: colors.textPrimary,
+                boxShadow: colors.shadow,
+                transition: 'all 0.2s',
+              }}
+              aria-label="Toggle theme"
+            >
+              {isDark ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </button>
+          </div>
+
+          <div style={{
+            background: colors.bgCard,
+            padding: '1.5rem 2rem 2rem 2rem',
+            borderRadius: '1rem',
+            boxShadow: colors.shadow,
+            width: '100%',
+            textAlign: 'left',
+            transition: 'background-color 0.2s, box-shadow 0.2s',
+            border: `1px solid ${colors.border}`
+          }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 0.25rem 0' }}>Login to your account</h1>
+            <p style={{ 
+              color: colors.textSecondary, 
+              marginBottom: '1.25rem', 
+              fontSize: '0.875rem',
+              paddingBottom: '1rem',
+              borderBottom: `1px solid ${colors.border}` 
+            }}>
+              New to ClassApex? <a href="#" style={{ color: 'var(--cx-color-primary, #2563eb)', textDecoration: 'none', fontWeight: 500 }}>Sign up</a>
+            </p>
+            
+            <form onSubmit={(e) => { e.preventDefault(); login(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
+                <input 
+                  type="email" 
+                  required 
+                  placeholder="student@schoolapex.edu"
+                  style={{
+                    width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem',
+                    border: `1px solid ${colors.inputBorder}`,
+                    background: colors.inputBg,
+                    color: colors.inputColor,
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }} 
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Password</label>
+                  <a href="#" style={{ fontSize: '0.8125rem', color: 'var(--cx-color-primary, #2563eb)', textDecoration: 'none' }}>Forgot password?</a>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showPassword ? 'text' : 'password'} 
+                    required 
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%', padding: '0.625rem 2.5rem 0.625rem 0.75rem', borderRadius: '0.5rem',
+                      border: `1px solid ${colors.inputBorder}`,
+                      background: colors.inputBg,
+                      color: colors.inputColor,
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                    }} 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    style={{
+                      position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex',
+                      color: colors.textTertiary
+                    }}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.75rem', fontSize: '1rem', fontWeight: 600,
+                  background: 'var(--cx-color-primary, #2563eb)', color: '#fff', border: 'none', borderRadius: '0.5rem',
+                  cursor: 'pointer', boxShadow: '0 4px 6px rgba(37,99,235,0.2)',
+                  transition: 'background 0.2s', width: '100%'
+                }}
+              >
+                Sign in
+              </button>
+            </form>
+            
+            <div style={{ marginTop: '1.25rem', fontSize: '0.8125rem', color: colors.textTertiary, borderTop: `1px solid ${colors.border}`, paddingTop: '0.75rem' }}>
+              <p style={{ margin: 0 }}>Authentication is secured via Canvas LMS.</p>
+            </div>
+          </div>
+          
+          {/* Responsive Page Footer */}
+          <div style={{
+            marginTop: '2rem',
+            padding: '1rem 0 0 0',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.75rem',
+            fontSize: '0.8125rem',
+            color: colors.textTertiary,
+            borderTop: `1px solid ${colors.border}`,
+            width: '100%',
+            textAlign: 'center',
+          }}>
+            <span>&copy; {new Date().getFullYear()} ClassApex LMS. All rights reserved.</span>
+            <div style={{ display: 'flex', gap: '1.5rem' }}>
+              <a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Terms</a>
+              <a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy</a>
+              <a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Support</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // Role check

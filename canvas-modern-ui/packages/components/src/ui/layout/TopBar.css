@@ -9,6 +9,33 @@
 .cm-topbar__left {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.cm-topbar__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cm-topbar__title {
+  font-family: var(--cm-font-family-base, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cm-text-primary, #0F172A);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.cm-topbar__subtitle {
+  font-family: var(--cm-font-family-base, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--cm-text-tertiary, #64748B);
+  margin: 0;
+  line-height: 1.3;
 }
 
 /* ─── Search ─── */
@@ -18,7 +45,7 @@
   display: flex;
   align-items: center;
   gap: var(--cm-space-2, 8px);
-  padding: var(--cm-space-2, 8px) var(--cm-space-3, 12px);
+  padding: 4px var(--cm-space-3, 12px);
   background: var(--cm-bg-surface-alt, #F1F3F6);
   border: var(--cm-border-width-standard, 1px) solid var(--cm-border-subtle, #E5E7EB);
   border-radius: var(--cm-radius-sm, 8px);
@@ -71,7 +98,7 @@
 .cm-topbar__right {
   display: flex;
   align-items: center;
-  gap: var(--cm-space-2, 8px);
+  gap: var(--cm-space-3, 12px);
   flex-shrink: 0;
 }
 
@@ -100,6 +127,10 @@
 .cm-topbar__action:focus-visible {
   outline: var(--cm-focus-ring-width, 2px) solid var(--cm-focus-ring, #3B82F6);
   outline-offset: var(--cm-focus-ring-offset, 2px);
+}
+
+.cm-topbar__action--search {
+  display: none !important;
 }
 
 .cm-topbar__badge {
@@ -235,13 +266,45 @@
 /* ─── Mobile ─── */
 @media (max-width: 768px) {
   .cm-topbar__search {
-    max-width: 200px;
+    display: none !important;
   }
-  .cm-topbar__search-kbd {
-    display: none;
+  .cm-topbar__action--search {
+    display: flex !important;
   }
   .cm-topbar__user-name {
-    display: none;
+    display: none !important;
+  }
+  .cm-topbar__chevron {
+    display: none !important;
+  }
+  .cm-topbar__user-btn {
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .cx-breadcrumb__item:not(:last-child) {
+    display: none !important;
+  }
+  .cx-breadcrumb__separator {
+    display: none !important;
+  }
+  .cm-topbar__subtitle {
+    display: none !important;
+  }
+  .cm-topbar__title {
+    font-size: 1rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px; /* Prevent long titles from overlapping buttons */
+  }
+  .cm-topbar__right {
+    gap: var(--cm-space-2, 8px) !important;
+  }
+  .cm-topbar__action {
+    width: 32px !important;
+    height: 32px !important;
   }
 }
 

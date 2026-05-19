@@ -141,7 +141,7 @@
   --cm-sidebar-width: 260px;
   --cm-sidebar-collapsed: 64px;
   --cm-header-height: 56px;
-  --cm-max-content-width: 1280px;
+  --cm-max-content-width: none;
 
   /* ─── Breakpoints (for reference) ─── */
   /* sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px */
@@ -168,7 +168,7 @@
   --cm-text-secondary: #475569;
   --cm-text-tertiary: #64748B;
   --cm-text-inverse: #FFFFFF;
-  --cm-text-disabled: #CBD5E1;
+  --cm-text-disabled: var(--cm-gray-500);
 
   /* ─── Interactive ─── */
   --cm-link-default: #4F46E5;
@@ -230,7 +230,7 @@
   --cm-text-secondary: #CBD5E1;
   --cm-text-tertiary: #94A3B8;
   --cm-text-inverse: #0F172A;
-  --cm-text-disabled: #475569;
+  --cm-text-disabled: var(--cm-gray-400);
 
   /* ─── Interactive ─── */
   --cm-link-default: #6366F1;
@@ -392,7 +392,7 @@
   --cx-text-primary: var(--cm-text-primary);
   --cx-text-secondary: var(--cm-text-secondary);
   --cx-text-tertiary: var(--cm-text-tertiary);
-  --cx-text-disabled: var(--cm-gray-300);
+  --cx-text-disabled: var(--cm-text-disabled);
   --cx-text-on-color: var(--cm-text-inverse);
   --cx-text-link: var(--cm-link-default);
 
@@ -429,7 +429,7 @@
   --cx-text-primary: var(--cm-text-primary);
   --cx-text-secondary: var(--cm-text-secondary);
   --cx-text-tertiary: var(--cm-text-tertiary);
-  --cx-text-disabled: var(--cm-gray-600);
+  --cx-text-disabled: var(--cm-text-disabled);
   --cx-text-on-color: var(--cm-text-inverse);
   --cx-text-link: var(--cm-link-default);
 

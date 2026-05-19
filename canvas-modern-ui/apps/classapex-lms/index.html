@@ -2,17 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/classapex_logo_transparent.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#6366f1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ClassApex LMS - Revolutionary Learning Management System</title>
     <meta name="description" content="Modern, intuitive LMS powered by Carbon Design System with real-time Canvas data integration" />
     <style>
       body {
         margin: 0;
-        font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        background-color: #090d16;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        background-color: #f4f4f4;
       }
       
       #root {
@@ -24,19 +30,66 @@
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background: linear-gradient(135deg, #0f62fe 0%, #8a3ffc 100%);
-        color: white;
-        font-size: 1.5rem;
-        font-weight: 300;
+        background: linear-gradient(135deg, #090d16 0%, #111827 100%);
+        box-sizing: border-box;
+      }
+      
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        max-width: 200px;
+        width: 100%;
+      }
+      
+      .loading-logo-img {
+        height: 48px;
+        width: auto;
+        object-fit: contain;
+        animation: breathe 2.5s ease-in-out infinite;
+        filter: drop-shadow(0 0 16px rgba(99, 102, 241, 0.3));
+      }
+      
+      .loading-track {
+        width: 100px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+      
+      .loading-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 40px;
+        background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
+        border-radius: 4px;
+        animation: slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      }
+      
+      @keyframes breathe {
+        0%, 100% { transform: scale(0.96); opacity: 0.75; }
+        50%      { transform: scale(1.02); opacity: 1; }
+      }
+      
+      @keyframes slide {
+        0%   { left: -50px; }
+        100% { left: 110px; }
       }
     </style>
   </head>
   <body>
     <div id="root">
       <div class="loading-screen">
-        <div>
-          <h1>🎓 ClassApex LMS</h1>
-          <p>Loading revolutionary learning experience...</p>
+        <div class="loading-container">
+          <img src="/classapex_logo_transparent.png" alt="ClassApex" class="loading-logo-img" />
+          <div class="loading-track">
+            <div class="loading-bar"></div>
+          </div>
         </div>
       </div>
     </div>

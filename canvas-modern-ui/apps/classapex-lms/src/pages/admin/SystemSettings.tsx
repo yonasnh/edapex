@@ -46,6 +46,7 @@ const mockSettings: SystemSetting[] = [
   { id: '8', category: 'storage', key: 'max_file_size', value: '104857600', description: 'Maximum file upload size in bytes (100MB)', type: 'number', isPublic: false, updatedAt: '2024-01-11T12:00:00Z', updatedBy: { id: 'admin1', name: 'Admin User' }, validation: { required: true, min: 1048576, max: 1073741824 } },
   { id: '9', category: 'integrations', key: 'google_oauth_enabled', value: 'false', description: 'Enable Google OAuth for user authentication', type: 'boolean', isPublic: false, updatedAt: '2024-01-09T10:15:00Z', updatedBy: { id: 'admin1', name: 'Admin User' } },
   { id: '10', category: 'appearance', key: 'primary_color', value: '#0f62fe', description: 'Primary brand color for the platform', type: 'string', isPublic: true, updatedAt: '2024-01-07T14:30:00Z', updatedBy: { id: 'admin1', name: 'Admin User' }, validation: { pattern: '^#[0-9A-Fa-f]{6}$' } },
+  { id: '11', category: 'general', key: 'institution_tier', value: 'University', description: 'Visual and functional customization tier profile for the institution', type: 'string', isPublic: true, updatedAt: '2026-05-19T14:25:00Z', updatedBy: { id: 'admin1', name: 'Admin User' }, options: ['K-8', 'High School', 'College', 'University'] },
 ];
 
 const categories = [
@@ -78,7 +79,13 @@ const AdminSystemSettingsPage: React.FC = () => {
     if (!canvasSettings) return mockSettings;
     
     // Map canvas settings to our mock schema
-    const mapped = [...mockSettings];
+    const mapped = mockSettings.map(s => {
+      const localOverrides = JSON.parse(localStorage.getItem('cx_mock_settings') || '{}');
+      if (localOverrides[s.key] !== undefined) {
+        return { ...s, value: localOverrides[s.key] };
+      }
+      return s;
+    });
     
     const updateSetting = (key: string, value: any) => {
       const idx = mapped.findIndex(s => s.key === key);
@@ -144,6 +151,11 @@ const AdminSystemSettingsPage: React.FC = () => {
           if (!res.ok) throw new Error('Failed to update setting')
           refetch()
         }
+
+        // Save local overrides for all settings
+        const localOverrides = JSON.parse(localStorage.getItem('cx_mock_settings') || '{}');
+        localOverrides[selectedSetting.key] = editValue;
+        localStorage.setItem('cx_mock_settings', JSON.stringify(localOverrides));
         
         setShowSuccess(true); setTimeout(() => setShowSuccess(false), 3000); 
       } catch (err) {

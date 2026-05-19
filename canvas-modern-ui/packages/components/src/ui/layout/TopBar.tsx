@@ -12,6 +12,7 @@ interface TopBarProps {
   onSearch?: (query: string) => void
   onNotificationsClick?: () => void
   onProfileClick?: () => void
+  onSettingsClick?: () => void
   onLogout?: () => void
   breadcrumb?: ReactNode
 }
@@ -26,6 +27,7 @@ export function TopBar({
   onSearch,
   onNotificationsClick,
   onProfileClick,
+  onSettingsClick,
   onLogout,
   breadcrumb,
 }: TopBarProps) {
@@ -79,23 +81,37 @@ export function TopBar({
 
       <div className="cm-topbar__right">
         <button
-          className="cm-topbar__action"
-          onClick={onThemeToggle}
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="cm-topbar__action cm-topbar__action--search"
+          onClick={() => onSearch?.('')}
+          aria-label="Open Search"
+          title="Search"
           type="button"
         >
-          {theme === 'dark' ? (
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <circle cx="9" cy="9" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <path d="M15 11.5A7.5 7.5 0 016.5 3 7.5 7.5 0 1015 11.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
-          )}
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M7 12A5 5 0 107 2a5 5 0 000 10zM14 14l-3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
         </button>
+
+        {onThemeToggle && (
+          <button
+            className="cm-topbar__action"
+            onClick={onThemeToggle}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            type="button"
+          >
+            {theme === 'dark' ? (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <circle cx="9" cy="9" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <path d="M15 11.5A7.5 7.5 0 016.5 3 7.5 7.5 0 1015 11.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
+        )}
 
         <button
           className="cm-topbar__action"
@@ -120,7 +136,7 @@ export function TopBar({
             type="button"
           >
             <Avatar src={userAvatar} name={userName} size="sm" />
-            <span className="cm-topbar__user-name">{userName.split(' ')[0]}</span>
+            <span className="cm-topbar__user-name">{userName}</span>
             <svg className={`cm-topbar__chevron ${showUserMenu ? 'cm-topbar__chevron--open' : ''}`} width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
               <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
@@ -136,7 +152,7 @@ export function TopBar({
               <button className="cm-topbar__menu-item" role="menuitem" onClick={() => { setShowUserMenu(false); onProfileClick?.() }}>
                 Profile
               </button>
-              <button className="cm-topbar__menu-item" role="menuitem" onClick={() => setShowUserMenu(false)}>
+              <button className="cm-topbar__menu-item" role="menuitem" onClick={() => { setShowUserMenu(false); onSettingsClick?.() }}>
                 Settings
               </button>
               <div className="cm-topbar__menu-divider" />

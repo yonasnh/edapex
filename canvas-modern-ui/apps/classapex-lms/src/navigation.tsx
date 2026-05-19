@@ -23,6 +23,7 @@ function EducationIcon(props: any) { return <Icon {...props}><svg><path d="M10 1
 function InboxIcon(props: any) { return <Icon {...props}><svg><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 5l8 5 8-5"/></svg></Icon>; }
 function PlannerIcon(props: any) { return <Icon {...props}><svg><rect x="3" y="2" width="14" height="16" rx="2"/><path d="M7 6h6"/><path d="M7 10h6"/><path d="M7 14h4"/><path d="M6 2V0M14 2V0"/></svg></Icon>; }
 function ClipboardIcon(props: any) { return <Icon {...props}><svg><rect x="4" y="3" width="12" height="15" rx="1"/><path d="M8 1h4a1 1 0 011 1v1H7V2a1 1 0 011-1z"/><path d="M8 8h4M8 11h4M8 14h2"/></svg></Icon>; }
+function PaletteIcon(props: any) { return <Icon {...props}><svg><circle cx="10" cy="10" r="8"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="13" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="13" r="1" fill="currentColor"/><path d="M14 11c-1 0-2 1-2 2"/><path d="M6 11c1 0 2 1 2 2"/></svg></Icon>; }
 
 export interface NavigationItem {
   id: string;
@@ -47,7 +48,7 @@ export const navItems: NavigationItem[] = [
       { id: 'recent', label: 'Recent', icon: CloudIcon, href: '/courses/recent', description: 'Recently accessed courses' },
     ]
   },
-  { id: 'assignments', label: 'Assignments', icon: AssignmentIcon, href: '/assignments', badge: 3, description: 'View and submit assignments', roles: ['student', 'teacher', 'ta'] },
+  { id: 'assignments', label: 'Assignments', icon: AssignmentIcon, href: '/assignments', badge: 3, description: 'View and submit assignments', roles: ['student', 'teacher', 'ta', 'admin'] },
   { id: 'grades', label: 'Grades', icon: GradeIcon, href: '/grades', description: 'View grades and feedback', roles: ['student', 'teacher', 'ta'] },
   { id: 'grading', label: 'Grading Queue', icon: ClipboardIcon, href: '/grading', description: 'Review and grade submissions', roles: ['teacher', 'ta'] },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon, href: '/calendar', description: 'View upcoming events and deadlines' },
@@ -63,8 +64,11 @@ export const navItems: NavigationItem[] = [
       { id: 'users', label: 'Users', icon: UserIcon, href: '/admin/users', description: 'Manage users and permissions', roles: ['admin'] },
       { id: 'courses-admin', label: 'Course Management', icon: EducationIcon, href: '/admin/courses', description: 'Manage courses and enrollments', roles: ['admin'] },
       { id: 'system-settings', label: 'System Settings', icon: SettingsIcon, href: '/admin/settings', description: 'Configure system settings', roles: ['admin'] },
+      { id: 'theme-branding', label: 'Theme & Branding', icon: PaletteIcon, href: '/admin/branding', description: 'Configure platform visual appearance', roles: ['admin'] },
+      { id: 'global-notifications', label: 'Global Notifications', icon: NotificationIcon, href: '/admin/notifications', description: 'Broadcast global system announcements', roles: ['admin'] },
     ]
   },
+  { id: 'eportfolios', label: 'ePortfolios', icon: EducationIcon, href: '/eportfolios', description: 'Curate your learning journey and achievements' },
   { id: 'help', label: 'Help & Support', icon: HelpIcon, href: '/help', description: 'Get help and support' },
 ];
 

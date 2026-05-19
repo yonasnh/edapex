@@ -60,9 +60,35 @@
 /* Tabs */
 .cx-course-home__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0;
   border-bottom: 1px solid var(--cx-border-subtle);
   margin-bottom: var(--cx-space-5);
+  align-items: center;
+}
+
+.cx-course-home__tabs-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: var(--cx-space-2) 0;
+}
+
+@media (max-width: 640px) {
+  .cx-course-home__tabs-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+    padding: var(--cx-space-2) var(--cx-space-3);
+    border-top: 1px solid var(--cx-border-subtle);
+  }
+  
+  .cx-course-home__tab {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: var(--cx-space-3) var(--cx-space-2);
+  }
 }
 
 .cx-course-home__tab {

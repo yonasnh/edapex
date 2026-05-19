@@ -1,7 +1,7 @@
 /* ─── Shell Grid ─── */
 .cm-shell {
   display: grid;
-  grid-template-columns: var(--cm-sidebar-width, 260px) 1fr;
+  grid-template-columns: auto 1fr;
   grid-template-rows: 1fr;
   min-height: 100vh;
   background: var(--cm-bg-canvas, #F7F8FA);
@@ -11,7 +11,7 @@
 }
 
 .cm-shell--collapsed {
-  grid-template-columns: var(--cm-sidebar-collapsed, 64px) 1fr;
+  /* Controlled via sidebar width directly */
 }
 
 .cm-shell--no-sidebar {
@@ -21,15 +21,23 @@
 /* ─── Sidebar ─── */
 .cm-shell__sidebar {
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: var(--cm-space-4, 16px);
+  height: calc(100vh - var(--cm-space-4, 16px) * 2);
+  width: var(--cm-sidebar-width, 260px);
+  margin: var(--cm-space-4, 16px) 0 var(--cm-space-4, 16px) var(--cm-space-6, 24px);
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--cm-sidebar-bg, #111827);
-  color: var(--cm-sidebar-text, #CBD5E1);
-  border-right: var(--cm-border-width-standard, 1px) solid var(--cm-border-subtle, #E5E7EB);
+  background: var(--cm-bg-surface, #FFFFFF);
+  color: var(--cm-text-primary, #111827);
+  border: var(--cm-border-width-standard, 1px) solid var(--cm-border-subtle, #E2E8F0);
+  border-radius: var(--cm-radius-md, 12px);
   z-index: var(--cm-z-sticky, 200);
+  box-shadow: var(--cm-elevation-1);
   transition: width var(--cm-duration-base, 180ms) var(--cm-ease-standard);
+}
+
+.cm-shell--collapsed .cm-shell__sidebar {
+  width: var(--cm-sidebar-collapsed, 64px);
 }
 
 .cm-shell__sidebar::-webkit-scrollbar {
@@ -52,18 +60,20 @@
 /* ─── TopBar ─── */
 .cm-shell__topbar {
   position: sticky;
-  top: var(--cm-space-4, 16px);
-  height: var(--cm-header-height, 56px);
+  top: 0;
+  height: auto;
+  max-width: none;
+  width: calc(100% - 32px);
   display: flex;
   align-items: center;
-  padding: 0 var(--cm-space-6, 24px);
-  background: var(--cm-bg-surface, #FFFFFF);
-  border: var(--cm-border-width-standard, 1px) solid var(--cm-border-subtle, #E2E8F0);
-  border-radius: var(--cm-radius-md, 12px);
-  margin: var(--cm-space-4, 16px) var(--cm-space-6, 24px) 0 var(--cm-space-6, 24px);
+  padding: var(--cm-space-3, 12px) var(--cm-space-4, 16px);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--cm-border-subtle, #E2E8F0);
+  border-radius: 0;
+  margin: 0 auto;
   z-index: var(--cm-z-sticky, 200);
-  backdrop-filter: blur(16px);
-  box-shadow: var(--cm-elevation-1);
+  box-shadow: none;
 }
 
 .cm-shell__mobile-toggle {
@@ -75,9 +85,9 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--cm-space-6, 24px);
-  max-width: var(--cm-max-content-width, 1280px);
-  width: 100%;
+  padding: var(--cm-space-6, 24px) var(--cm-space-4, 16px);
+  max-width: none;
+  width: calc(100% - 32px);
   margin: 0 auto;
   outline: none;
 }
@@ -136,19 +146,36 @@
   font-size: var(--cx-text-xs, 0.75rem);
 }
 
+.cm-shell__backdrop {
+  display: none;
+}
+
 /* ─── Mobile Responsive ─── */
 @media (max-width: 768px) {
   .cm-shell {
     grid-template-columns: 1fr;
   }
 
+  .cm-shell__backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: var(--cm-z-overlay, 290);
+    transition: opacity var(--cm-duration-base, 180ms) var(--cm-ease-standard);
+  }
   .cm-shell__topbar {
     top: 0;
     margin: 0;
+    width: 100%;
     border: none;
     border-bottom: var(--cm-border-width-standard, 1px) solid var(--cm-border-subtle, #E2E8F0);
     border-radius: 0;
-    padding: 0 var(--cm-space-4, 16px);
+    padding: var(--cm-space-2, 8px) var(--cm-space-4, 16px);
     box-shadow: none;
   }
 
@@ -173,6 +200,11 @@
     position: fixed;
     top: 0;
     left: 0;
+    height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-right: 1px solid var(--cm-border-subtle, #E2E8F0);
     width: var(--cm-sidebar-width, 260px);
     transform: translateX(-100%);
     transition: transform var(--cm-duration-base, 180ms) var(--cm-ease-standard);
@@ -184,7 +216,9 @@
   }
 
   .cm-shell__main {
-    padding: var(--cm-space-4, 16px);
+    padding: var(--cm-space-4, 16px) var(--cm-space-4, 16px);
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 

@@ -89,15 +89,11 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Notifications</h1>
-          <p className="cx-page__subtitle">Stay updated with course activity and system announcements</p>
-        </div>
-        {stats.unread > 0 && (
+      {stats.unread > 0 && (
+        <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={markAllRead}><CheckSvg /> Mark All Read</button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="cx-stats-grid">
         {[

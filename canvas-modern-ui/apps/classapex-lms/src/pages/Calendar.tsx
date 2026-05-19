@@ -55,12 +55,17 @@ const CalendarPage: React.FC = () => {
     location: '', type: 'other', isAllDay: false,
   });
 
-  const { data: coursesData } = useCanvasQuery<any[]>('/api/v1/users/self/courses', { enrollment_state: 'active' } as any)
+  // Live Canvas API — courses and calendar events
+  const { data: coursesData } = useCanvasQuery<any[]>(
+    '/api/v1/courses',
+    { enrollment_state: 'active', per_page: 50 } as any
+  )
   const courses = Array.isArray(coursesData) ? coursesData : []
 
-  const { data: eventsData, refetch } = useCanvasQuery<any[]>('/api/v1/calendar_events', { all_events: true, per_page: 50 } as any)
+  const { data: eventsData, refetch } = useCanvasQuery<any[]>('/api/v1/calendar_events', { all_events: true, per_page: 100 } as any)
   
-  const mockEvents = useMemo(() => {
+  // Map Canvas API events to internal CalendarEvent shape
+  const events = useMemo(() => {
     if (!Array.isArray(eventsData)) return [];
     return eventsData.map(e => ({
       id: String(e.id),
@@ -77,15 +82,15 @@ const CalendarPage: React.FC = () => {
   }, [eventsData, courses])
 
   const filteredEvents = useMemo(() => {
-    let filtered = [...mockEvents];
-    if (filterCourse !== 'all') filtered = filtered.filter(e => e.course?.id === filterCourse);
+    let filtered = [...events];
+    if (filterCourse !== 'all') filtered = filtered.filter(e => String(e.course?.id) === filterCourse);
     if (filterType !== 'all') filtered = filtered.filter(e => e.type === filterType);
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(e => e.title.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q));
     }
     return filtered;
-  }, [filterCourse, filterType, searchTerm]);
+  }, [events, filterCourse, filterType, searchTerm]);
 
   const viewEvents = useMemo(() => {
     const now = currentDate;
@@ -159,44 +164,139 @@ const CalendarPage: React.FC = () => {
 
   const handleSaveEvent = async () => {
     if (!eventForm.title?.trim()) return;
-    
     try {
-      const formData = new URLSearchParams()
-      formData.append('calendar_event[context_code]', eventForm.course?.id ? `course_${eventForm.course.id}` : 'user_1') // default to user if no course
-      formData.append('calendar_event[title]', eventForm.title)
-      if (eventForm.description) formData.append('calendar_event[description]', eventForm.description)
-      if (eventForm.startDate) formData.append('calendar_event[start_at]', new Date(eventForm.startDate).toISOString())
-      if (eventForm.endDate) formData.append('calendar_event[end_at]', new Date(eventForm.endDate).toISOString())
-      if (eventForm.location) formData.append('calendar_event[location_name]', eventForm.location)
-      
-      const res = await fetch('/api/v1/calendar_events', {
-        method: 'POST',
+      const body: Record<string, any> = {
+        'calendar_event[context_code]': eventForm.course?.id
+          ? `course_${eventForm.course.id}`
+          : 'user_self',
+        'calendar_event[title]': eventForm.title,
+      }
+      if (eventForm.description) body['calendar_event[description]'] = eventForm.description
+      if (eventForm.startDate) body['calendar_event[start_at]'] = new Date(eventForm.startDate).toISOString()
+      if (eventForm.endDate) body['calendar_event[end_at]'] = new Date(eventForm.endDate).toISOString()
+      if (eventForm.location) body['calendar_event[location_name]'] = eventForm.location
+      if (eventForm.isAllDay) body['calendar_event[all_day]'] = 'true'
+
+      const formData = new URLSearchParams(body as any).toString()
+
+      const isEditing = !!editingEvent
+      const url = isEditing
+        ? `/api/v1/calendar_events/${editingEvent!.id}`
+        : '/api/v1/calendar_events'
+      const method = isEditing ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        body: formData,
       })
-      if (!res.ok) throw new Error('Failed to create event')
-      
-      alert('Event created successfully!')
-      setShowEventModal(false);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      setShowEventModal(false)
       refetch()
     } catch (err) {
       console.error(err)
-      alert('Failed to save event.')
+      alert('Failed to save event. Check your permissions.')
     }
   };
 
-  const handleDeleteEvent = () => {
-    if (editingEvent) console.log('Delete event:', editingEvent.id);
-    setShowEventModal(false);
+  const handleDeleteEvent = async () => {
+    if (!editingEvent) return
+    if (!confirm('Delete this event?')) return
+    try {
+      const res = await fetch(`/api/v1/calendar_events/${editingEvent.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setShowEventModal(false)
+      setSelectedEvent(null)
+      refetch()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete event.')
+    }
   };
+
+  const handleExportICal = () => {
+    // Generate simple iCal from currently filtered events
+    let ical = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ClassApex//LMS//EN\n'
+    filteredEvents.forEach(e => {
+      const dtStart = new Date(e.startDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+      const dtEnd = e.endDate ? new Date(e.endDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z' : dtStart
+      ical += 'BEGIN:VEVENT\n'
+      ical += `UID:${e.id}@classapex.local\n`
+      ical += `DTSTAMP:${dtStart}\n`
+      ical += `DTSTART:${dtStart}\n`
+      ical += `DTEND:${dtEnd}\n`
+      ical += `SUMMARY:${e.title}\n`
+      if (e.description) ical += `DESCRIPTION:${e.description.replace(/\n/g, '\\n')}\n`
+      if (e.location) ical += `LOCATION:${e.location}\n`
+      ical += 'END:VEVENT\n'
+    })
+    ical += 'END:VCALENDAR'
+
+    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'calendar.ics')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  };
+
+  const handleDragStart = (e: React.DragEvent, eventId: string) => {
+    e.dataTransfer.setData('text/plain', eventId)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = async (e: React.DragEvent, targetDateStr: string) => {
+    e.preventDefault()
+    const eventId = e.dataTransfer.getData('text/plain')
+    if (!eventId) return
+    
+    const ev = events.find(x => x.id === eventId)
+    if (!ev) return
+
+    // Calculate new start/end dates keeping the same time of day
+    const oldStart = new Date(ev.startDate)
+    const newStart = new Date(targetDateStr)
+    newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), oldStart.getSeconds())
+
+    let newEndStr = ''
+    if (ev.endDate) {
+      const oldEnd = new Date(ev.endDate)
+      const durationMs = oldEnd.getTime() - oldStart.getTime()
+      const newEnd = new Date(newStart.getTime() + durationMs)
+      newEndStr = newEnd.toISOString()
+    }
+
+    try {
+      const body: Record<string, string> = {
+        'calendar_event[start_at]': newStart.toISOString()
+      }
+      if (newEndStr) body['calendar_event[end_at]'] = newEndStr
+
+      const res = await fetch(`/api/v1/calendar_events/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(body).toString(),
+      })
+      if (!res.ok) throw new Error('Failed to reschedule')
+      refetch()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to reschedule event.')
+    }
+  }
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Calendar</h1>
-          <p className="cx-page__subtitle">Manage your schedule and deadlines</p>
-        </div>
+      <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0, gap: 12 }}>
+        <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportICal}>Export iCal</button>
         <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={openCreateModal}><PlusSvg /> Create Event</button>
       </div>
 
@@ -258,14 +358,29 @@ const CalendarPage: React.FC = () => {
             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} className="cx-calendar-grid__cell cx-calendar-grid__cell--empty" />)}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
-              const events = getEventsForDay(day);
-              const isToday = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString() === todayStr;
+              const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+              const dateStr = dateObj.toDateString()
+              const events = viewEvents.filter(e => new Date(e.startDate).toDateString() === dateStr);
+              const isToday = dateStr === todayStr;
               return (
-                <div key={day} className={clsx('cx-calendar-grid__cell', isToday && 'cx-calendar-grid__cell--today')}>
+                <div 
+                  key={day} 
+                  className={clsx('cx-calendar-grid__cell', isToday && 'cx-calendar-grid__cell--today')}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, dateStr)}
+                >
                   <span className="cx-calendar-grid__date">{day}</span>
                   <div className="cx-calendar-grid__events">
                     {events.slice(0, 3).map(e => (
-                      <button key={e.id} className="cx-calendar-grid__event" style={{ background: getTypeColor(e.type) }} onClick={() => setSelectedEvent(e)} title={e.title}>
+                      <button 
+                        key={e.id} 
+                        className="cx-calendar-grid__event" 
+                        style={{ background: getTypeColor(e.type), cursor: 'grab' }} 
+                        onClick={() => setSelectedEvent(e)} 
+                        title={e.title}
+                        draggable
+                        onDragStart={(evt) => handleDragStart(evt, e.id)}
+                      >
                         {e.title}
                       </button>
                     ))}
@@ -306,7 +421,54 @@ const CalendarPage: React.FC = () => {
         </div>
       )}
 
-      {(viewMode === 'week' || viewMode === 'day') && (
+      {viewMode === 'week' && (
+        <div className="cx-calendar-week-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 16 }}>
+          {Array.from({ length: 7 }).map((_, d) => {
+            const date = new Date(currentDate);
+            date.setDate(date.getDate() - date.getDay() + d);
+            const dateStr = date.toDateString();
+            const isToday = dateStr === todayStr;
+            const dayEvents = viewEvents.filter(e => new Date(e.startDate).toDateString() === dateStr);
+
+            return (
+              <div 
+                key={d} 
+                className="cx-calendar-week-col" 
+                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, dateStr)}
+              >
+                <div style={{ textAlign: 'center', padding: '8px 0', borderBottom: '2px solid var(--cx-border-color)', color: isToday ? 'var(--cx-color-primary)' : 'var(--cx-text-secondary)' }}>
+                  <div style={{ fontSize: '0.8125rem', textTransform: 'uppercase', fontWeight: 600 }}>{DAYS[d]}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: isToday ? 700 : 400 }}>{date.getDate()}</div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {dayEvents.map(event => (
+                    <div 
+                      key={event.id} 
+                      className="cx-event-card cx-event-card--sm" 
+                      style={{ padding: 8, cursor: 'grab', borderLeft: `3px solid ${getTypeColor(event.type)}` }} 
+                      onClick={() => setSelectedEvent(event)}
+                      draggable
+                      onDragStart={(evt) => handleDragStart(evt, event.id)}
+                    >
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: 4 }}>{event.title}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>
+                        {formatTime(event.startDate)}
+                      </div>
+                    </div>
+                  ))}
+                  {dayEvents.length === 0 && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', textAlign: 'center', padding: '16px 0' }}>No events</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {viewMode === 'day' && (
         <div className="cx-section">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {viewEvents.map(event => (
@@ -325,7 +487,7 @@ const CalendarPage: React.FC = () => {
             {viewEvents.length === 0 && (
               <div className="cx-empty">
                 <CalendarIconSvg />
-                <h3>No events for this period</h3>
+                <h3>No events today</h3>
                 <p>Adjust your filters to see more events.</p>
               </div>
             )}

@@ -5,7 +5,7 @@
 
 .cx-planner {
   padding: 24px;
-  max-width: 1200px;
+  max-width: var(--cx-max-content-width);
   margin: 0 auto;
 }
 

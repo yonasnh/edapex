@@ -52,9 +52,11 @@ const DiscussionsPage: React.FC = () => {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [selectedDiscussion, setSelectedDiscussion] = useState<any | null>(null);
   const [showReply, setShowReply] = useState(false);
+  const [replyToEntryId, setReplyToEntryId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editDiscussion, setEditDiscussion] = useState<any | null>(null);
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', courseId: '', tags: '' });
+  const [entriesRefetch, setEntriesRefetch] = useState(0)
   
   // Live Canvas API Queries
   const { data: coursesData } = useCanvasQuery<any[]>('/api/v1/users/self/courses', { enrollment_state: 'active' } as any)
@@ -70,6 +72,14 @@ const DiscussionsPage: React.FC = () => {
   const { data: apiDiscussions, refetch } = useCanvasQuery<any[]>(
     filterCourse ? `/api/v1/courses/${filterCourse}/discussion_topics` : '',
     { per_page: 50, enabled: !!filterCourse } as any
+  )
+
+  // Live entries for selected discussion (threaded)
+  const { data: apiEntries, refetch: refetchEntries } = useCanvasQuery<any[]>(
+    selectedDiscussion && filterCourse
+      ? `/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`
+      : '',
+    { per_page: 50 } as any
   )
   
   const discussions = Array.isArray(apiDiscussions) ? apiDiscussions.map(d => ({
@@ -103,42 +113,73 @@ const DiscussionsPage: React.FC = () => {
   };
 
   const handleCreateDiscussion = async () => {
-    if (!discussionForm.title.trim() || !discussionForm.courseId) return;
+    if (!discussionForm.title.trim()) return;
+    const courseId = editDiscussion ? (editDiscussion.course?.id || filterCourse) : discussionForm.courseId
+    if (!courseId) return
     try {
       const formData = new URLSearchParams()
       formData.append('title', discussionForm.title)
       formData.append('message', discussionForm.content)
-      
-      const res = await fetch(`/api/v1/courses/${discussionForm.courseId}/discussion_topics`, {
-        method: 'POST',
+
+      const isEdit = !!editDiscussion
+      const url = isEdit
+        ? `/api/v1/courses/${courseId}/discussion_topics/${editDiscussion.id}`
+        : `/api/v1/courses/${courseId}/discussion_topics`
+      const method = isEdit ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        body: formData.toString(),
       })
-      if (!res.ok) throw new Error('Failed to create discussion')
-      
-      alert('Discussion created successfully!')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
       setShowCreateModal(false)
-      if (discussionForm.courseId === filterCourse) {
-        refetch() // Reload list if created in current view
-      }
+      setEditDiscussion(null)
+      refetch()
     } catch (err) {
       console.error(err)
-      alert('Failed to create discussion.')
+      alert('Failed to save discussion.')
     }
   };
 
-  const togglePin = useCallback(async (id: string) => {
-    // API logic to toggle pin goes here (PUT /api/v1/courses/:courseId/discussion_topics/:id)
-    setSelectedDiscussion((prev: any) => prev?.id === id ? { ...prev, isPinned: !prev.isPinned } : prev);
-  }, []);
+  const togglePin = useCallback(async (id: string, currentlyPinned: boolean) => {
+    try {
+      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `discussion_topic[pinned]=${!currentlyPinned}`,
+      })
+      refetch()
+    } catch (err) {
+      console.error('[Discussions] togglePin failed:', err)
+    }
+  }, [filterCourse, refetch])
 
-  const toggleLock = useCallback(async (id: string) => {
-    setSelectedDiscussion((prev: any) => prev?.id === id ? { ...prev, isLocked: !prev.isLocked } : prev);
-  }, []);
+  const toggleLock = useCallback(async (id: string, currentlyLocked: boolean) => {
+    try {
+      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `discussion_topic[locked]=${!currentlyLocked}`,
+      })
+      refetch()
+    } catch (err) {
+      console.error('[Discussions] toggleLock failed:', err)
+    }
+  }, [filterCourse, refetch])
 
-  const toggleSubscribe = useCallback(async (id: string) => {
-    setSelectedDiscussion((prev: any) => prev?.id === id ? { ...prev, isSubscribed: !prev.isSubscribed } : prev);
-  }, []);
+  const toggleSubscribe = useCallback(async (id: string, currentlySubscribed: boolean) => {
+    try {
+      // Canvas uses PUT to subscribe, DELETE to unsubscribe
+      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}/subscribed`, {
+        method: currentlySubscribed ? 'DELETE' : 'PUT',
+      })
+      refetch()
+    } catch (err) {
+      console.error('[Discussions] toggleSubscribe failed:', err)
+    }
+  }, [filterCourse, refetch])
 
   const filteredDiscussions = useMemo(() => {
     let filtered = [...discussions];
@@ -177,11 +218,7 @@ const DiscussionsPage: React.FC = () => {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header">
-        <div>
-          <h1 className="cx-page__title">Discussions</h1>
-          <p className="cx-page__subtitle">Participate in course discussions and collaborate with peers</p>
-        </div>
+      <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={openCreateModal}><PlusSvg /> New Discussion</button>
       </div>
 
@@ -274,89 +311,165 @@ const DiscussionsPage: React.FC = () => {
       )}
 
       {selectedDiscussion && (
-        <div className="cx-modal-overlay" onClick={() => setSelectedDiscussion(null)}>
-          <div className="cx-modal cx-modal--lg" onClick={e => e.stopPropagation()}>
+        <div className="cx-modal-overlay" onClick={() => { setSelectedDiscussion(null); setShowReply(false); setReplyToEntryId(null) }}>
+          <div className="cx-modal cx-modal--lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="cx-modal__header">
               <h2 className="cx-modal__title">{selectedDiscussion.title}</h2>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { const d = selectedDiscussion; setSelectedDiscussion(null); openEditModal(d); }} title="Edit"><EditSvg /></button>
-                <button className="cx-btn cx-btn--ghost" onClick={() => setSelectedDiscussion(null)}><XSvg /></button>
+                <button className="cx-btn cx-btn--ghost" onClick={() => { setSelectedDiscussion(null); setShowReply(false); setReplyToEntryId(null) }}><XSvg /></button>
               </div>
             </div>
-            <div className="cx-modal__body">
-              <div className="cx-discussion-detail__author">
-                <div className="cx-discussion-card__meta">
-                  <span style={{ fontWeight: 600 }}>{selectedDiscussion.author.name}</span>
-                  {selectedDiscussion.author.role && <span className="cx-badge cx-badge--info">{selectedDiscussion.author.role}</span>}
-                  {selectedDiscussion.course && <span className="cx-badge cx-badge--neutral">{selectedDiscussion.course.name}</span>}
-                  <span style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.8125rem' }}>{new Date(selectedDiscussion.createdAt).toLocaleString()}</span>
-                </div>
+            <div className="cx-modal__body" style={{ overflowY: 'auto', flex: 1 }}>
+              <div className="cx-discussion-card__meta">
+                <span style={{ fontWeight: 600 }}>{selectedDiscussion.author.name}</span>
+                {selectedDiscussion.author.role && <span className="cx-badge cx-badge--info">{selectedDiscussion.author.role}</span>}
+                {selectedDiscussion.course && <span className="cx-badge cx-badge--neutral">{selectedDiscussion.course.name}</span>}
+                <span style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.8125rem' }}>{new Date(selectedDiscussion.createdAt).toLocaleString()}</span>
               </div>
-              <div style={{ color: 'var(--cx-text-secondary)', lineHeight: 1.7, marginTop: 16 }} dangerouslySetInnerHTML={{ __html: selectedDiscussion.content }} />
-              {selectedDiscussion.tags && selectedDiscussion.tags.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
-                  {selectedDiscussion.tags.map((tag: string, i: number) => (
-                    <span key={i} className="cx-badge cx-badge--neutral">{tag}</span>
-                  ))}
-                </div>
-              )}
-              <div className="cx-discussion-card__footer" style={{ marginTop: 16 }}>
-                <span><ReplySvg /> {selectedDiscussion.replyCount} replies</span>
-                <span><EyeSvg /> {selectedDiscussion.viewCount} views</span>
-                <span><HeartSvg /> {selectedDiscussion.likeCount} likes</span>
-              </div>
-              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <div style={{ color: 'var(--cx-text-secondary)', lineHeight: 1.7, marginTop: 12, marginBottom: 16 }} dangerouslySetInnerHTML={{ __html: selectedDiscussion.content }} />
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
                 <button
                   className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isPinned ? 'cx-btn--primary' : 'cx-btn--ghost')}
-                  onClick={() => togglePin(selectedDiscussion.id)}
-                  title={selectedDiscussion.isPinned ? 'Unpin' : 'Pin'}
-                >
-                  <PinSvg /> {selectedDiscussion.isPinned ? 'Pinned' : 'Pin'}
-                </button>
+                  onClick={() => togglePin(selectedDiscussion.id, selectedDiscussion.isPinned)}
+                ><PinSvg /> {selectedDiscussion.isPinned ? 'Pinned' : 'Pin'}</button>
                 <button
                   className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isLocked ? 'cx-btn--secondary' : 'cx-btn--ghost')}
-                  onClick={() => toggleLock(selectedDiscussion.id)}
-                  title={selectedDiscussion.isLocked ? 'Unlock' : 'Lock'}
-                >
-                  <LockSvg /> {selectedDiscussion.isLocked ? 'Locked' : 'Lock'}
-                </button>
+                  onClick={() => toggleLock(selectedDiscussion.id, selectedDiscussion.isLocked)}
+                ><LockSvg /> {selectedDiscussion.isLocked ? 'Locked' : 'Lock'}</button>
                 <button
                   className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isSubscribed ? 'cx-btn--primary' : 'cx-btn--ghost')}
-                  onClick={() => toggleSubscribe(selectedDiscussion.id)}
-                  title={selectedDiscussion.isSubscribed ? 'Unsubscribe' : 'Subscribe'}
-                >
-                  {selectedDiscussion.isSubscribed ? <BellSvg /> : <BellOffSvg />} {selectedDiscussion.isSubscribed ? 'Subscribed' : 'Subscribe'}
-                </button>
+                  onClick={() => toggleSubscribe(selectedDiscussion.id, selectedDiscussion.isSubscribed)}
+                >{selectedDiscussion.isSubscribed ? <BellSvg /> : <BellOffSvg />} {selectedDiscussion.isSubscribed ? 'Subscribed' : 'Subscribe'}</button>
+                <button
+                  className="cx-btn cx-btn--primary cx-btn--sm"
+                  onClick={() => { setShowReply(p => !p); setReplyToEntryId(null) }}
+                ><ReplySvg /> {showReply && replyToEntryId === null ? 'Cancel' : 'Reply'}</button>
               </div>
-              <div style={{ marginTop: 16 }}>
-                <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowReply(p => !p)}>
-                  <ReplySvg /> {showReply ? 'Cancel' : 'Reply'}
-                </button>
-                {showReply && (
-                  <div style={{ marginTop: 12 }}>
-                    <ReplyEditor
-                      onSubmit={async (text) => {
-                        try {
-                          const formData = new URLSearchParams()
-                          formData.append('message', text)
-                          
-                          const res = await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: formData.toString()
-                          })
-                          if (!res.ok) throw new Error('Failed to post reply')
-                          
-                          alert('Reply posted successfully!')
-                          setShowReply(false)
-                          refetch() // Refresh discussion list (or just the entries)
-                        } catch (err) {
-                          console.error(err)
-                          alert('Failed to post reply. Please try again.')
-                        }
-                      }}
-                      onCancel={() => setShowReply(false)}
-                    />
+
+              {/* Top-level reply form */}
+              {showReply && replyToEntryId === null && (
+                <div style={{ marginBottom: 20, padding: '14px', background: 'var(--cx-bg-surface-raised, #f8fafc)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
+                  <ReplyEditor
+                    onSubmit={async (text) => {
+                      try {
+                        const res = await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                          body: new URLSearchParams({ message: text }).toString()
+                        })
+                        if (!res.ok) throw new Error('Failed to post reply')
+                        setShowReply(false)
+                        refetchEntries()
+                        refetch()
+                      } catch (err) {
+                        console.error(err)
+                        alert('Failed to post reply. Please try again.')
+                      }
+                    }}
+                    onCancel={() => setShowReply(false)}
+                  />
+                </div>
+              )}
+
+              {/* Threaded entries */}
+              <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 16 }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--cx-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                  {(apiEntries?.length ?? 0)} {(apiEntries?.length ?? 0) === 1 ? 'Reply' : 'Replies'}
+                </h4>
+                {!apiEntries || apiEntries.length === 0 ? (
+                  <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', fontStyle: 'italic' }}>No replies yet. Be the first to respond!</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {apiEntries.map(entry => (
+                      <div key={entry.id}>
+                        {/* Entry */}
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <div style={{
+                            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                            background: 'var(--cx-color-primary)', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.75rem', fontWeight: 700,
+                          }}>
+                            {(entry.user?.display_name || entry.user_name || 'U').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>
+                                {entry.user?.display_name || entry.user_name}
+                              </span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)' }}>
+                                {new Date(entry.created_at).toLocaleString()}
+                              </span>
+                            </div>
+                            <div
+                              style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', lineHeight: 1.6 }}
+                              dangerouslySetInnerHTML={{ __html: entry.message }}
+                            />
+                            <button
+                              className="cx-btn cx-btn--ghost cx-btn--sm"
+                              style={{ marginTop: 6, fontSize: '0.75rem' }}
+                              onClick={() => setReplyToEntryId(replyToEntryId === String(entry.id) ? null : String(entry.id))}
+                            >
+                              <ReplySvg /> Reply
+                            </button>
+
+                            {/* Nested reply form */}
+                            {replyToEntryId === String(entry.id) && (
+                              <div style={{ marginTop: 10, padding: '12px', background: 'var(--cx-bg-surface-raised, #f8fafc)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
+                                <ReplyEditor
+                                  onSubmit={async (text) => {
+                                    try {
+                                      const res = await fetch(
+                                        `/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries/${entry.id}/replies`,
+                                        {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                          body: new URLSearchParams({ message: text }).toString()
+                                        }
+                                      )
+                                      if (!res.ok) throw new Error('Failed')
+                                      setReplyToEntryId(null)
+                                      refetchEntries()
+                                    } catch {
+                                      alert('Failed to post nested reply.')
+                                    }
+                                  }}
+                                  onCancel={() => setReplyToEntryId(null)}
+                                />
+                              </div>
+                            )}
+
+                            {/* Sub-entries (replies to entries) */}
+                            {entry.recent_replies?.length > 0 && (
+                              <div style={{ marginTop: 10, paddingLeft: 16, borderLeft: '2px solid var(--cx-border-subtle)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {entry.recent_replies.map((sub: any) => (
+                                  <div key={sub.id} style={{ display: 'flex', gap: 8 }}>
+                                    <div style={{
+                                      width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                                      background: 'var(--cx-bg-surface-raised)', border: '1px solid var(--cx-border-subtle)',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: '0.65rem', fontWeight: 700, color: 'var(--cx-text-secondary)',
+                                    }}>
+                                      {(sub.user?.display_name || sub.user_name || 'U').slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                                        <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--cx-text-primary)' }}>{sub.user?.display_name || sub.user_name}</span>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)' }}>{new Date(sub.created_at).toLocaleString()}</span>
+                                      </div>
+                                      <div style={{ fontSize: '0.82rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: sub.message }} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

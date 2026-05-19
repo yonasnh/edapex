@@ -12,6 +12,7 @@ import { useTenant } from '../contexts/TenantContext'
 import { TodoWidget, type TodoItem } from '../widgets/TodoWidget'
 import { UpcomingWidget } from '../widgets/UpcomingWidget'
 import { RecentActivity } from '../widgets/RecentActivity'
+import { FavoriteCourses } from '../widgets/FavoriteCourses'
 import './dashboard-v2.css'
 import '../widgets/widgets.css'
 
@@ -66,7 +67,7 @@ export default function DashboardV2() {
 
   // Compute stats
   const stats = useMemo(() => {
-    const activeCourses = courses?.filter(c => c.workflow_state === 'available')?.length || 0
+    const activeCourses = courses?.length || 0
     const pendingTodos = todoItems?.length || 0
     const upcoming = upcomingEvents?.length || 0
     const missing = missingSubmissions?.length || 0
@@ -76,16 +77,8 @@ export default function DashboardV2() {
 
   return (
     <div className="cx-dashboard">
-      {/* ── Header ── */}
-      <div className="cx-dashboard__header">
-        <div>
-          <h1 className="cx-dashboard__title">{isGamified ? 'My Learning Dashboard' : 'Dashboard'}</h1>
-          <p className="cx-dashboard__subtitle">
-            {isGamified
-              ? 'Keep up the great work! Complete tasks to earn achievements.'
-              : "Welcome back! Here's what's happening today."}
-          </p>
-        </div>
+      {/* ── View Toggle ── */}
+      <div className="cx-dashboard__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <div className="cx-dashboard__view-toggle" role="radiogroup" aria-label="View mode">
           <button
             className={`cx-view-btn ${viewMode === 'cards' ? 'cx-view-btn--active' : ''}`}
@@ -137,7 +130,7 @@ export default function DashboardV2() {
             </div>
           ) : courses && courses.length > 0 ? (
             <div className={viewMode === 'cards' ? 'cx-course-grid' : 'cx-course-list'}>
-              {courses.filter(c => c.workflow_state === 'available').slice(0, 8).map(course => (
+              {courses.slice(0, 8).map(course => (
                 <CourseCard key={course.id} course={course} viewMode={viewMode} />
               ))}
             </div>
@@ -151,6 +144,11 @@ export default function DashboardV2() {
           <section className="cx-widget">
             <h3 className="cx-widget__title">To-Do</h3>
             <TodoWidget items={todoItems || []} isLoading={todosLoading} maxItems={6} />
+          </section>
+
+          <section className="cx-widget">
+            <h3 className="cx-widget__title">⭐ Favorite Courses</h3>
+            <FavoriteCourses />
           </section>
 
           <section className="cx-widget">

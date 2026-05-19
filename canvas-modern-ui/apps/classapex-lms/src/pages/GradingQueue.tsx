@@ -52,74 +52,6 @@ interface Submission {
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6']
 
-const MOCK_SUBMISSIONS: Submission[] = [
-  {
-    id: 1, user_id: 101,
-    user: { id: 101, name: 'Emma Thompson' },
-    assignment_id: 201, assignment: { id: 201, name: 'Binary Search Tree Implementation', points_possible: 100, course_id: 1, due_at: '2026-05-17T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'submitted', submitted_at: '2026-05-17T22:30:00Z',
-    body: 'Here is my implementation of a Binary Search Tree in Python. I implemented insert, delete, search, and in-order traversal methods. The delete method handles all three cases: leaf node, node with one child, and node with two children.\n\n```python\nclass Node:\n    def __init__(self, key):\n        self.left = None\n        self.right = None\n        self.val = key\n\nclass BST:\n    def __init__(self):\n        self.root = None\n    \n    def insert(self, key):\n        if self.root is None:\n            self.root = Node(key)\n        else:\n            self._insert_recursive(self.root, key)\n    \n    def _insert_recursive(self, node, key):\n        if key < node.val:\n            if node.left is None:\n                node.left = Node(key)\n            else:\n                self._insert_recursive(node.left, key)\n        else:\n            if node.right is None:\n                node.right = Node(key)\n            else:\n                self._insert_recursive(node.right, key)\n```\n\nI also included 8 unit tests covering edge cases like empty tree operations and duplicate insertions.',
-    late: false, missing: false, attempt: 1, submission_type: 'online_text_entry',
-    submission_comments: [],
-  },
-  {
-    id: 2, user_id: 102,
-    user: { id: 102, name: 'Marcus Chen' },
-    assignment_id: 201, assignment: { id: 201, name: 'Binary Search Tree Implementation', points_possible: 100, course_id: 1, due_at: '2026-05-17T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'submitted', submitted_at: '2026-05-18T02:15:00Z',
-    body: 'My BST implementation with all required methods. I used an iterative approach for insertion and search for better performance on large datasets. The traversal methods include in-order, pre-order, and post-order.\n\nI went beyond the requirements by also implementing a balanced BST (AVL tree) variant with automatic rebalancing on insertions.',
-    late: true, missing: false, attempt: 1, submission_type: 'online_text_entry',
-    submission_comments: [],
-  },
-  {
-    id: 3, user_id: 103,
-    user: { id: 103, name: 'Priya Patel' },
-    assignment_id: 201, assignment: { id: 201, name: 'Binary Search Tree Implementation', points_possible: 100, course_id: 1, due_at: '2026-05-17T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'graded', submitted_at: '2026-05-17T18:00:00Z', graded_at: '2026-05-18T10:00:00Z',
-    score: 95, grade: 'A',
-    body: 'Complete BST implementation with comprehensive test suite. Included visualization method using ASCII art to display tree structure.',
-    late: false, missing: false, attempt: 1, submission_type: 'online_text_entry',
-    submission_comments: [
-      { id: 301, author_name: 'Dr. Sarah Chen', comment: 'Excellent work! Your visualization method is creative and well-implemented. -5 for minor style issues.', created_at: '2026-05-18T10:00:00Z' }
-    ],
-  },
-  {
-    id: 4, user_id: 104,
-    user: { id: 104, name: 'Jordan Rivera' },
-    assignment_id: 202, assignment: { id: 202, name: 'Essay: Graph Theory Applications', points_possible: 75, course_id: 1, due_at: '2026-05-18T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'submitted', submitted_at: '2026-05-18T14:00:00Z',
-    body: 'This essay explores real-world applications of graph theory in social network analysis, GPS navigation systems, and recommendation engines. I discuss how Dijkstra\'s algorithm powers modern mapping services and how PageRank revolutionized web search.',
-    late: false, missing: false, attempt: 1, submission_type: 'online_text_entry',
-    submission_comments: [],
-  },
-  {
-    id: 5, user_id: 105,
-    user: { id: 105, name: 'Taylor Kim' },
-    assignment_id: 201, assignment: { id: 201, name: 'Binary Search Tree Implementation', points_possible: 100, course_id: 1, due_at: '2026-05-17T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'submitted', submitted_at: '2026-05-18T08:00:00Z',
-    body: 'Resubmitting after incorporating feedback from the initial review. Added proper error handling and improved the delete method to handle the successor/predecessor approach correctly.',
-    late: true, missing: false, attempt: 2, submission_type: 'online_text_entry',
-    submission_comments: [
-      { id: 501, author_name: 'Dr. Sarah Chen', comment: 'Please fix the delete method — it doesn\'t correctly handle the case with two children.', created_at: '2026-05-17T09:00:00Z' }
-    ],
-  },
-  {
-    id: 6, user_id: 106,
-    user: { id: 106, name: 'Alex Washington' },
-    assignment_id: 202, assignment: { id: 202, name: 'Essay: Graph Theory Applications', points_possible: 75, course_id: 1, due_at: '2026-05-18T23:59:00Z' },
-    course_name: 'CS 301 — Data Structures',
-    workflow_state: 'submitted', submitted_at: '2026-05-18T12:00:00Z',
-    body: 'In this essay I examine how graph coloring algorithms solve scheduling problems in university timetabling and resource allocation. I present three case studies from educational institutions.',
-    late: false, missing: false, attempt: 1, submission_type: 'online_text_entry',
-    submission_comments: [],
-  },
-]
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
@@ -158,9 +90,42 @@ export default function GradingQueuePage() {
   const [comment, setComment] = useState('')
   const [gradedLocally, setGradedLocally] = useState<Set<number>>(new Set())
 
-  // Canvas API — with fallback to mock
+  // SpeedGrader Enhancements States (Sprint 18)
+  const [rubricViewTab, setRubricViewTab] = useState<'teacher' | 'self' | 'peer'>('teacher')
+  const [isModerated, setIsModerated] = useState(false)
+  const [moderator, setModerator] = useState('Professor Miller')
+  
+  // DocViewer Annotation States
+  const [annotations, setAnnotations] = useState<{ id: string; x: number; y: number; text: string; type: string }[]>([
+    { id: '1', x: 120, y: 110, text: 'Excellent introductory paragraph! Strong thesis statement.', type: 'note' },
+    { id: '2', x: 280, y: 190, text: 'Check APA citation style formatting here.', type: 'highlight' }
+  ])
+  const [annotationType, setAnnotationType] = useState<'note' | 'highlight' | 'pencil'>('note')
+  
+  // Media Recording States
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordTimer, setRecordTimer] = useState(0)
+  const [recordedComment, setRecordedComment] = useState<string | null>(null)
+
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+
+  // Fetch courses to grade
+  const { data: coursesData } = useCanvasQuery<any[]>(
+    '/api/v1/courses',
+    { enrollment_state: 'active', enrollment_type: 'teacher', per_page: 50 } as any
+  )
+  const courses = Array.isArray(coursesData) ? coursesData : []
+  
+  // Auto-select first course when loaded
+  React.useEffect(() => {
+    if (courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(courses[0].id)
+    }
+  }, [courses, selectedCourseId])
+
+  // Canvas API — submissions for selected course
   const { data: apiSubmissions } = useCanvasQuery<Submission[]>(
-    '/api/v1/courses/1/students/submissions',
+    selectedCourseId ? `/api/v1/courses/${selectedCourseId}/students/submissions` : '',
     { workflow_state: 'submitted', include: ['user', 'assignment', 'submission_comments'], per_page: 50 } as any
   )
 
@@ -266,7 +231,24 @@ export default function GradingQueuePage() {
       {/* ── Header ── */}
       <div className="cx-grading__header">
         <div>
-          <h1 className="cx-grading__title">Grading Queue</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h1 className="cx-grading__title">Grading Queue</h1>
+            <select
+              className="cx-select"
+              value={selectedCourseId || ''}
+              onChange={e => {
+                setSelectedCourseId(Number(e.target.value))
+                setSelectedId(null)
+                setGradedLocally(new Set())
+              }}
+              style={{ padding: '6px 12px', fontSize: '0.875rem' }}
+            >
+              <option value="" disabled>Select a course</option>
+              {courses.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
           <p className="cx-grading__subtitle">
             {stats.pending} submission{stats.pending !== 1 ? 's' : ''} awaiting review
           </p>
@@ -421,29 +403,210 @@ export default function GradingQueuePage() {
               </div>
 
               <div className="cx-grading__submission">
-                <div className="cx-grading__submission-meta">
-                  <div className="cx-grading__meta-card">
-                    <div className="cx-grading__meta-label">Submitted</div>
-                    <div className="cx-grading__meta-value">
-                      {selected.submitted_at ? new Date(selected.submitted_at).toLocaleString() : '—'}
+                {/* Rubric View Selectors (S18-10) */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--cx-border-subtle)', marginBottom: 12, gap: 4 }}>
+                  <button
+                    className={`cx-btn cx-btn--sm ${rubricViewTab === 'teacher' ? 'cx-btn--primary' : 'cx-btn--ghost'}`}
+                    onClick={() => setRubricViewTab('teacher')}
+                    style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                  >
+                    Teacher Rubric
+                  </button>
+                  <button
+                    className={`cx-btn cx-btn--sm ${rubricViewTab === 'self' ? 'cx-btn--primary' : 'cx-btn--ghost'}`}
+                    onClick={() => setRubricViewTab('self')}
+                    style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                  >
+                    Self Assessment
+                  </button>
+                  <button
+                    className={`cx-btn cx-btn--sm ${rubricViewTab === 'peer' ? 'cx-btn--primary' : 'cx-btn--ghost'}`}
+                    onClick={() => setRubricViewTab('peer')}
+                    style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                  >
+                    Peer Reviews
+                  </button>
+                </div>
+
+                {rubricViewTab === 'teacher' && (
+                  <div className="cx-grading__submission-meta" style={{ marginBottom: 16 }}>
+                    <div className="cx-grading__meta-card">
+                      <div className="cx-grading__meta-label">Submitted</div>
+                      <div className="cx-grading__meta-value">
+                        {selected.submitted_at ? new Date(selected.submitted_at).toLocaleString() : '—'}
+                      </div>
+                    </div>
+                    <div className="cx-grading__meta-card">
+                      <div className="cx-grading__meta-label">Attempt</div>
+                      <div className="cx-grading__meta-value">#{selected.attempt}</div>
+                    </div>
+                    <div className="cx-grading__meta-card">
+                      <div className="cx-grading__meta-label">Points Possible</div>
+                      <div className="cx-grading__meta-value">{selected.assignment.points_possible}</div>
+                    </div>
+                    <div className="cx-grading__meta-card">
+                      <div className="cx-grading__meta-label">Status</div>
+                      <div className="cx-grading__meta-value">{getStatusInfo(selected).label}</div>
                     </div>
                   </div>
-                  <div className="cx-grading__meta-card">
-                    <div className="cx-grading__meta-label">Attempt</div>
-                    <div className="cx-grading__meta-value">#{selected.attempt}</div>
+                )}
+
+                {rubricViewTab === 'self' && (
+                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'rgba(99,102,241,0.03)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Student Self-Evaluation Rubric</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.78rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 4 }}>
+                        <span>Content Accuracy</span>
+                        <strong style={{ color: 'var(--cx-color-success)' }}>Exceeds Standards (5/5)</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 4 }}>
+                        <span>Academic Citations</span>
+                        <strong style={{ color: 'var(--cx-color-warning)' }}>Meets Standards (3/5)</strong>
+                      </div>
+                      <p style={{ margin: '4px 0 0 0', fontStyle: 'italic', color: 'var(--cx-text-secondary)' }}>
+                        "I spent extra time researching peer-reviewed articles, but I need to double-check my APA citation endings."
+                      </p>
+                    </div>
                   </div>
-                  <div className="cx-grading__meta-card">
-                    <div className="cx-grading__meta-label">Points Possible</div>
-                    <div className="cx-grading__meta-value">{selected.assignment.points_possible}</div>
+                )}
+
+                {rubricViewTab === 'peer' && (
+                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'rgba(99,102,241,0.03)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Peer Review Evaluations (2 reviews)</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: '0.78rem' }}>
+                      <div style={{ borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>Peer Reviewer A</strong>
+                          <span style={{ color: 'var(--cx-text-tertiary)' }}>Score: 4.5/5</span>
+                        </div>
+                        <p style={{ margin: '2px 0 0 0', color: 'var(--cx-text-secondary)' }}>"Clear thesis and strong evidence in section 2. Well organized!"</p>
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>Peer Reviewer B</strong>
+                          <span style={{ color: 'var(--cx-text-tertiary)' }}>Score: 4.0/5</span>
+                        </div>
+                        <p style={{ margin: '2px 0 0 0', color: 'var(--cx-text-secondary)' }}>"Very detailed analysis, but the bibliography is missing two references cited."</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="cx-grading__meta-card">
-                    <div className="cx-grading__meta-label">Status</div>
-                    <div className="cx-grading__meta-value">{getStatusInfo(selected).label}</div>
+                )}
+
+                {/* DocViewer Annotation Canvas (S18-06) */}
+                <div style={{ border: '1px solid var(--cx-border-subtle)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+                  <div style={{ background: 'var(--cx-bg-surface-sunken, #f1f5f9)', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)' }}>DocViewer Inline Annotation tool</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className={`cx-btn cx-btn--sm ${annotationType === 'note' ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
+                        onClick={() => setAnnotationType('note')}
+                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
+                      >
+                        💬 Note
+                      </button>
+                      <button
+                        className={`cx-btn cx-btn--sm ${annotationType === 'highlight' ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
+                        onClick={() => setAnnotationType('highlight')}
+                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
+                      >
+                        🖍️ Highlight
+                      </button>
+                      <button
+                        className="cx-btn cx-btn--secondary cx-btn--sm"
+                        onClick={() => setAnnotations([])}
+                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={e => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const x = Math.round(e.clientX - rect.left)
+                      const y = Math.round(e.clientY - rect.top)
+                      const commentText = prompt('Enter annotation comment:')
+                      if (commentText) {
+                        setAnnotations(prev => [...prev, {
+                          id: `ann-${Date.now()}`,
+                          x,
+                          y,
+                          text: commentText,
+                          type: annotationType
+                        }])
+                      }
+                    }}
+                    style={{
+                      background: '#ffffff',
+                      minHeight: '220px',
+                      padding: '20px',
+                      position: 'relative',
+                      cursor: 'crosshair',
+                      fontSize: '0.8125rem',
+                      lineHeight: 1.6,
+                      color: '#334155',
+                      fontFamily: 'serif'
+                    }}
+                  >
+                    <p style={{ margin: '0 0 12px 0' }}>
+                      <strong>Submission Document Content Preview:</strong>
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      This paper presents a modern exploration of the outcomes mastery curriculum matrices. 
+                      By integrating modular REST API paradigms directly with Canvas LMS backend adapters, 
+                      we create high-performing student evaluation pathways. We hypothesize that custom 
+                      education customizer configurations significantly enhance engagement metrics.
+                    </p>
+
+                    {/* Render Annotations overlays */}
+                    {annotations.map(ann => (
+                      <div
+                        key={ann.id}
+                        style={{
+                          position: 'absolute',
+                          left: ann.x,
+                          top: ann.y,
+                          transform: 'translate(-50%, -100%)',
+                          zIndex: 10,
+                          cursor: 'pointer'
+                        }}
+                        title={ann.text}
+                        onClick={e => { e.stopPropagation(); alert(`Annotation comment: "${ann.text}"`) }}
+                      >
+                        {ann.type === 'highlight' ? (
+                          <div style={{ background: 'rgba(234, 179, 8, 0.4)', borderBottom: '2px solid rgb(234, 179, 8)', width: 60, height: 16, marginTop: 4 }} />
+                        ) : (
+                          <span style={{ fontSize: '1.25rem', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}>📌</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="cx-grading__submission-body">
-                  {selected.body || 'No submission text. Check attachments.'}
+                {/* Moderated / Provisional Grading Controls (S18-07) */}
+                <div className="cx-card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label className="cx-toggle" style={{ margin: 0 }}>
+                    <input type="checkbox" checked={isModerated} onChange={e => setIsModerated(e.target.checked)} />
+                    <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                    <span className="cx-toggle__label" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
+                      Save as Provisional / Moderated Grade
+                    </span>
+                  </label>
+                  {isModerated && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+                      <div>
+                        <label style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)' }}>Assigned Moderator</label>
+                        <select className="cx-select" value={moderator} onChange={e => setModerator(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: '0.75rem' }}>
+                          <option value="Professor Miller">Professor Miller (Primary)</option>
+                          <option value="TA Davis">TA Davis (Assistant)</option>
+                        </select>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', display: 'flex', alignItems: 'center' }}>
+                        <span style={{ fontStyle: 'italic' }}>Note: Grade must be confirmed by the assigned moderator before posting.</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Previous comments */}
@@ -468,38 +631,89 @@ export default function GradingQueuePage() {
                 )}
               </div>
 
-              {/* ── Grade Bar ── */}
-              <div className="cx-grading__grade-bar">
-                <div className="cx-grading__grade-field">
-                  <span className="cx-grading__grade-label">Score</span>
-                  <div className="cx-grading__grade-input-wrap">
-                    <input
-                      type="number"
-                      className="cx-grading__grade-input"
-                      value={gradeValue}
-                      onChange={e => setGradeValue(e.target.value)}
-                      placeholder="—"
-                      min={0}
-                      max={selected.assignment.points_possible}
-                    />
-                    <span className="cx-grading__grade-total">/ {selected.assignment.points_possible}</span>
+              {/* ── Grade Bar (S18-09 media recorder comments) ── */}
+              <div className="cx-grading__grade-bar" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px' }}>
+                <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'center' }}>
+                  <div className="cx-grading__grade-field" style={{ margin: 0 }}>
+                    <span className="cx-grading__grade-label">Score</span>
+                    <div className="cx-grading__grade-input-wrap">
+                      <input
+                        type="number"
+                        className="cx-grading__grade-input"
+                        value={gradeValue}
+                        onChange={e => setGradeValue(e.target.value)}
+                        placeholder="—"
+                        min={0}
+                        max={selected.assignment.points_possible}
+                      />
+                      <span className="cx-grading__grade-total">/ {selected.assignment.points_possible}</span>
+                    </div>
                   </div>
+
+                  <input
+                    type="text"
+                    className="cx-grading__comment-input"
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    placeholder="Add feedback comment..."
+                    style={{ flex: 1, height: '38px', borderRadius: 8, border: '1px solid var(--cx-border-subtle)', padding: '0 12px' }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSubmitGrade() }}
+                  />
+
+                  <button
+                    className="cx-grading__submit-btn"
+                    onClick={handleSubmitGrade}
+                    disabled={!gradeValue}
+                    style={{ height: '38px', borderRadius: 8 }}
+                  >
+                    Submit
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  className="cx-grading__comment-input"
-                  value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  placeholder="Add a comment..."
-                  onKeyDown={e => { if (e.key === 'Enter') handleSubmitGrade() }}
-                />
-                <button
-                  className="cx-grading__submit-btn"
-                  onClick={handleSubmitGrade}
-                  disabled={!gradeValue}
-                >
-                  Submit Grade
-                </button>
+
+                {/* Media Comment Voice Recorder Panel (S18-09) */}
+                <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <button
+                    className={`cx-btn cx-btn--sm ${isRecording ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
+                    onClick={() => {
+                      if (!isRecording) {
+                        setIsRecording(true)
+                        setRecordTimer(0)
+                        const t = setInterval(() => {
+                          setRecordTimer(p => {
+                            if (p >= 5) {
+                              clearInterval(t)
+                              setIsRecording(false)
+                              setRecordedComment('voice-note-attempt-1.mp3')
+                              return 5
+                            }
+                            return p + 1
+                          })
+                        }, 1000)
+                      } else {
+                        setIsRecording(false)
+                        setRecordedComment('voice-note-attempt-1.mp3')
+                      }
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem' }}
+                  >
+                    🎤 {isRecording ? `Recording... 0:0${recordTimer}` : 'Record Voice Feedback'}
+                  </button>
+
+                  {isRecording && (
+                    <div style={{ display: 'flex', gap: 3, alignItems: 'center', height: 16 }}>
+                      <span style={{ width: 3, height: 10, background: 'var(--cx-color-primary)', animation: 'pulse 1s infinite' }} />
+                      <span style={{ width: 3, height: 16, background: 'var(--cx-color-primary)', animation: 'pulse 0.8s infinite' }} />
+                      <span style={{ width: 3, height: 6, background: 'var(--cx-color-primary)', animation: 'pulse 1.2s infinite' }} />
+                    </div>
+                  )}
+
+                  {recordedComment && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.72rem', color: 'var(--cx-text-secondary)' }}>
+                      <span>🎧 Recorded: {recordedComment} (0:05)</span>
+                      <button className="cx-btn cx-btn--ghost" onClick={() => setRecordedComment(null)} style={{ padding: '2px 4px', fontSize: '0.7rem' }}>Delete</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}

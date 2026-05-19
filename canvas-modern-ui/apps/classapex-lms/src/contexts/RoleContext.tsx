@@ -23,13 +23,13 @@ export interface RoleUser {
 
 const DEMO_USERS: Record<UserRole, RoleUser> = {
   student: {
-    id: '1',
-    name: 'Alex Johnson',
-    displayName: 'Alex Johnson',
-    email: 'alex.johnson@classapex.edu',
-    avatarSeed: 'Alex',
+    id: '8',
+    name: 'PlayStudent lMRL5n2z16',
+    displayName: 'PlayStudent lMRL5n2z16',
+    email: 'playstudentlMRL5n2z16@example.com',
+    avatarSeed: 'PlayStudent',
     role: 'student',
-    title: 'Computer Science, Junior',
+    title: 'Demo Student, Junior',
   },
   teacher: {
     id: '100',
@@ -56,6 +56,9 @@ interface RoleContextType {
   user: RoleUser
   setRole: (role: UserRole) => void
   allUsers: Record<UserRole, RoleUser>
+  masqueradeAs: (user: RoleUser | null) => void
+  isMasquerading: boolean
+  realUser: RoleUser
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined)
@@ -72,17 +75,40 @@ export function RoleProvider({ children, defaultRole = 'student' }: RoleProvider
     return (saved as UserRole) || defaultRole
   })
 
+  const [masqueradedUser, setMasqueradedUser] = useState<RoleUser | null>(() => {
+    const saved = localStorage.getItem('classapex-masquerade-user')
+    return saved ? JSON.parse(saved) : null
+  })
+
   const handleSetRole = (newRole: UserRole) => {
     setRole(newRole)
     localStorage.setItem('classapex-demo-role', newRole)
+    // If switching role, cancel masquerade
+    setMasqueradedUser(null)
+    localStorage.removeItem('classapex-masquerade-user')
   }
+
+  const handleMasquerade = (user: RoleUser | null) => {
+    setMasqueradedUser(user)
+    if (user) {
+      localStorage.setItem('classapex-masquerade-user', JSON.stringify(user))
+    } else {
+      localStorage.removeItem('classapex-masquerade-user')
+    }
+  }
+
+  const realUser = DEMO_USERS[role]
+  const currentUser = masqueradedUser || realUser
 
   return (
     <RoleContext.Provider value={{
-      role,
-      user: DEMO_USERS[role],
+      role: currentUser.role,
+      user: currentUser,
       setRole: handleSetRole,
       allUsers: DEMO_USERS,
+      masqueradeAs: handleMasquerade,
+      isMasquerading: !!masqueradedUser,
+      realUser,
     }}>
       {children}
     </RoleContext.Provider>

@@ -10,7 +10,7 @@ export default function AssignmentDetail() {
   const { courseId, assignmentId } = useParams<{ courseId: string; assignmentId: string }>()
   const [showForm, setShowForm] = useState(false)
 
-  const { data: assignment, isLoading } = useCanvasQuery<any>(
+  const { data: assignment, isLoading, refetch } = useCanvasQuery<any>(
     `/api/v1/courses/${courseId}/assignments/${assignmentId}`,
     { include: ['submission'] } as any
   )
@@ -131,7 +131,7 @@ export default function AssignmentDetail() {
                   if (!res.ok) throw new Error('Submission failed')
                   alert('Assignment submitted successfully!')
                   setShowForm(false)
-                  // Ideally trigger a re-fetch of the assignment data here to show updated status
+                  refetch()
                 } catch (err) {
                   console.error(err)
                   alert('Failed to submit assignment. Please try again.')
