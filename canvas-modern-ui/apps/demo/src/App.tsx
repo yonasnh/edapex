@@ -6,25 +6,25 @@ import {
   NavigationSidebar,
   CourseCard,
   AssignmentCard,
-  GradebookSummary,
   DiscussionCard,
   CalendarEventCard,
   FileCard,
-  GlobalSearch,
   LoadingSpinner,
   SkeletonCard,
-  EmptyCoursesState,
   APIErrorHandler,
-  UserProfile,
-  AnalyticsDashboard,
-  BulkOperations,
   LaunchInfo,
   PerformanceMonitor,
   ErrorBoundary,
   SettingsPanel,
-  ToastContainer,
-  useToasts,
 } from '@schoolapex/components'
+
+import { GradebookSummary } from './components/GradebookSummary'
+import { GlobalSearch } from './components/GlobalSearch'
+import { EmptyCoursesState } from './components/EmptyStates'
+import { UserProfile } from './components/UserProfile'
+import { AnalyticsDashboard } from './components/AnalyticsDashboard'
+import { BulkOperations } from './components/BulkOperations'
+import { ToastContainer, useToasts } from './components/Toast'
 import type {
   Assignment,
   Submission,
@@ -911,7 +911,7 @@ function AppContent() {
                       submission={mockSubmissions[assignment.id]}
                       variant="dashboard"
                       showQuickActions={true}
-                      onSubmit={async (assignmentId) => {
+                      onSubmit={async (assignmentId: string) => {
                         console.log('Submit assignment:', assignmentId)
                         alert(`Submitting assignment: ${assignment.name}`)
                       }}
@@ -954,11 +954,11 @@ function AppContent() {
                       currentUser={mockUser}
                       variant="dashboard"
                       showQuickActions={true}
-                      onReply={async (discussionId) => {
+                      onReply={async (discussionId: string) => {
                         console.log('Reply to discussion:', discussionId)
                         alert(`Replying to discussion: ${discussion.title}`)
                       }}
-                      onMarkAsRead={async (discussionId) => {
+                      onMarkAsRead={async (discussionId: string) => {
                         console.log('Mark as read:', discussionId)
                         alert(`Marked discussion as read: ${discussion.title}`)
                       }}
@@ -981,15 +981,15 @@ function AppContent() {
                       currentUser={mockUser}
                       variant="dashboard"
                       showQuickActions={true}
-                      onJoin={async (eventId) => {
+                      onJoin={async (eventId: string) => {
                         console.log('Join event:', eventId)
                         alert(`Joining event: ${event.title}`)
                       }}
-                      onEdit={async (eventId) => {
+                      onEdit={async (eventId: string) => {
                         console.log('Edit event:', eventId)
                         alert(`Editing event: ${event.title}`)
                       }}
-                      onDelete={async (eventId) => {
+                      onDelete={async (eventId: string) => {
                         console.log('Delete event:', eventId)
                         alert(`Deleting event: ${event.title}`)
                       }}
@@ -1013,7 +1013,7 @@ function AppContent() {
                         currentUser={mockUser}
                         variant="grid"
                         showActions={true}
-                        onOpen={(item) => {
+                        onOpen={(item: any) => {
                           const itemType = 'folders_url' in item ? 'folder' : 'file'
                           addToast({
                             type: 'info',
@@ -1021,28 +1021,28 @@ function AppContent() {
                             message: `Opening ${getItemName(item)}...`,
                           })
                         }}
-                        onDownload={async (file) => {
+                        onDownload={async (file: any) => {
                           addToast({
                             type: 'success',
                             title: 'Download started',
                             message: `Downloading ${file.display_name}...`,
                           })
                         }}
-                        onEdit={async (item) => {
+                        onEdit={async (item: any) => {
                           addToast({
                             type: 'info',
                             title: 'Edit mode',
                             message: `Editing ${getItemName(item)}...`,
                           })
                         }}
-                        onDelete={async (item) => {
+                        onDelete={async (item: any) => {
                           addToast({
                             type: 'warning',
                             title: 'Item deleted',
                             message: `${getItemName(item)} has been deleted.`,
                           })
                         }}
-                        onShare={async (item) => {
+                        onShare={async (item: any) => {
                           addToast({
                             type: 'success',
                             title: 'Share link created',
@@ -1097,7 +1097,7 @@ function AppContent() {
                 <div className="global-search-demo">
                   <GlobalSearch
                     currentUser={mockUser}
-                    onSearch={async (query, filters) => {
+                    onSearch={async (query: string, filters: Record<string, any>) => {
                       addToast({
                         type: 'info',
                         title: 'Search executed',
@@ -1105,7 +1105,7 @@ function AppContent() {
                       })
                       return []
                     }}
-                    onResultClick={(result) => {
+                    onResultClick={(result: any) => {
                       addToast({
                         type: 'success',
                         title: 'Result clicked',
@@ -1131,8 +1131,8 @@ function AppContent() {
                       <LoadingSpinner size="lg" description="Loading SchoolApex components..." />
 
                       <div className="skeleton-demo">
-                        <SkeletonCard showImage={true} showActions={true} lines={3} />
-                        <SkeletonCard showImage={false} showActions={true} lines={2} />
+                        <SkeletonCard showAvatar={true} showActions={true} count={1} />
+                        <SkeletonCard showAvatar={false} showActions={true} count={1} />
                       </div>
                     </div>
                   ) : (
@@ -1266,7 +1266,7 @@ function AppContent() {
               <UserProfile
                 user={mockUser}
                 canEdit={true}
-                onSave={async (updatedUser) => {
+                onSave={async (updatedUser: any) => {
                   addToast({
                     type: 'success',
                     title: 'Profile Updated',
@@ -1275,7 +1275,7 @@ function AppContent() {
                   setShowUserProfile(false)
                 }}
                 onCancel={() => setShowUserProfile(false)}
-                onAvatarUpload={async (file) => {
+                onAvatarUpload={async (file: File) => {
                   addToast({
                     type: 'success',
                     title: 'Avatar Updated',
@@ -1390,7 +1390,7 @@ function AppContent() {
                   dateRange: { start: new Date(), end: new Date() },
                 }}
                 onFiltersChange={() => {}}
-                onExport={(format) => {
+                onExport={(format: string) => {
                   addToast({
                     type: 'success',
                     title: 'Export Started',
@@ -1438,7 +1438,7 @@ function AppContent() {
                     inputType: 'number',
                   },
                 ]}
-                onExecuteOperation={async (operation, items, input) => {
+                onExecuteOperation={async (operation: string, items: any[], input?: string | number) => {
                   await new Promise(resolve => setTimeout(resolve, 2000))
                   addToast({
                     type: 'success',
@@ -1446,8 +1446,8 @@ function AppContent() {
                     message: `${operation} completed for ${items.length} items.`,
                   })
                 }}
-                getItemId={(item) => item.id}
-                getItemLabel={(item) => item.name}
+                getItemId={(item: any) => item.id}
+                getItemLabel={(item: any) => item.name}
               />
               <button
                 className="modal-close"

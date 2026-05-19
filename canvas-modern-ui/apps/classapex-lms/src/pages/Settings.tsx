@@ -62,6 +62,73 @@ const SettingsPage: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstallable, setIsInstallable] = useState(false)
 
+  // ── Device Emulation Sandbox State (S22-10) ──
+  const [activeDevice, setActiveDevice] = useState<string>('desktop');
+
+  const handleDeviceChange = (device: string) => {
+    setActiveDevice(device);
+    
+    // Reset any existing custom body inline styles first
+    document.body.style.maxWidth = '';
+    document.body.style.margin = '';
+    document.body.style.boxShadow = '';
+    document.body.style.borderRadius = '';
+    document.body.style.overflow = '';
+    document.body.style.border = '';
+    document.body.style.height = '';
+    document.body.style.position = '';
+    document.body.style.marginTop = '';
+    document.body.style.backgroundColor = '';
+
+    if (device === 'iphone') {
+      document.body.style.maxWidth = '375px';
+      document.body.style.margin = '40px auto';
+      document.body.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+      document.body.style.borderRadius = '36px';
+      document.body.style.overflow = 'hidden';
+      document.body.style.border = '14px solid #1a1a1a';
+      document.body.style.height = '812px';
+      document.body.style.position = 'relative';
+      document.body.style.backgroundColor = 'var(--cx-bg-surface)';
+    } else if (device === 'android') {
+      document.body.style.maxWidth = '412px';
+      document.body.style.margin = '40px auto';
+      document.body.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+      document.body.style.borderRadius = '24px';
+      document.body.style.overflow = 'hidden';
+      document.body.style.border = '10px solid #1c1c1c';
+      document.body.style.height = '915px';
+      document.body.style.position = 'relative';
+      document.body.style.backgroundColor = 'var(--cx-bg-surface)';
+    } else if (device === 'tablet') {
+      document.body.style.maxWidth = '820px';
+      document.body.style.margin = '40px auto';
+      document.body.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+      document.body.style.borderRadius = '16px';
+      document.body.style.overflow = 'hidden';
+      document.body.style.border = '16px solid #111';
+      document.body.style.height = '1180px';
+      document.body.style.position = 'relative';
+      document.body.style.backgroundColor = 'var(--cx-bg-surface)';
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      // Clean up body emulations on unmount
+      document.body.style.maxWidth = '';
+      document.body.style.margin = '';
+      document.body.style.boxShadow = '';
+      document.body.style.borderRadius = '';
+      document.body.style.overflow = '';
+      document.body.style.border = '';
+      document.body.style.height = '';
+      document.body.style.position = '';
+      document.body.style.marginTop = '';
+      document.body.style.backgroundColor = '';
+    };
+  }, []);
+
   // ── UI state ──
   const [showSuccess, setShowSuccess] = useState(false)
   const [showError, setShowError] = useState('')
@@ -398,6 +465,44 @@ const SettingsPage: React.FC = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <MoonSvg /> Dark
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── S22-10: Multi-Device Simulated Preview Sandbox ── */}
+      <div className="cx-settings-section">
+        <h2 className="cx-settings-section__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="5" y="2" width="14" height="20" rx="3" />
+            <path d="M12 18h.01M17 2H7v14h10V2z" />
+          </svg>
+          Multi-Device Responsive Preview Sandbox
+        </h2>
+        <div className="cx-section">
+          <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="cx-settings-row__label">Simulate Device Viewports</div>
+              <div className="cx-settings-row__desc">
+                Test UI breakpoints and mobile layouts on iOS Safari, Android Chrome, and Tablet frameworks (S22-10).
+              </div>
+            </div>
+            <div className="cx-settings-row__control" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { id: 'desktop', label: '🖥 Desktop' },
+                { id: 'iphone', label: '📱 iOS Safari (iPhone)' },
+                { id: 'android', label: '🤖 Android Chrome' },
+                { id: 'tablet', label: '📟 Tablet (iPad)' }
+              ].map(dev => (
+                <button
+                  key={dev.id}
+                  className={activeDevice === dev.id ? 'cx-btn cx-btn--primary cx-btn--sm' : 'cx-btn cx-btn--secondary cx-btn--sm'}
+                  onClick={() => handleDeviceChange(dev.id)}
+                  style={{ height: 36, whiteSpace: 'nowrap' }}
+                >
+                  {dev.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

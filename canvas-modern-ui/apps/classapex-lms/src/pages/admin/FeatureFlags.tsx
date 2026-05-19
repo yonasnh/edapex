@@ -75,7 +75,7 @@ export default function FeatureFlagsPage() {
     beta: flags.filter(f => f.beta).length,
   }
 
-  const stateColor = (s: string) => s === 'on' ? '#10b981' : s === 'allowed' ? '#f59e0b' : '#ef4444'
+  const stateColor = (s: string) => s === 'on' ? 'var(--cx-color-success)' : s === 'allowed' ? 'var(--cx-color-warning)' : 'var(--cx-color-danger)'
 
   return (
     <div className="cx-page">
@@ -89,9 +89,9 @@ export default function FeatureFlagsPage() {
       <div className="cx-stats-grid">
         {[
           { label: 'Total Flags', value: stats.total, icon: <FlagSvg /> },
-          { label: 'Enabled', value: stats.on, icon: <CheckSvg />, color: '#10b981' },
-          { label: 'Allowed', value: stats.allowed, icon: <InfoSvg />, color: '#f59e0b' },
-          { label: 'Beta Features', value: stats.beta, icon: <FlagSvg />, color: '#8b5cf6' },
+          { label: 'Enabled', value: stats.on, icon: <CheckSvg />, color: 'var(--cx-color-success)' },
+          { label: 'Allowed', value: stats.allowed, icon: <InfoSvg />, color: 'var(--cx-color-warning)' },
+          { label: 'Beta Features', value: stats.beta, icon: <FlagSvg />, color: 'var(--cx-color-primary)' },
         ].map((s, i) => (
           <div key={i} className="cx-stat-card">
             <div className="cx-stat-card__icon" style={{ color: s.color }}>{s.icon}</div>
@@ -135,7 +135,7 @@ export default function FeatureFlagsPage() {
               <div key={flag.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', background: 'var(--cx-bg-surface)' }}>
                 <button
                   onClick={() => toggleFlag(flag.key, flag.state)}
-                  style={{ flexShrink: 0, width: 40, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', background: flag.state === 'on' ? '#10b981' : flag.state === 'allowed' ? '#f59e0b' : '#d1d5db' }}
+                  style={{ flexShrink: 0, width: 40, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', background: flag.state === 'on' ? 'var(--cx-color-success)' : flag.state === 'allowed' ? 'var(--cx-color-warning)' : 'var(--cx-border-default)' }}
                   aria-label={`Toggle ${flag.label}`}
                 >
                   <span style={{ position: 'absolute', top: 2, left: flag.state === 'on' ? 20 : flag.state === 'allowed' ? 10 : 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />

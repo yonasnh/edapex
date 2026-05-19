@@ -16,7 +16,7 @@ const ROLE_CONFIG: Record<UserRole, { label: string; icon: string; color: string
 }
 
 export function RoleSwitcher() {
-  const { role, user, setRole } = useRole()
+  const { role, user, setRole, allUsers } = useRole()
   const [expanded, setExpanded] = useState(false)
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.student
   console.log("🚨 ROLE SWITCHER RENDERED! 🚨", { role, config })
@@ -65,6 +65,7 @@ export function RoleSwitcher() {
 
             {(Object.entries(ROLE_CONFIG) as [UserRole, typeof ROLE_CONFIG[UserRole]][]).map(([key, cfg]) => {
               const isActive = role === key
+              const personaUser = allUsers[key]
               return (
                 <button
                   key={key}
@@ -100,7 +101,7 @@ export function RoleSwitcher() {
                       {cfg.label}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--cx-text-muted)' }}>
-                      {key === 'student' ? 'PlayStudent lMRL5n2z16' : key === 'teacher' ? 'Dr. Sarah Chen' : 'System Admin'}
+                      {personaUser?.displayName || cfg.label}
                     </div>
                   </div>
                   {isActive && (

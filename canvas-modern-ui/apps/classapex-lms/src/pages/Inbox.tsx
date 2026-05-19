@@ -174,9 +174,9 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
                 autoFocus
               />
               {searchResults.length > 0 && (
-                <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', zIndex: 10, listStyle: 'none', padding: 0, margin: '4px 0 0', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                <ul style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-default)', borderRadius: '6px', zIndex: 10, listStyle: 'none', padding: 0, margin: '4px 0 0', maxHeight: '200px', overflowY: 'auto', boxShadow: 'var(--cx-shadow-md)' }}>
                   {searchResults.map(rec => (
-                    <li key={rec.id} onClick={() => toggleRecipient(rec)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.875rem' }}>
+                    <li key={rec.id} onClick={() => toggleRecipient(rec)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-primary)', fontSize: '0.875rem' }}>
                       {rec.name}
                     </li>
                   ))}

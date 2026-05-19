@@ -86,6 +86,10 @@ function QuizTaker({
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Touch Swipe Gesture State (S22-04)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
   const { data: quiz } = useCanvasQuery<Quiz>(`/api/v1/courses/${courseId}/quizzes/${quizId}`)
   const { data: rawQuestions } = useCanvasQuery<QuizQuestion[]>(
     `/api/v1/courses/${courseId}/quizzes/${quizId}/questions`,
@@ -132,6 +136,29 @@ function QuizTaker({
       setSubmitting(false)
     }
   }, [submission, questions, answers, courseId, quizId])
+
+  // Touch swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const minSwipeDistance = 60
+    if (distance > minSwipeDistance && currentQ < questions.length - 1) {
+      // Swiped Left -> Next Question
+      setCurrentQ(p => p + 1)
+    } else if (distance < -minSwipeDistance && currentQ > 0) {
+      // Swiped Right -> Previous Question
+      setCurrentQ(p => p - 1)
+    }
+  }
 
   if (!quiz) {
     return (
@@ -216,21 +243,33 @@ function QuizTaker({
         <div style={{ height: '100%', width: `${progress}%`, background: 'var(--cx-color-primary)', borderRadius: 3, transition: 'width 0.3s ease' }} />
       </div>
 
-      {/* Question Card */}
+      {/* Question Card with Touch/Swipe Gestures */}
       {q && (
-        <div className="cx-card" style={{ padding: 28, marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <div
+          className="cx-card touch-optimized-card"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            padding: 28,
+            marginBottom: 20,
+            touchAction: 'pan-y',
+            position: 'relative',
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
             <span style={{
               background: 'var(--cx-color-primary)',
               color: '#fff',
               borderRadius: '50%',
-              width: 28, height: 28,
+              width: 32, height: 32,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
+              fontSize: '0.875rem', fontWeight: 700, flexShrink: 0,
             }}>{currentQ + 1}</span>
             <div>
               <div
-                style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--cx-text-primary)', lineHeight: 1.5 }}
+                style={{ fontSize: '1.05rem', fontWeight: 500, color: 'var(--cx-text-primary)', lineHeight: 1.5 }}
                 dangerouslySetInnerHTML={{ __html: q.question_text }}
               />
               <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 4 }}>
@@ -239,49 +278,74 @@ function QuizTaker({
             </div>
           </div>
 
-          {/* Answer inputs */}
-          <div style={{ paddingLeft: 38 }}>
+          {/* Touch-Friendly Answer inputs */}
+          <div className="touch-friendly-options" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(q.question_type === 'multiple_choice_question' || q.question_type === 'true_false_question') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {q.answers?.map(ans => (
-                  <label
-                    key={ans.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                      padding: '10px 14px', borderRadius: 8, border: '1px solid',
-                      borderColor: answers[q.id] === String(ans.id) ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
-                      background: answers[q.id] === String(ans.id) ? 'rgba(var(--cx-color-primary-rgb, 99,102,241),0.08)' : 'transparent',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      value={ans.id}
-                      checked={answers[q.id] === String(ans.id)}
-                      onChange={() => handleAnswer(q.id, String(ans.id))}
-                      style={{ accentColor: 'var(--cx-color-primary)' }}
-                    />
-                    <span style={{ fontSize: '0.9rem', color: 'var(--cx-text-primary)' }}
-                      dangerouslySetInnerHTML={{ __html: ans.html || ans.text }}
-                    />
-                  </label>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {q.answers?.map(ans => {
+                  const isSelected = answers[q.id] === String(ans.id);
+                  return (
+                    <label
+                      key={ans.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+                        padding: '16px 20px', borderRadius: 12, border: '2px solid',
+                        borderColor: isSelected ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
+                        background: isSelected ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-raised, #f8fafc)',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: isSelected ? 'scale(1.01)' : 'scale(1)',
+                        boxShadow: isSelected ? '0 4px 12px rgba(99,102,241,0.12)' : 'none',
+                        minHeight: 56, // Accessible touch target size
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name={`q-${q.id}`}
+                        value={ans.id}
+                        checked={isSelected}
+                        onChange={() => handleAnswer(q.id, String(ans.id))}
+                        style={{
+                          accentColor: 'var(--cx-color-primary)',
+                          width: 20,
+                          height: 20,
+                          flexShrink: 0,
+                          cursor: 'pointer'
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: '0.925rem',
+                          fontWeight: isSelected ? 600 : 400,
+                          color: isSelected ? 'var(--cx-color-primary)' : 'var(--cx-text-primary)',
+                          lineHeight: 1.4
+                        }}
+                        dangerouslySetInnerHTML={{ __html: ans.html || ans.text }}
+                      />
+                    </label>
+                  );
+                })}
               </div>
             )}
 
             {q.question_type === 'multiple_answers_question' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {q.answers?.map(ans => {
                   const sel = Array.isArray(answers[q.id]) ? (answers[q.id] as string[]) : []
                   const checked = sel.includes(String(ans.id))
                   return (
-                    <label key={ans.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                      padding: '10px 14px', borderRadius: 8, border: '1px solid',
-                      borderColor: checked ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
-                      background: checked ? 'rgba(var(--cx-color-primary-rgb, 99,102,241),0.08)' : 'transparent',
-                    }}>
+                    <label
+                      key={ans.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+                        padding: '16px 20px', borderRadius: 12, border: '2px solid',
+                        borderColor: checked ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
+                        background: checked ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-raised, #f8fafc)',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transform: checked ? 'scale(1.01)' : 'scale(1)',
+                        boxShadow: checked ? '0 4px 12px rgba(99,102,241,0.12)' : 'none',
+                        minHeight: 56,
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={checked}
@@ -289,9 +353,21 @@ function QuizTaker({
                           const next = checked ? sel.filter(s => s !== String(ans.id)) : [...sel, String(ans.id)]
                           handleAnswer(q.id, next)
                         }}
-                        style={{ accentColor: 'var(--cx-color-primary)' }}
+                        style={{
+                          accentColor: 'var(--cx-color-primary)',
+                          width: 20,
+                          height: 20,
+                          flexShrink: 0,
+                          cursor: 'pointer'
+                        }}
                       />
-                      <span style={{ fontSize: '0.9rem', color: 'var(--cx-text-primary)' }}
+                      <span
+                        style={{
+                          fontSize: '0.925rem',
+                          fontWeight: checked ? 600 : 400,
+                          color: checked ? 'var(--cx-color-primary)' : 'var(--cx-text-primary)',
+                          lineHeight: 1.4
+                        }}
                         dangerouslySetInnerHTML={{ __html: ans.html || ans.text }}
                       />
                     </label>
@@ -307,9 +383,41 @@ function QuizTaker({
                 placeholder="Type your answer here…"
                 value={(answers[q.id] as string) ?? ''}
                 onChange={e => handleAnswer(q.id, e.target.value)}
-                style={{ width: '100%', resize: 'vertical' }}
+                style={{
+                  width: '100%',
+                  resize: 'vertical',
+                  fontSize: '0.95rem',
+                  padding: 16,
+                  borderRadius: 12,
+                  borderColor: 'var(--cx-border-subtle)',
+                  background: 'var(--cx-bg-surface-raised, #f8fafc)',
+                  color: 'var(--cx-text-primary)',
+                  boxShadow: 'none',
+                  minHeight: q.question_type === 'essay_question' ? 180 : 80
+                }}
               />
             )}
+          </div>
+
+          {/* Swipe indicator (shown on mobile breakpoint) */}
+          <div
+            className="mobile-swipe-hint"
+            style={{
+              textAlign: 'center',
+              fontSize: '0.75rem',
+              color: 'var(--cx-text-tertiary)',
+              marginTop: 20,
+              borderTop: '1px solid var(--cx-border-subtle)',
+              paddingTop: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <span>↔</span>
+            <span>Swipe left/right to navigate questions</span>
+            <span>↔</span>
           </div>
         </div>
       )}
@@ -317,25 +425,28 @@ function QuizTaker({
       {error && <p style={{ color: '#ef4444', marginBottom: 12, fontSize: '0.875rem' }}>{error}</p>}
 
       {/* Navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <button
           className="cx-btn cx-btn--ghost"
           onClick={() => setCurrentQ(p => Math.max(0, p - 1))}
           disabled={currentQ === 0}
+          style={{ minHeight: 44, padding: '10px 16px' }}
         >
           ← Previous
         </button>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', maxWidth: 300 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '100%', flex: 1 }}>
           {questions.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentQ(i)}
               style={{
-                width: 28, height: 28, borderRadius: '50%', border: '1px solid',
+                width: 32, height: 32, borderRadius: '50%', border: '1px solid',
                 borderColor: i === currentQ ? 'var(--cx-color-primary)' : answers[questions[i]?.id] ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
                 background: i === currentQ ? 'var(--cx-color-primary)' : answers[questions[i]?.id] ? 'rgba(99,102,241,0.15)' : 'transparent',
                 color: i === currentQ ? '#fff' : 'var(--cx-text-secondary)',
-                cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
+                cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s'
               }}
             >
               {i + 1}
@@ -343,11 +454,20 @@ function QuizTaker({
           ))}
         </div>
         {currentQ < questions.length - 1 ? (
-          <button className="cx-btn cx-btn--primary" onClick={() => setCurrentQ(p => p + 1)}>
+          <button
+            className="cx-btn cx-btn--primary"
+            onClick={() => setCurrentQ(p => p + 1)}
+            style={{ minHeight: 44, padding: '10px 16px' }}
+          >
             Next →
           </button>
         ) : (
-          <button className="cx-btn cx-btn--primary" onClick={handleSubmit} disabled={submitting}>
+          <button
+            className="cx-btn cx-btn--primary"
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ minHeight: 44, padding: '10px 20px' }}
+          >
             {submitting ? 'Submitting…' : 'Submit Quiz'}
           </button>
         )}

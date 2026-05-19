@@ -187,10 +187,12 @@ module ConversationsHelper
 
     return unless recipients
 
-    unless recipients.is_a? Array
-      recipients = recipients.split ","
-      params[:recipients] = recipients if defined?(params)
+    if recipients.is_a? Array
+      recipients = recipients.map(&:to_s)
+    else
+      recipients = recipients.to_s.split ","
     end
+    params[:recipients] = recipients if defined?(params)
 
     recipients = convert_uuid_recipients_to_regular_recipients(recipients)
 

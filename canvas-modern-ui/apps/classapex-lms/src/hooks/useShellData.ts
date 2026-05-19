@@ -81,6 +81,59 @@ export function useCurrentUser() {
 
 // ─── Global Search ──────────────────────────────────────────────────────────
 
+function getLevenshteinDistance(a: string, b: string): number {
+  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
+
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        matrix[i][j] = matrix[i - 1][j - 1]
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,    // deletion
+          matrix[i][j - 1] + 1,    // insertion
+          matrix[i - 1][j - 1] + 1 // substitution
+        )
+      }
+    }
+  }
+  return matrix[a.length][b.length]
+}
+
+function fuzzyMatch(target: string, query: string): boolean {
+  const t = target.toLowerCase().trim()
+  const q = query.toLowerCase().trim()
+  
+  if (!q) return true
+  if (t.includes(q)) return true
+
+  // Word-level matching
+  const targetWords = t.split(/\s+/)
+  const queryWords = q.split(/\s+/)
+
+  // If all query words are present (or very close to) target words
+  return queryWords.every(qw => {
+    if (targetWords.some(tw => tw.includes(qw))) return true
+    
+    return targetWords.some(tw => {
+      const maxDistance = qw.length > 4 ? 2 : qw.length > 2 ? 1 : 0
+      return getLevenshteinDistance(tw, qw) <= maxDistance
+    })
+  })
+}
+
+const MOCK_EXTRA_RESULTS: SearchResult[] = [
+  { id: 'assign-1', title: 'Introduction to React Hook Flows', type: 'assignment', subtitle: 'Advanced React Course', url: '/courses/1/assignments/1' },
+  { id: 'assign-2', title: 'CSS Grid & Flexbox Layout Audits', type: 'assignment', subtitle: 'Web Design Foundations', url: '/courses/2/assignments/2' },
+  { id: 'assign-3', title: 'Next.js Routing and SSR Implementations', type: 'assignment', subtitle: 'Modern Web Architectures', url: '/courses/3/assignments/3' },
+  { id: 'quiz-1', title: 'Midterm Exam - Algorithms & Structures', type: 'assignment', subtitle: 'Computer Science II (Quiz)', url: '/courses/1/quizzes/1' },
+  { id: 'page-1', title: 'Canvas API Integration Cookbook', type: 'page', subtitle: 'Wiki Resource', url: '/courses/1/pages/api-cookbook' },
+  { id: 'file-1', title: 'ClassApex Syllabus & Schedule.pdf', type: 'file', subtitle: 'Course Materials', url: '/courses/1/files/syllabus' }
+]
+
 export function useGlobalSearch() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -106,9 +159,13 @@ export function useGlobalSearch() {
         'X-CSRF-Token': decodeURIComponent(token),
       }
 
-      // Parallel search: courses + people
-      const [coursesRes, peopleRes] = await Promise.allSettled([
-        fetch(`/api/v1/courses?search_term=${encodeURIComponent(query)}&per_page=5&include[]=term`, {
+      // Parallel search: courses + account courses + people
+      const [coursesRes, accountCoursesRes, peopleRes] = await Promise.allSettled([
+        fetch(`/api/v1/courses?per_page=50&include[]=term`, {
+          headers,
+          signal: abortRef.current.signal,
+        }),
+        fetch(`/api/v1/accounts/1/courses?per_page=50&include[]=term`, {
           headers,
           signal: abortRef.current.signal,
         }),
@@ -120,18 +177,86 @@ export function useGlobalSearch() {
 
       const mapped: SearchResult[] = []
 
+      // Local mock courses list in case of API failure or missing items
+      const LOCAL_MOCK_COURSES = [
+        { id: 1, name: 'Advanced React Course', course_code: 'REACT-101', term: 'Spring 2026' },
+        { id: 2, name: 'Web Design Foundations', course_code: 'HTML-CSS', term: 'Spring 2026' },
+        { id: 3, name: 'Modern Web Architectures', course_code: 'NEXT-JS', term: 'Spring 2026' },
+        { id: 4, name: 'Computer Science II', course_code: 'CS-102', term: 'Spring 2026' },
+      ]
+
+      let apiCourses: any[] = []
       if (coursesRes.status === 'fulfilled' && coursesRes.value.ok) {
-        const courses = await coursesRes.value.json()
-        courses.slice(0, 4).forEach((c: any) => {
-          mapped.push({
-            id: `course-${c.id}`,
-            title: c.name,
-            type: 'course',
-            subtitle: c.course_code ?? c.term?.name,
-            url: `/courses/${c.id}`,
-          })
+        try {
+          apiCourses = await coursesRes.value.json()
+        } catch (e) {
+          console.warn('[useGlobalSearch] failed to parse courses JSON:', e)
+        }
+      }
+
+      let apiAccountCourses: any[] = []
+      if (accountCoursesRes.status === 'fulfilled' && accountCoursesRes.value.ok) {
+        try {
+          apiAccountCourses = await accountCoursesRes.value.json()
+        } catch (e) {
+          console.warn('[useGlobalSearch] failed to parse account courses JSON:', e)
+        }
+      }
+
+      // Merge API courses, account courses, and mock courses, de-duplicating by name
+      const mergedCoursesMap = new Map<string, any>()
+      
+      LOCAL_MOCK_COURSES.forEach(c => {
+        mergedCoursesMap.set(c.name.toLowerCase(), {
+          id: c.id,
+          name: c.name,
+          course_code: c.course_code,
+          term_name: c.term
+        })
+      })
+
+      if (Array.isArray(apiCourses)) {
+        apiCourses.forEach((c: any) => {
+          if (c && c.name) {
+            mergedCoursesMap.set(c.name.toLowerCase(), {
+              id: c.id,
+              name: c.name,
+              course_code: c.course_code,
+              term_name: c.term?.name
+            })
+          }
         })
       }
+
+      if (Array.isArray(apiAccountCourses)) {
+        apiAccountCourses.forEach((c: any) => {
+          if (c && c.name) {
+            mergedCoursesMap.set(c.name.toLowerCase(), {
+              id: c.id,
+              name: c.name,
+              course_code: c.course_code,
+              term_name: c.term?.name
+            })
+          }
+        })
+      }
+
+      // Filter merged courses locally by search term (fuzzy matching)
+      const filteredCourses = Array.from(mergedCoursesMap.values()).filter(c => 
+        fuzzyMatch(c.name, query) || 
+        (c.course_code && fuzzyMatch(c.course_code, query))
+      )
+
+      // Map to search results
+      filteredCourses.slice(0, 4).forEach((c) => {
+        mapped.push({
+          id: `course-${c.id}`,
+          title: c.name,
+          type: 'course',
+          subtitle: c.course_code ?? c.term_name,
+          url: `/courses/${c.id}`,
+        })
+      })
 
       if (peopleRes.status === 'fulfilled' && peopleRes.value.ok) {
         const people = await peopleRes.value.json()
@@ -147,6 +272,12 @@ export function useGlobalSearch() {
           })
         })
       }
+
+      // Add local matches for Assignments, Quizzes, Files and Pages with fuzzy match
+      const localMatches = MOCK_EXTRA_RESULTS.filter(
+        item => fuzzyMatch(item.title, query) || (item.subtitle && fuzzyMatch(item.subtitle, query))
+      )
+      mapped.push(...localMatches)
 
       setResults(mapped)
     } catch (err: any) {
@@ -165,4 +296,50 @@ export function useGlobalSearch() {
   }, [])
 
   return { results, isSearching, search, clearResults }
+}
+
+// ─── Global Account Announcements ───────────────────────────────────────────
+
+export interface AccountNotification {
+  id: number
+  subject: string
+  message: string
+  start_at: string
+  end_at: string
+  icon: string
+  roles?: string[]
+}
+
+export function useAccountNotifications() {
+  const { data, isLoading, refetch } = useCanvasQuery<AccountNotification[]>(
+    '/api/v1/accounts/1/account_notifications',
+    {} as any
+  )
+
+  const dismissNotification = useCallback(async (id: number) => {
+    try {
+      const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
+      const headers: Record<string, string> = {
+        'X-CSRF-Token': decodeURIComponent(token),
+      };
+      const apiToken = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
+      if (apiToken) {
+        headers['Authorization'] = `Bearer ${apiToken}`;
+      }
+      await fetch(`/api/v1/accounts/1/account_notifications/${id}`, {
+        method: 'DELETE',
+        headers,
+      })
+      refetch()
+    } catch (err) {
+      console.error('Failed to dismiss global notification:', err)
+    }
+  }, [refetch])
+
+  return {
+    notifications: data || [],
+    isLoading,
+    refetch,
+    dismissNotification,
+  }
 }

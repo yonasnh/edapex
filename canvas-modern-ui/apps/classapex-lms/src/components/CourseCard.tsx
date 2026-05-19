@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import OptimizedImage from './OptimizedImage';
 
 export interface CourseCardProps {
   id: string;
@@ -163,8 +164,8 @@ const CourseCard: React.FC<CourseCardProps> = ({
       aria-label={`Course: ${name} (${courseCode})`}
     >
       {imageUrl && !compact && (
-        <div className="course-card__image">
-          <img src={imageUrl} alt={`${name} course banner`} />
+        <div className="course-card__image" style={{ height: 140, width: '100%' }}>
+          <OptimizedImage src={imageUrl} alt={`${name} course banner`} />
         </div>
       )}
 

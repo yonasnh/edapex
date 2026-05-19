@@ -330,35 +330,36 @@ export default function ExternalToolsPage() {
           {launchingTool && (
             <div style={{
               position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-              background: 'rgba(15,23,42,0.85)', zIndex: 100, display: 'flex',
+              background: 'rgba(0, 0, 0, 0.75)', zIndex: 100, display: 'flex',
               alignItems: 'center', justifyContent: 'center', padding: 24
             }}>
               <div style={{
-                background: 'var(--cx-bg-surface, #ffffff)', width: '90%', maxWidth: '1000px',
+                background: 'var(--cx-bg-surface)', width: '90%', maxWidth: '1000px',
                 height: '85vh', borderRadius: 12, overflow: 'hidden', display: 'grid',
-                gridTemplateRows: '56px 1fr'
+                gridTemplateRows: '56px 1fr',
+                border: '1px solid var(--cx-border-default)'
               }}>
-                <div style={{ background: 'var(--cx-bg-surface-raised, #f1f5f9)', padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                <div style={{ background: 'var(--cx-bg-surface-raised)', padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cx-border-subtle)' }}>
                   <span style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>LTI Launch Wrapper: {launchingTool.name}</span>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setLaunchingTool(null)}>✕ Close Player</button>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', height: '100%' }}>
                   {/* Simulated App Iframe Area */}
-                  <div style={{ background: '#f8fafc', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--cx-border-subtle)' }}>
+                  <div style={{ background: 'var(--cx-bg-surface-sunken)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--cx-border-subtle)' }}>
                     <div style={{
-                      background: '#ffffff', width: '100%', maxWidth: '600px', height: '280px',
-                      borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.06)', border: '1px solid var(--cx-border-subtle)',
+                      background: 'var(--cx-bg-surface)', width: '100%', maxWidth: '600px', height: '280px',
+                      borderRadius: 8, boxShadow: 'var(--cx-shadow-md)', border: '1px solid var(--cx-border-subtle)',
                       display: 'flex', flexDirection: 'column', overflow: 'hidden'
                     }}>
-                      <div style={{ background: '#e2e8f0', padding: '6px 12px', fontSize: '0.72rem', display: 'flex', gap: 6, color: '#475569' }}>
+                      <div style={{ background: 'var(--cx-bg-surface-raised)', padding: '6px 12px', fontSize: '0.72rem', display: 'flex', gap: 6, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>
                         <span style={{ color: '#ef4444' }}>●</span><span style={{ color: '#eab308' }}>●</span><span style={{ color: '#22c55e' }}>●</span>
-                        <span style={{ marginLeft: 6, fontFamily: 'monospace' }}>{launchingTool.url}</span>
+                        <span style={{ marginLeft: 6, fontFamily: 'monospace', color: 'var(--cx-text-tertiary)' }}>{launchingTool.url}</span>
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center' }}>
                         <span style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚡</span>
-                        <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem' }}>Piazza LTI Deep Linker Provider</h4>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: '#64748b', maxWidth: '360px' }}>
+                        <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--cx-text-primary)' }}>Piazza LTI Deep Linker Provider</h4>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: 'var(--cx-text-secondary)', maxWidth: '360px' }}>
                           Simulate external tool action events sending grade data or alignments back to ClassApex.
                         </p>
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -532,10 +533,10 @@ export default function ExternalToolsPage() {
       {showAddModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(15,23,42,0.7)', zIndex: 100, display: 'flex',
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 100, display: 'flex',
           alignItems: 'center', justifyContent: 'center', padding: 20
         }}>
-          <form className="cx-card" onSubmit={handleAddTool} style={{ background: '#ffffff', width: '100%', maxWidth: '480px', padding: 24, borderRadius: 8 }}>
+          <form className="cx-card" onSubmit={handleAddTool} style={{ background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-default)', width: '100%', maxWidth: '480px', padding: 24, borderRadius: 8 }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--cx-text-primary)' }}>
               Configure External LTI App
             </h3>

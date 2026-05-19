@@ -39,7 +39,7 @@ export const resolvers = {
     Query: {
         // User queries
         users: async (_, { limit, offset }, { prisma }) => {
-            return await prisma.user.findMany({
+            return await prisma.users.findMany({
                 take: limit,
                 skip: offset,
                 where: {
@@ -51,13 +51,13 @@ export const resolvers = {
             });
         },
         user: async (_, { id }, { prisma }) => {
-            return await prisma.user.findUnique({
+            return await prisma.users.findUnique({
                 where: { id },
             });
         },
         // Course queries
         courses: async (_, { limit, offset }, { prisma }) => {
-            return await prisma.course.findMany({
+            return await prisma.courses.findMany({
                 take: limit,
                 skip: offset,
                 where: {
@@ -71,13 +71,13 @@ export const resolvers = {
             });
         },
         course: async (_, { id }, { prisma }) => {
-            return await prisma.course.findUnique({
+            return await prisma.courses.findUnique({
                 where: { id },
             });
         },
         // Assignment queries
         assignments: async (_, { courseId, limit, offset }, { prisma }) => {
-            return await prisma.assignment.findMany({
+            return await prisma.assignments.findMany({
                 take: limit,
                 skip: offset,
                 where: {
@@ -92,13 +92,13 @@ export const resolvers = {
             });
         },
         assignment: async (_, { id }, { prisma }) => {
-            return await prisma.assignment.findUnique({
+            return await prisma.assignments.findUnique({
                 where: { id },
             });
         },
         // Enrollment queries
         enrollments: async (_, { courseId, userId, limit, offset }, { prisma }) => {
-            return await prisma.enrollment.findMany({
+            return await prisma.enrollments.findMany({
                 take: limit,
                 skip: offset,
                 where: {
@@ -113,7 +113,7 @@ export const resolvers = {
         },
         // Submission queries
         submissions: async (_, { assignmentId, userId, limit, offset }, { prisma }) => {
-            return await prisma.submission.findMany({
+            return await prisma.submissions.findMany({
                 take: limit,
                 skip: offset,
                 where: {
@@ -131,11 +131,11 @@ export const resolvers = {
         // Dashboard stats
         dashboardStats: async (_, __, { prisma }) => {
             const [totalUsers, totalCourses, totalAssignments, totalSubmissions, activeUsers, activeCourses] = await Promise.all([
-                prisma.user.count({ where: { workflow_state: 'active' } }),
-                prisma.course.count({ where: { workflow_state: { in: ['available', 'published'] } } }),
-                prisma.assignment.count({ where: { workflow_state: { in: ['published', 'available'] } } }),
-                prisma.submission.count({ where: { workflow_state: { in: ['submitted', 'graded'] } } }),
-                prisma.user.count({
+                prisma.users.count({ where: { workflow_state: 'active' } }),
+                prisma.courses.count({ where: { workflow_state: { in: ['available', 'published'] } } }),
+                prisma.assignments.count({ where: { workflow_state: { in: ['published', 'available'] } } }),
+                prisma.submissions.count({ where: { workflow_state: { in: ['submitted', 'graded'] } } }),
+                prisma.users.count({
                     where: {
                         workflow_state: 'active',
                         updated_at: {
@@ -143,7 +143,7 @@ export const resolvers = {
                         },
                     }
                 }),
-                prisma.course.count({
+                prisma.courses.count({
                     where: {
                         workflow_state: { in: ['available', 'published'] },
                         updated_at: {
@@ -164,16 +164,16 @@ export const resolvers = {
         // Course analytics
         courseAnalytics: async (_, { courseId }, { prisma }) => {
             const [enrollmentCount, submissionStats] = await Promise.all([
-                prisma.enrollment.count({
+                prisma.enrollments.count({
                     where: {
                         course_id: courseId,
                         workflow_state: 'active',
                         type: 'StudentEnrollment',
                     },
                 }),
-                prisma.submission.aggregate({
+                prisma.submissions.aggregate({
                     where: {
-                        assignment: {
+                        assignments: {
                             context_id: courseId,
                         },
                         workflow_state: 'graded',
@@ -186,24 +186,26 @@ export const resolvers = {
                     },
                 }),
             ]);
-            const totalAssignments = await prisma.assignment.count({
+            const totalAssignments = await prisma.assignments.count({
                 where: {
                     context_id: courseId,
                     workflow_state: { in: ['published', 'available'] },
                 },
             });
-            const submissionRate = totalAssignments > 0 ? (submissionStats._count.id / (enrollmentCount * totalAssignments)) * 100 : 0;
+            const countId = submissionStats._count?.id || 0;
+            const avgScore = submissionStats._avg?.score || 0;
+            const submissionRate = (totalAssignments > 0 && enrollmentCount > 0) ? (countId / (enrollmentCount * totalAssignments)) * 100 : 0;
             return {
                 courseId,
                 studentEngagement: 85.5, // Placeholder - would calculate from activity data
-                averageGrade: submissionStats._avg.score || 0,
+                averageGrade: avgScore,
                 submissionRate,
                 activityTrend: [], // Placeholder - would calculate from activity logs
             };
         },
         // Search functions
         searchUsers: async (_, { query }, { prisma }) => {
-            return await prisma.user.findMany({
+            return await prisma.users.findMany({
                 where: {
                     OR: [
                         { name: { contains: query, mode: 'insensitive' } },
@@ -215,7 +217,7 @@ export const resolvers = {
             });
         },
         searchCourses: async (_, { query }, { prisma }) => {
-            return await prisma.course.findMany({
+            return await prisma.courses.findMany({
                 where: {
                     OR: [
                         { name: { contains: query, mode: 'insensitive' } },
@@ -232,7 +234,7 @@ export const resolvers = {
         displayName: (user) => user.name || user.sortable_name || 'Unknown User',
         isActive: (user) => user.workflow_state === 'active',
         enrollments: async (user, _, { prisma }) => {
-            return await prisma.enrollment.findMany({
+            return await prisma.enrollments.findMany({
                 where: {
                     user_id: user.id,
                     workflow_state: 'active',
@@ -240,7 +242,7 @@ export const resolvers = {
             });
         },
         submissions: async (user, _, { prisma }) => {
-            return await prisma.submission.findMany({
+            return await prisma.submissions.findMany({
                 where: {
                     user_id: user.id,
                 },
@@ -251,23 +253,23 @@ export const resolvers = {
             });
         },
         courses: async (user, _, { prisma }) => {
-            const enrollments = await prisma.enrollment.findMany({
+            const enrollments = await prisma.enrollments.findMany({
                 where: {
                     user_id: user.id,
                     workflow_state: 'active',
                 },
                 include: {
-                    course: true,
+                    courses: true,
                 },
             });
-            return enrollments.map(e => e.course);
+            return enrollments.map((e) => e.courses);
         },
     },
     Course: {
         isActive: (course) => ['available', 'published'].includes(course.workflow_state),
         isPublished: (course) => course.workflow_state === 'published',
         studentCount: async (course, _, { prisma }) => {
-            return await prisma.enrollment.count({
+            return await prisma.enrollments.count({
                 where: {
                     course_id: course.id,
                     type: 'StudentEnrollment',
@@ -276,7 +278,7 @@ export const resolvers = {
             });
         },
         teacherCount: async (course, _, { prisma }) => {
-            return await prisma.enrollment.count({
+            return await prisma.enrollments.count({
                 where: {
                     course_id: course.id,
                     type: 'TeacherEnrollment',
@@ -285,7 +287,7 @@ export const resolvers = {
             });
         },
         assignmentCount: async (course, _, { prisma }) => {
-            return await prisma.assignment.count({
+            return await prisma.assignments.count({
                 where: {
                     context_id: course.id,
                     workflow_state: { in: ['published', 'available'] },
@@ -293,7 +295,7 @@ export const resolvers = {
             });
         },
         enrollments: async (course, _, { prisma }) => {
-            return await prisma.enrollment.findMany({
+            return await prisma.enrollments.findMany({
                 where: {
                     course_id: course.id,
                     workflow_state: 'active',
@@ -301,7 +303,7 @@ export const resolvers = {
             });
         },
         assignments: async (course, _, { prisma }) => {
-            return await prisma.assignment.findMany({
+            return await prisma.assignments.findMany({
                 where: {
                     context_id: course.id,
                     workflow_state: { in: ['published', 'available'] },
@@ -312,37 +314,37 @@ export const resolvers = {
             });
         },
         students: async (course, _, { prisma }) => {
-            const enrollments = await prisma.enrollment.findMany({
+            const enrollments = await prisma.enrollments.findMany({
                 where: {
                     course_id: course.id,
                     type: 'StudentEnrollment',
                     workflow_state: 'active',
                 },
                 include: {
-                    user: true,
+                    users_enrollments_user_idTousers: true,
                 },
             });
-            return enrollments.map(e => e.user);
+            return enrollments.map((e) => e.users_enrollments_user_idTousers);
         },
         teachers: async (course, _, { prisma }) => {
-            const enrollments = await prisma.enrollment.findMany({
+            const enrollments = await prisma.enrollments.findMany({
                 where: {
                     course_id: course.id,
                     type: 'TeacherEnrollment',
                     workflow_state: 'active',
                 },
                 include: {
-                    user: true,
+                    users_enrollments_user_idTousers: true,
                 },
             });
-            return enrollments.map(e => e.user);
+            return enrollments.map((e) => e.users_enrollments_user_idTousers);
         },
     },
     Assignment: {
         isPublished: (assignment) => ['published', 'available'].includes(assignment.workflow_state),
         isOverdue: (assignment) => assignment.due_at && new Date(assignment.due_at) < new Date(),
         submissionCount: async (assignment, _, { prisma }) => {
-            return await prisma.submission.count({
+            return await prisma.submissions.count({
                 where: {
                     assignment_id: assignment.id,
                     workflow_state: { in: ['submitted', 'graded'] },
@@ -350,7 +352,7 @@ export const resolvers = {
             });
         },
         gradedCount: async (assignment, _, { prisma }) => {
-            return await prisma.submission.count({
+            return await prisma.submissions.count({
                 where: {
                     assignment_id: assignment.id,
                     workflow_state: 'graded',
@@ -358,7 +360,7 @@ export const resolvers = {
             });
         },
         averageScore: async (assignment, _, { prisma }) => {
-            const result = await prisma.submission.aggregate({
+            const result = await prisma.submissions.aggregate({
                 where: {
                     assignment_id: assignment.id,
                     workflow_state: 'graded',
@@ -371,12 +373,12 @@ export const resolvers = {
             return result._avg.score;
         },
         course: async (assignment, _, { prisma }) => {
-            return await prisma.course.findUnique({
+            return await prisma.courses.findUnique({
                 where: { id: assignment.context_id },
             });
         },
         submissions: async (assignment, _, { prisma }) => {
-            return await prisma.submission.findMany({
+            return await prisma.submissions.findMany({
                 where: {
                     assignment_id: assignment.id,
                 },
@@ -392,12 +394,12 @@ export const resolvers = {
         isTeacher: (enrollment) => enrollment.type === 'TeacherEnrollment',
         isTA: (enrollment) => enrollment.type === 'TaEnrollment',
         user: async (enrollment, _, { prisma }) => {
-            return await prisma.user.findUnique({
+            return await prisma.users.findUnique({
                 where: { id: enrollment.user_id },
             });
         },
         course: async (enrollment, _, { prisma }) => {
-            return await prisma.course.findUnique({
+            return await prisma.courses.findUnique({
                 where: { id: enrollment.course_id },
             });
         },
@@ -407,12 +409,12 @@ export const resolvers = {
         isGraded: (submission) => submission.workflow_state === 'graded',
         isLate: (submission) => submission.late_policy_status === 'late',
         assignment: async (submission, _, { prisma }) => {
-            return await prisma.assignment.findUnique({
+            return await prisma.assignments.findUnique({
                 where: { id: submission.assignment_id },
             });
         },
         user: async (submission, _, { prisma }) => {
-            return await prisma.user.findUnique({
+            return await prisma.users.findUnique({
                 where: { id: submission.user_id },
             });
         },

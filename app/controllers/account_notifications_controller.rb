@@ -442,7 +442,7 @@ class AccountNotificationsController < ApplicationController
   def account_notification_params
     anparams = params.require(:account_notification)
                      .permit(:subject, :icon, :message, :start_at, :end_at, :required_account_service, :months_in_display_cycle, :domain_specific, :send_message)
-    anparams[:message] = process_incoming_html_content(anparams[:message])
+    anparams[:message] = process_incoming_html_content(anparams[:message]) if anparams.key?(:message)
 
     anparams
   end

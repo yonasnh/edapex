@@ -1,1 +1,0 @@
-{"version":3,"file":"FixedNavigationSidebar.js","sourceRoot":"","sources":["FixedNavigationSidebar.tsx"],"names":[],"mappings":";AACA,OAAO,EAAE,iBAAiB,IAAI,yBAAyB,EAAE,MAAM,sEAAsE,CAAC;AAWtI;;;GAGG;AACH,MAAM,CAAC,MAAM,iBAAiB,GAAqC,CAAC,KAAK,EAAE,EAAE;IAC3E,OAAO,eAAC,yBAAyB,OAAK,KAAK,EAAE,GAAG,EAAC,oBAAoB,GAAG,CAAC;AAC3E,CAAC,CAAC;AAEF,eAAe,iBAAiB,CAAC"}

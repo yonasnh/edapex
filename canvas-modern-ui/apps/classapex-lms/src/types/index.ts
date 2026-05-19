@@ -1,4 +1,4 @@
-// Common interfaces for SchoolApex LMS
+// Common interfaces for ClassApex LMS
 
 export interface User {
   id: string;

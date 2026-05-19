@@ -3011,10 +3011,19 @@ class CoursesController < ApplicationController
   end
 
   def copy_course
+    params[:course_id] ||= params[:id]
     get_context
     if authorized_action(@context, @current_user, :read) &&
        authorized_action(@context, @current_user, :read_as_admin)
-      args = params.require(:course).permit(:name, :course_code)
+      if params[:course]
+        args = params.require(:course).permit(:name, :course_code)
+      else
+        args = {
+          name: "#{@context.name} Copy",
+          course_code: "#{@context.course_code} Copy"
+        }
+        params[:course] = args
+      end
       account = @context.account
       if params[:course][:account_id]
         account = Account.find(params[:course][:account_id])
@@ -3086,7 +3095,11 @@ class CoursesController < ApplicationController
         @content_migration.queue_migration
       end
 
-      redirect_to course_content_migrations_url(@course)
+      if api_request?
+        render json: @course.as_json
+      else
+        redirect_to course_content_migrations_url(@course)
+      end
     end
   end
 

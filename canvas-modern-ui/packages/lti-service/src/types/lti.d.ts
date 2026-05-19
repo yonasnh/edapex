@@ -35,13 +35,13 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
         type: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        type?: string[] | undefined;
         title?: string | undefined;
+        type?: string[] | undefined;
         label?: string | undefined;
     }, {
         id: string;
-        type?: string[] | undefined;
         title?: string | undefined;
+        type?: string[] | undefined;
         label?: string | undefined;
     }>>;
     'https://purl.imsglobal.org/spec/lti/claim/tool_platform': z.ZodOptional<z.ZodObject<{
@@ -68,15 +68,15 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
         locale: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         locale?: string | undefined;
-        document_target?: "iframe" | "window" | undefined;
-        height?: number | undefined;
         width?: number | undefined;
+        height?: number | undefined;
+        document_target?: "iframe" | "window" | undefined;
         return_url?: string | undefined;
     }, {
         locale?: string | undefined;
-        document_target?: "iframe" | "window" | undefined;
-        height?: number | undefined;
         width?: number | undefined;
+        height?: number | undefined;
+        document_target?: "iframe" | "window" | undefined;
         return_url?: string | undefined;
     }>>;
     'https://purl.imsglobal.org/spec/lti/claim/custom': z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
@@ -116,25 +116,25 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
         accept_types: string[];
         accept_presentation_document_targets: string[];
         title?: string | undefined;
+        text?: string | undefined;
         accept_copy_advice?: boolean | undefined;
         auto_create?: boolean | undefined;
-        text?: string | undefined;
     }, {
         deep_link_return_url: string;
         accept_types: string[];
         accept_presentation_document_targets: string[];
         title?: string | undefined;
+        text?: string | undefined;
         accept_copy_advice?: boolean | undefined;
         auto_create?: boolean | undefined;
-        text?: string | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
     sub: string;
+    nonce: string;
     iss: string;
     aud: string | string[];
     exp: number;
     iat: number;
-    nonce: string;
     'https://purl.imsglobal.org/spec/lti/claim/message_type': "LtiResourceLinkRequest";
     'https://purl.imsglobal.org/spec/lti/claim/version': "1.3.0";
     'https://purl.imsglobal.org/spec/lti/claim/deployment_id': string;
@@ -146,13 +146,13 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
     };
     'https://purl.imsglobal.org/spec/lti/claim/roles': string[];
     name?: string | undefined;
+    email?: string | undefined;
     given_name?: string | undefined;
     family_name?: string | undefined;
-    email?: string | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/context'?: {
         id: string;
-        type?: string[] | undefined;
         title?: string | undefined;
+        type?: string[] | undefined;
         label?: string | undefined;
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/tool_platform'?: {
@@ -163,9 +163,9 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/launch_presentation'?: {
         locale?: string | undefined;
-        document_target?: "iframe" | "window" | undefined;
-        height?: number | undefined;
         width?: number | undefined;
+        height?: number | undefined;
+        document_target?: "iframe" | "window" | undefined;
         return_url?: string | undefined;
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/custom'?: Record<string, string> | undefined;
@@ -183,17 +183,17 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
         accept_types: string[];
         accept_presentation_document_targets: string[];
         title?: string | undefined;
+        text?: string | undefined;
         accept_copy_advice?: boolean | undefined;
         auto_create?: boolean | undefined;
-        text?: string | undefined;
     } | undefined;
 }, {
     sub: string;
+    nonce: string;
     iss: string;
     aud: string | string[];
     exp: number;
     iat: number;
-    nonce: string;
     'https://purl.imsglobal.org/spec/lti/claim/message_type': "LtiResourceLinkRequest";
     'https://purl.imsglobal.org/spec/lti/claim/version': "1.3.0";
     'https://purl.imsglobal.org/spec/lti/claim/deployment_id': string;
@@ -205,13 +205,13 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
     };
     'https://purl.imsglobal.org/spec/lti/claim/roles': string[];
     name?: string | undefined;
+    email?: string | undefined;
     given_name?: string | undefined;
     family_name?: string | undefined;
-    email?: string | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/context'?: {
         id: string;
-        type?: string[] | undefined;
         title?: string | undefined;
+        type?: string[] | undefined;
         label?: string | undefined;
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/tool_platform'?: {
@@ -222,9 +222,9 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/launch_presentation'?: {
         locale?: string | undefined;
-        document_target?: "iframe" | "window" | undefined;
-        height?: number | undefined;
         width?: number | undefined;
+        height?: number | undefined;
+        document_target?: "iframe" | "window" | undefined;
         return_url?: string | undefined;
     } | undefined;
     'https://purl.imsglobal.org/spec/lti/claim/custom'?: Record<string, string> | undefined;
@@ -242,9 +242,9 @@ export declare const LTILaunchClaimsSchema: z.ZodObject<{
         accept_types: string[];
         accept_presentation_document_targets: string[];
         title?: string | undefined;
+        text?: string | undefined;
         accept_copy_advice?: boolean | undefined;
         auto_create?: boolean | undefined;
-        text?: string | undefined;
     } | undefined;
 }>;
 export type LTILaunchClaims = z.infer<typeof LTILaunchClaimsSchema>;

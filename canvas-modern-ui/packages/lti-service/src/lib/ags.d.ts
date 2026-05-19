@@ -47,7 +47,7 @@ declare const ScoreSchema: z.ZodObject<{
     userId: string;
     timestamp: string;
     activityProgress: "Initialized" | "Started" | "InProgress" | "Submitted" | "Completed";
-    gradingProgress: "FullyGraded" | "Pending" | "PendingManual" | "Failed" | "NotReady";
+    gradingProgress: "Failed" | "FullyGraded" | "Pending" | "PendingManual" | "NotReady";
     scoreMaximum?: number | undefined;
     scoreGiven?: number | undefined;
     comment?: string | undefined;
@@ -55,7 +55,7 @@ declare const ScoreSchema: z.ZodObject<{
     userId: string;
     timestamp: string;
     activityProgress: "Initialized" | "Started" | "InProgress" | "Submitted" | "Completed";
-    gradingProgress: "FullyGraded" | "Pending" | "PendingManual" | "Failed" | "NotReady";
+    gradingProgress: "Failed" | "FullyGraded" | "Pending" | "PendingManual" | "NotReady";
     scoreMaximum?: number | undefined;
     scoreGiven?: number | undefined;
     comment?: string | undefined;

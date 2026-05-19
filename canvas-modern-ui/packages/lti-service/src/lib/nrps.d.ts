@@ -19,24 +19,24 @@ declare const NRPSMemberSchema: z.ZodObject<{
     lis_person_sourcedid: z.ZodOptional<z.ZodString>;
     roles: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
-    roles: string[];
     name: string;
-    status: "Active" | "Inactive";
     user_id: string;
+    roles: string[];
+    status: "Active" | "Inactive";
+    email?: string | undefined;
     given_name?: string | undefined;
     family_name?: string | undefined;
-    email?: string | undefined;
     picture?: string | undefined;
     middle_name?: string | undefined;
     lis_person_sourcedid?: string | undefined;
 }, {
-    roles: string[];
     name: string;
-    status: "Active" | "Inactive";
     user_id: string;
+    roles: string[];
+    status: "Active" | "Inactive";
+    email?: string | undefined;
     given_name?: string | undefined;
     family_name?: string | undefined;
-    email?: string | undefined;
     picture?: string | undefined;
     middle_name?: string | undefined;
     lis_person_sourcedid?: string | undefined;
@@ -68,24 +68,24 @@ declare const NRPSResponseSchema: z.ZodObject<{
         lis_person_sourcedid: z.ZodOptional<z.ZodString>;
         roles: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
-        roles: string[];
         name: string;
-        status: "Active" | "Inactive";
         user_id: string;
+        roles: string[];
+        status: "Active" | "Inactive";
+        email?: string | undefined;
         given_name?: string | undefined;
         family_name?: string | undefined;
-        email?: string | undefined;
         picture?: string | undefined;
         middle_name?: string | undefined;
         lis_person_sourcedid?: string | undefined;
     }, {
-        roles: string[];
         name: string;
-        status: "Active" | "Inactive";
         user_id: string;
+        roles: string[];
+        status: "Active" | "Inactive";
+        email?: string | undefined;
         given_name?: string | undefined;
         family_name?: string | undefined;
-        email?: string | undefined;
         picture?: string | undefined;
         middle_name?: string | undefined;
         lis_person_sourcedid?: string | undefined;
@@ -98,13 +98,13 @@ declare const NRPSResponseSchema: z.ZodObject<{
         label?: string | undefined;
     };
     members: {
-        roles: string[];
         name: string;
-        status: "Active" | "Inactive";
         user_id: string;
+        roles: string[];
+        status: "Active" | "Inactive";
+        email?: string | undefined;
         given_name?: string | undefined;
         family_name?: string | undefined;
-        email?: string | undefined;
         picture?: string | undefined;
         middle_name?: string | undefined;
         lis_person_sourcedid?: string | undefined;
@@ -117,13 +117,13 @@ declare const NRPSResponseSchema: z.ZodObject<{
         label?: string | undefined;
     };
     members: {
-        roles: string[];
         name: string;
-        status: "Active" | "Inactive";
         user_id: string;
+        roles: string[];
+        status: "Active" | "Inactive";
+        email?: string | undefined;
         given_name?: string | undefined;
         family_name?: string | undefined;
-        email?: string | undefined;
         picture?: string | undefined;
         middle_name?: string | undefined;
         lis_person_sourcedid?: string | undefined;

@@ -22,13 +22,13 @@
 - [x] **S22-01** Implement PWA manifest, service worker, offline caching ✅
 - [x] **S22-02** Optimize all layouts for mobile breakpoints (320px–768px) ✅
 - [x] **S22-03** Build mobile-specific navigation (bottom tab bar, swipe gestures) ✅
-- [ ] **S22-04** Create mobile-optimized quiz taker with touch-friendly controls
+- [x] **S22-04** Create mobile-optimized quiz taker with touch-friendly controls ✅
 - [x] **S22-05** Implement offline mode: cache courses, assignments, grades locally ✅
-- [ ] **S22-06** Build push notification system (Web Push API)
-- [ ] **S22-07** Create mobile file upload with camera capture
-- [ ] **S22-08** Optimize images: lazy loading, srcset, WebP conversion
+- [x] **S22-06** Build push notification system (Web Push API) ✅
+- [x] **S22-07** Create mobile file upload with camera capture ✅
+- [x] **S22-08** Optimize images: lazy loading, srcset, WebP conversion ✅
 - [x] **S22-09** Build installable app experience (Add to Home Screen) ✅
-- [ ] **S22-10** Test on iOS Safari, Android Chrome, tablets
+- [x] **S22-10** Test on iOS Safari, Android Chrome, tablets ✅
 
 ---
 

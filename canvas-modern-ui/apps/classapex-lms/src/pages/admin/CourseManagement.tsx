@@ -78,6 +78,29 @@ const statusBadgeClass = (s: string) => s === 'available' ? 'cx-badge--success' 
 
 import { useCanvasQuery } from '../../hooks/useCanvasQuery';
 
+async function csrfFetch(path: string, method: string, body?: object | string): Promise<Response> {
+  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
+  const isUrlEncoded = typeof body === 'string';
+  const apiToken = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
+  
+  const headers: Record<string, string> = {
+    'Content-Type': isUrlEncoded ? 'application/x-www-form-urlencoded' : 'application/json',
+    'Accept': 'application/json',
+    'X-CSRF-Token': decodeURIComponent(token),
+  };
+
+  if (apiToken) {
+    headers['Authorization'] = `Bearer ${apiToken}`;
+  }
+
+  return fetch(path, {
+    method,
+    credentials: 'include',
+    headers,
+    body: body ? (isUrlEncoded ? body : JSON.stringify(body)) : undefined,
+  });
+}
+
 const AdminCourseManagementPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -178,60 +201,113 @@ const AdminCourseManagementPage: React.FC = () => {
 
   const handleCreateCourse = async () => {
     try {
-      const formData = new URLSearchParams()
-      formData.append('course[name]', newCourse.name)
-      if (newCourse.courseCode) formData.append('course[course_code]', newCourse.courseCode)
-      if (newCourse.startDate) formData.append('course[start_at]', new Date(newCourse.startDate).toISOString())
-      if (newCourse.endDate) formData.append('course[end_at]', new Date(newCourse.endDate).toISOString())
-      if (newCourse.syllabusBody) formData.append('course[syllabus_body]', newCourse.syllabusBody)
-      formData.append('course[is_public]', newCourse.visibility === 'public' ? 'true' : 'false')
+      const payload = {
+        course: {
+          name: newCourse.name,
+          course_code: newCourse.courseCode || undefined,
+          start_at: newCourse.startDate ? new Date(newCourse.startDate).toISOString() : undefined,
+          end_at: newCourse.endDate ? new Date(newCourse.endDate).toISOString() : undefined,
+          syllabus_body: newCourse.syllabusBody || undefined,
+          is_public: newCourse.visibility === 'public',
+        },
+        offer: newCourse.isPublished
+      };
 
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch('/api/v1/accounts/1/courses', {
-        method: 'POST',
-        credentials: 'include',
-        headers,
-        body: formData.toString()
-      })
-      if (!res.ok) throw new Error('Failed to create course')
+      const res = await csrfFetch('/api/v1/accounts/1/courses', 'POST', payload);
+      if (!res.ok) throw new Error('Failed to create course');
       
       setNewCourse({ name: '', courseCode: '', department: '', term: '', credits: 3, startDate: '', endDate: '', syllabusBody: '', enrollmentType: 'open', visibility: 'course_members', isPublished: false, allowSelfEnrollment: true });
       setShowCreateModal(false);
-      refetch()
+      refetch();
     } catch (err) {
-      console.error(err)
-      alert('Failed to create course.')
+      console.error(err);
+      alert('Failed to create course.');
     }
   };
-  const handleEditCourse = () => { console.log('Editing course:', editCourse); setEditCourse({}); setShowEditModal(false); };
+  const handleUseTemplate = (templateName: string) => {
+    let name = '';
+    let code = '';
+    let syllabus = '';
+    let dept = '';
+    
+    if (templateName === 'Computer Science Course') {
+      name = 'Computer Science 101 Template';
+      code = 'CS101';
+      syllabus = 'Introduction to programming concepts, control flow, functions, and data structures. Weekly lab assignments and projects.';
+      dept = 'Computer Science';
+    } else if (templateName === 'Mathematics Course') {
+      name = 'Introduction to Calculus Template';
+      code = 'MATH101';
+      syllabus = 'Limits, derivatives, integrals, and their applications. Homework sets and exams.';
+      dept = 'Mathematics';
+    } else if (templateName === 'Literature Course') {
+      name = 'Modern Literature Template';
+      code = 'LIT201';
+      syllabus = 'Analysis of 20th-century novels, poetry, and plays. Emphasis on critical writing and group discussions.';
+      dept = 'English';
+    } else if (templateName === 'Science Lab Course') {
+      name = 'General Chemistry Lab Template';
+      code = 'CHEM101L';
+      syllabus = 'Laboratory experiments covering fundamental principles of general chemistry. Pre-lab quizzes and formal reports.';
+      dept = 'Chemistry';
+    }
+
+    setNewCourse({
+      name,
+      courseCode: code,
+      department: dept,
+      term: 'Spring 2024',
+      credits: 3,
+      startDate: '',
+      endDate: '',
+      syllabusBody: syllabus,
+      enrollmentType: 'open',
+      visibility: 'course_members',
+      isPublished: false,
+      allowSelfEnrollment: true
+    });
+    
+    setShowCreateModal(true);
+  };
+  const handleEditCourse = async () => {
+    if (!editCourse.id) return;
+    try {
+      let event: string | undefined = undefined;
+      const targetState = editCourse.isPublished ? 'available' : editCourse.workflowState;
+      if (targetState === 'available') {
+        event = 'offer';
+      } else if (targetState === 'completed') {
+        event = 'conclude';
+      } else if (targetState === 'unpublished') {
+        event = 'claim';
+      }
+
+      const payload = {
+        course: {
+          name: editCourse.name,
+          course_code: editCourse.courseCode,
+          syllabus_body: editCourse.syllabusBody,
+          event: event
+        }
+      };
+
+      const res = await csrfFetch(`/api/v1/courses/${editCourse.id}`, 'PUT', payload);
+      if (!res.ok) throw new Error('Failed to update course');
+
+      setEditCourse({});
+      setShowEditModal(false);
+      refetch();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update course.');
+    }
+  };
   const handleCourseClick = (c: CourseData) => { setSelectedCourse(c); setShowCourseModal(true); };
   const handleEditClick = (c: CourseData) => { setEditCourse(c); setShowEditModal(true); };
   const handleDeleteCourse = async (id: string) => {
     if (!confirm('Are you sure you want to delete this course?')) return;
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch(`/api/v1/courses/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers,
-        body: 'event=delete'
-      });
+      const res = await csrfFetch(`/api/v1/courses/${id}`, 'DELETE', 'event=delete');
       if (!res.ok) throw new Error('Failed to delete course');
       refetch();
     } catch (err) {
@@ -242,19 +318,7 @@ const AdminCourseManagementPage: React.FC = () => {
   const handleCopyCourse = async (id: string) => {
     if (!confirm('Are you sure you want to create a copy of this course?')) return;
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch(`/api/v1/courses/${id}/copy`, {
-        method: 'POST',
-        credentials: 'include',
-        headers
-      });
+      const res = await csrfFetch(`/api/v1/courses/${id}/copy`, 'POST');
       if (!res.ok) throw new Error('Failed to copy course');
       alert('Course copy initiated successfully!');
       refetch();
@@ -266,21 +330,7 @@ const AdminCourseManagementPage: React.FC = () => {
 
   const handlePublishCourse = async (id: string) => {
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch(`/api/v1/courses/${id}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers,
-        body: 'course[event]=offer'
-      });
+      const res = await csrfFetch(`/api/v1/courses/${id}`, 'PUT', 'course[event]=offer');
       if (!res.ok) throw new Error('Failed to publish course');
       alert('Course published successfully!');
       refetch();
@@ -490,7 +540,7 @@ const AdminCourseManagementPage: React.FC = () => {
                 <div className="cx-card__header"><h3 className="cx-card__title">{t.name}</h3></div>
                 <div className="cx-card__body"><p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>{t.desc}</p></div>
                 <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
-                  <button className="cx-btn cx-btn--primary cx-btn--sm">Use Template</button>
+                  <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => handleUseTemplate(t.name)}>Use Template</button>
                 </div>
               </div>
             ))}

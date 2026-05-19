@@ -191,7 +191,7 @@ export default function EPortfolioPage() {
         </div>
       ) : isPreviewMode ? (
         /* Gorgeous Live Preview Showcase Mode */
-        <div className="cx-card" style={{ padding: 32, background: '#ffffff', boxShadow: '0 8px 30px rgba(0,0,0,0.04)' }}>
+        <div className="cx-card" style={{ padding: 32, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-default)', boxShadow: 'var(--cx-shadow-md)' }}>
           <div style={{ borderBottom: '2px solid var(--cx-border-subtle)', paddingBottom: 16, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--cx-text-primary)' }}>{activePortfolio.name}</h2>
@@ -214,7 +214,7 @@ export default function EPortfolioPage() {
                       cursor: 'pointer',
                       padding: '8px 12px',
                       borderRadius: 6,
-                      background: selectedSectionId === sec.id ? 'rgba(99,102,241,0.06)' : 'transparent'
+                      background: selectedSectionId === sec.id ? 'var(--cx-color-primary-subtle)' : 'transparent'
                     }}
                   >
                     {sec.name}
@@ -285,8 +285,8 @@ export default function EPortfolioPage() {
                       cursor: 'pointer',
                       padding: '8px 10px',
                       borderRadius: 6,
-                      background: selectedSectionId === sec.id ? 'rgba(99,102,241,0.06)' : 'transparent',
-                      border: `1px solid ${selectedSectionId === sec.id ? 'rgba(99,102,241,0.2)' : 'transparent'}`
+                      background: selectedSectionId === sec.id ? 'var(--cx-color-primary-subtle)' : 'transparent',
+                      border: `1px solid ${selectedSectionId === sec.id ? 'var(--cx-color-primary-hover)' : 'transparent'}`
                     }}
                   >
                     📂 {sec.name}
@@ -383,10 +383,10 @@ export default function EPortfolioPage() {
       {showCreateModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(15,23,42,0.7)', zIndex: 100, display: 'flex',
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 100, display: 'flex',
           alignItems: 'center', justifyContent: 'center', padding: 20
         }}>
-          <form className="cx-card" onSubmit={handleCreatePortfolio} style={{ background: '#ffffff', width: '100%', maxWidth: '440px', padding: 24, borderRadius: 8 }}>
+          <form className="cx-card" onSubmit={handleCreatePortfolio} style={{ background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-default)', width: '100%', maxWidth: '440px', padding: 24, borderRadius: 8 }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--cx-text-primary)' }}>
               Create New ePortfolio
             </h3>

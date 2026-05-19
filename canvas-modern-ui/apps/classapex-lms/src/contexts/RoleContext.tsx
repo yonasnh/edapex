@@ -42,8 +42,8 @@ const DEMO_USERS: Record<UserRole, RoleUser> = {
   },
   admin: {
     id: '999',
-    name: 'Admin Portal',
-    displayName: 'System Administrator',
+    name: 'System Admin',
+    displayName: 'System Admin',
     email: 'admin@classapex.edu',
     avatarSeed: 'Admin',
     role: 'admin',

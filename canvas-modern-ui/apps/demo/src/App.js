@@ -3,7 +3,14 @@ import { useState, Suspense } from 'react';
 import { Theme, Grid, Column, Header, HeaderName, HeaderGlobalBar, HeaderGlobalAction, Button, Tag } from '@carbon/react';
 import { Notification, Settings, User as UserIcon, Information } from '@carbon/icons-react';
 import { useFeatureFlags, LTIProvider, useLTI } from '@schoolapex/core';
-import { NavigationSidebar, CourseCard, AssignmentCard, GradebookSummary, DiscussionCard, CalendarEventCard, FileCard, GlobalSearch, LoadingSpinner, SkeletonCard, EmptyCoursesState, APIErrorHandler, UserProfile, AnalyticsDashboard, BulkOperations, LaunchInfo, ErrorBoundary, SettingsPanel, ToastContainer, useToasts, } from '@schoolapex/components';
+import { NavigationSidebar, CourseCard, AssignmentCard, DiscussionCard, CalendarEventCard, FileCard, LoadingSpinner, SkeletonCard, APIErrorHandler, LaunchInfo, ErrorBoundary, SettingsPanel, } from '@schoolapex/components';
+import { GradebookSummary } from './components/GradebookSummary';
+import { GlobalSearch } from './components/GlobalSearch';
+import { EmptyCoursesState } from './components/EmptyStates';
+import { UserProfile } from './components/UserProfile';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { BulkOperations } from './components/BulkOperations';
+import { ToastContainer, useToasts } from './components/Toast';
 /**
  * SchoolApex Modern UI Demo Application
  *
@@ -819,7 +826,7 @@ function AppContent() {
                                                             title: 'Result clicked',
                                                             message: `Opening: ${result.title}`,
                                                         });
-                                                    }, showFilters: true, showRecentSearches: true }) })] }) }), _jsx(Column, { lg: 16, md: 8, sm: 4, children: _jsxs("div", { className: "schoolapex-section", children: [_jsx("h2", { children: "Loading & Empty States" }), _jsx("p", { children: "Skeleton screens and engaging empty state designs" }), _jsx("div", { className: "loading-states-demo", children: isLoading ? (_jsxs("div", { children: [_jsx("h3", { children: "Loading States Demo" }), _jsx(LoadingSpinner, { size: "lg", description: "Loading SchoolApex components..." }), _jsxs("div", { className: "skeleton-demo", children: [_jsx(SkeletonCard, { showImage: true, showActions: true, lines: 3 }), _jsx(SkeletonCard, { showImage: false, showActions: true, lines: 2 })] })] })) : (_jsxs("div", { children: [_jsx("h3", { children: "Empty States Demo" }), _jsx(EmptyCoursesState, { onBrowseCourses: () => {
+                                                    }, showFilters: true, showRecentSearches: true }) })] }) }), _jsx(Column, { lg: 16, md: 8, sm: 4, children: _jsxs("div", { className: "schoolapex-section", children: [_jsx("h2", { children: "Loading & Empty States" }), _jsx("p", { children: "Skeleton screens and engaging empty state designs" }), _jsx("div", { className: "loading-states-demo", children: isLoading ? (_jsxs("div", { children: [_jsx("h3", { children: "Loading States Demo" }), _jsx(LoadingSpinner, { size: "lg", description: "Loading SchoolApex components..." }), _jsxs("div", { className: "skeleton-demo", children: [_jsx(SkeletonCard, { showAvatar: true, showActions: true, count: 1 }), _jsx(SkeletonCard, { showAvatar: false, showActions: true, count: 1 })] })] })) : (_jsxs("div", { children: [_jsx("h3", { children: "Empty States Demo" }), _jsx(EmptyCoursesState, { onBrowseCourses: () => {
                                                                 addToast({
                                                                     type: 'info',
                                                                     title: 'Browse Courses',

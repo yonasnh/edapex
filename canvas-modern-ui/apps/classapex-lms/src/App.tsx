@@ -24,14 +24,13 @@ import {
 import { AppShell } from '../../../packages/components/src/ui/layout/AppShell'
 import { TopBar } from '../../../packages/components/src/ui/layout/TopBar'
 import { NotificationDropdown } from '../../../packages/components/src/ui/layout/NotificationDropdown'
-import { GlobalSearchModal } from '../../../packages/components/src/ui/layout/GlobalSearchModal'
 import { Breadcrumb, generateBreadcrumbs } from '../../../packages/components/src/navigation/Breadcrumb'
 import { NavigationSidebar } from '@schoolapex/components'
 import { TopBarSkeleton } from '../../../packages/components/src/ui/loading/ShellSkeletons'
 import { AIAssistantDrawer } from './components/AIAssistantDrawer'
 
 // Canvas API hooks
-import { useActivityStream, useCurrentUser, useGlobalSearch } from './hooks/useShellData'
+import { useActivityStream, useCurrentUser, useGlobalSearch, useAccountNotifications } from './hooks/useShellData'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 import { TenantProvider } from './contexts/TenantContext'
 import { navItems, filterNavItemsByRole } from './navigation'
@@ -270,46 +269,60 @@ const AppContent = () => {
 
   // Shell state
   const [notifOpen, setNotifOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
 
   // Canvas data — real user from API
   const { items: notifications, unreadCount, isLoading: notifLoading, markAllRead } = useActivityStream()
   const { user: canvasUser, displayName: canvasDisplayName, avatarUrl: canvasAvatarUrl } = useCurrentUser()
   const { results: searchResults, isSearching, search, clearResults } = useGlobalSearch()
+  const { notifications: accountNotifs, dismissNotification } = useAccountNotifications()
 
   // Role context (used for role-based nav filtering)
   const { role, user: demoUser, isMasquerading, masqueradeAs } = useRole()
 
-  // Derive display values — prefer live Canvas data, fall back to demo persona
-  const displayName = canvasDisplayName || demoUser.displayName
-  const avatarUrl = canvasAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${demoUser.avatarSeed}`
-  const userRole = (canvasUser as any)?.primary_email ? '' : demoUser.title
+  // Derive display values — prefer live Canvas data when role matches default 'student', fall back to active preview persona details
+  const displayName = role === 'student' ? (canvasDisplayName || demoUser.displayName) : demoUser.displayName
+  const avatarUrl = role === 'student' ? (canvasAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${demoUser.avatarSeed}`) : `https://api.dicebear.com/7.x/avataaars/svg?seed=${demoUser.avatarSeed}`
+  const userRole = demoUser.title
 
-  // Global Cmd+K handler (S3-10 keyboard nav)
+  // Global Cmd+K and Command Palette action handlers (S3-10 keyboard nav / command actions)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setSearchOpen(prev => !prev)
-      }
-      // Custom event from GlobalSearchModal internal shortcut
-      if (e.type === 'cx:open-search') {
-        setSearchOpen(true)
+        window.dispatchEvent(new CustomEvent('cx:focus-search'))
       }
     }
+    const handleToggleTheme = () => {
+      toggleTheme()
+    }
+    const handleToggleContrast = () => {
+      const isContrast = document.documentElement.getAttribute('data-high-contrast') === 'true'
+      if (isContrast) {
+        document.documentElement.removeAttribute('data-high-contrast')
+        localStorage.removeItem('classapex-high-contrast')
+      } else {
+        document.documentElement.setAttribute('data-high-contrast', 'true')
+        localStorage.setItem('classapex-high-contrast', 'true')
+      }
+      // Sync checkbox selectors if user is on Settings page
+      window.dispatchEvent(new Event('storage'))
+    }
+
     document.addEventListener('keydown', handler)
-    document.addEventListener('cx:open-search' as any, handler)
+    document.addEventListener('cx:toggle-theme' as any, handleToggleTheme)
+    document.addEventListener('cx:toggle-contrast' as any, handleToggleContrast)
+
     return () => {
       document.removeEventListener('keydown', handler)
-      document.removeEventListener('cx:open-search' as any, handler)
+      document.removeEventListener('cx:toggle-theme' as any, handleToggleTheme)
+      document.removeEventListener('cx:toggle-contrast' as any, handleToggleContrast)
     }
-  }, [])
+  }, [toggleTheme])
 
   // Close modals on route change
   useEffect(() => {
     setNotifOpen(false)
-    setSearchOpen(false)
   }, [location.pathname])
 
   // Apply theme to <html> for CSS custom property switching
@@ -321,10 +334,7 @@ const AppContent = () => {
     search(query)
   }, [search])
 
-  const handleCloseSearch = useCallback(() => {
-    setSearchOpen(false)
-    clearResults()
-  }, [clearResults])
+
 
   // Get real auth actions from the AuthProvider
   const { logout: authLogout } = useAuth()
@@ -380,7 +390,9 @@ const AppContent = () => {
         notificationCount={unreadCount}
         theme={theme}
         onNotificationsClick={() => setNotifOpen(prev => !prev)}
-        onSearch={() => setSearchOpen(true)}
+        onSearch={handleSearch}
+        searchResults={searchResults}
+        isSearching={isSearching}
         onProfileClick={handleProfileClick}
         onSettingsClick={handleSettingsClick}
         onLogout={handleLogout}
@@ -425,14 +437,7 @@ const AppContent = () => {
         </div>
       )}
 
-      {/* Global Search Modal — rendered at root level for proper z-index */}
-      <GlobalSearchModal
-        isOpen={searchOpen}
-        onClose={handleCloseSearch}
-        onSearch={handleSearch}
-        results={searchResults}
-        isLoading={isSearching}
-      />
+      {/* Dynamic Inline search dropdown is integrated directly inside TopBar */}
 
       <AppShell sidebar={sidebar} topbar={topbar}>
         {isMasquerading && (
@@ -468,6 +473,62 @@ const AppContent = () => {
             </button>
           </div>
         )}
+        {/* Render global account announcements */}
+        {accountNotifs && accountNotifs.length > 0 && (
+          <div className="cx-global-announcements" style={{ padding: '16px 24px 0 24px' }}>
+            {accountNotifs.map(n => {
+              const iconColor = n.icon === 'error' ? 'var(--cx-color-danger)' : n.icon === 'information' ? 'var(--cx-color-primary)' : 'var(--cx-color-warning)';
+              const bgColor = n.icon === 'error' ? 'var(--cx-color-danger-subtle, rgba(239, 68, 68, 0.1))' : n.icon === 'information' ? 'var(--cx-color-primary-subtle, rgba(99, 102, 241, 0.1))' : 'var(--cx-color-warning-subtle, rgba(245, 158, 11, 0.1))';
+              const borderColor = n.icon === 'error' ? 'var(--cx-color-danger)' : n.icon === 'information' ? 'var(--cx-color-primary)' : 'var(--cx-color-warning)';
+
+              return (
+                <div key={n.id} style={{
+                  background: bgColor,
+                  borderLeft: `4px solid ${borderColor}`,
+                  color: 'var(--cx-text-primary)',
+                  padding: '12px 16px',
+                  marginBottom: '12px',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  boxShadow: 'var(--cx-shadow-sm)',
+                  position: 'relative'
+                }}>
+                  <div style={{ fontSize: '1.25rem', color: iconColor, lineHeight: 1 }}>
+                    {n.icon === 'error' ? '🛑' : n.icon === 'information' ? 'ℹ️' : '⚠️'}
+                  </div>
+                  <div style={{ flex: 1, paddingRight: '24px' }}>
+                    <h4 style={{ margin: '0 0 4px 0', fontSize: '0.875rem', fontWeight: 700 }}>{n.subject}</h4>
+                    <p style={{ margin: 0, fontSize: '0.8125rem', lineHeight: 1.5, color: 'var(--cx-text-secondary)' }}>{n.message}</p>
+                  </div>
+                  <button 
+                    onClick={() => dismissNotification(n.id)}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      color: 'var(--cx-text-tertiary)',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1
+                    }}
+                    aria-label="Dismiss notification"
+                  >
+                    &times;
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/"              element={<Navigate to="/dashboard" replace />} />

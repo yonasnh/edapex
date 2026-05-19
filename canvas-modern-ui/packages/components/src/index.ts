@@ -46,6 +46,11 @@ export { EmptyState, EmptyStates } from './ui/empty/EmptyStates'
 
 export { Card } from './ui/card/Card'
 export type { CardProps, CardVariant, CardDensity } from './ui/card/Card'
+export { CourseCard, CourseCardGrid } from './ui/card/CourseCard'
+export { AssignmentCard } from './ui/card/AssignmentCard'
+export { DiscussionCard } from './ui/card/DiscussionCard'
+export { CalendarEventCard } from './ui/card/CalendarEventCard'
+export { FileCard } from './ui/card/FileCard'
 
 export { ProgressBar } from './ui/progress/ProgressBar'
 export type { ProgressBarProps } from './ui/progress/ProgressBar'

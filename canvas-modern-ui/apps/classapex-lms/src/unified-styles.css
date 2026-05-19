@@ -20,7 +20,9 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root,
+html[data-theme="light"],
 [data-theme="light"] {
+  color-scheme: light;
   /* Surface aliases */
   --cx-surface:         var(--cx-bg-surface, #FFFFFF);
   --cx-surface-raised:  var(--cx-bg-surface-raised, #F8FAFC);
@@ -67,7 +69,9 @@
   --cx-today-border:         #C7D2FE;
 }
 
+html[data-theme="dark"],
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Surface aliases */
   --cx-surface:         var(--cx-bg-surface, #181B1F);
   --cx-surface-raised:  var(--cx-bg-surface-raised, #242932);

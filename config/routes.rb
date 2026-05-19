@@ -1180,6 +1180,7 @@ CanvasRails::Application.routes.draw do
       put "courses/:id", action: :update
       get "courses/:id", action: :show, as: "course"
       delete "courses/:id", action: :destroy
+      post "courses/:id/copy", action: :copy_course
       post "accounts/:account_id/courses", action: :create
       get "courses/:course_id/students", action: :students
       get "courses/:course_id/settings", action: :api_settings, as: "course_settings"

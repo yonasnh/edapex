@@ -44,6 +44,7 @@ function EyeSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill=
 
 const FilesPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -207,6 +208,20 @@ const FilesPage: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const file = e.target.files?.[0]
+          if (file) handleFileUpload(file)
+          e.target.value = ''
+        }}
+      />
+
+      {/* Hidden camera capture input (S22-07) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         style={{ display: 'none' }}
         onChange={e => {
           const file = e.target.files?.[0]
@@ -383,9 +398,33 @@ const FilesPage: React.FC = () => {
                 >
                   <div className="cx-file-upload-area__icon"><UploadSvg /></div>
                   <p style={{ fontWeight: 500, marginBottom: 4 }}>
-                    {isUploading ? 'Uploading…' : 'Choose files or drag them here'}
+                    {isUploading ? 'Uploading…' : 'Drag & drop files here'}
                   </p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Max file size 500MB. PDF, DOC, PPT, XLS, images, videos.</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Max file size 500MB.</p>
+                </div>
+
+                {/* S22-07: Touch Friendly Upload & Mobile Direct Camera Capture Options */}
+                <div style={{ display: 'flex', gap: 12, marginTop: 4, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className="cx-btn cx-btn--secondary"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px', borderRadius: 12, minHeight: 48 }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <UploadSvg /> Browse Files
+                  </button>
+                  <button
+                    type="button"
+                    className="cx-btn cx-btn--primary"
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px', borderRadius: 12, minHeight: 48, background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', border: 'none' }}
+                    onClick={() => cameraInputRef.current?.click()}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M4 6a2 2 0 012-2h1.5a1 1 0 00.8-.4l1.4-1.8a1 1 0 01.8-.4h3a1 1 0 01.8.4l1.4 1.8a1 1 0 00.8.4H14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                      <circle cx="10" cy="10" r="3" />
+                    </svg>
+                    Use Camera
+                  </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>Course (optional)</label>

@@ -452,7 +452,7 @@ export default function GradingQueuePage() {
                 )}
 
                 {rubricViewTab === 'self' && (
-                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'rgba(99,102,241,0.03)' }}>
+                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'var(--cx-color-primary-subtle)' }}>
                     <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Student Self-Evaluation Rubric</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.78rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 4 }}>
@@ -471,7 +471,7 @@ export default function GradingQueuePage() {
                 )}
 
                 {rubricViewTab === 'peer' && (
-                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'rgba(99,102,241,0.03)' }}>
+                  <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'var(--cx-color-primary-subtle)' }}>
                     <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Peer Review Evaluations (2 reviews)</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: '0.78rem' }}>
                       <div style={{ borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 6 }}>
@@ -538,15 +538,16 @@ export default function GradingQueuePage() {
                       }
                     }}
                     style={{
-                      background: '#ffffff',
+                      background: 'var(--cx-bg-surface)',
                       minHeight: '220px',
                       padding: '20px',
                       position: 'relative',
                       cursor: 'crosshair',
                       fontSize: '0.8125rem',
                       lineHeight: 1.6,
-                      color: '#334155',
-                      fontFamily: 'serif'
+                      color: 'var(--cx-text-primary)',
+                      fontFamily: 'serif',
+                      border: '1px solid var(--cx-border-subtle)'
                     }}
                   >
                     <p style={{ margin: '0 0 12px 0' }}>
