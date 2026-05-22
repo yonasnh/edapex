@@ -44,7 +44,7 @@ class NormalizePseudonyms < ActiveRecord::Migration[7.1]
     INDEX_NAMES.each do |index_name|
       index_name = "index_pseudonyms_#{index_name}"
       # idempotent; if the _old index exists, it's already renamed
-      next if index_name_exists?(:pseudonyms, "#{index_name}_old")
+      next if index_name_exists?(:pseudonyms, "#{index_name}_old") || !index_name_exists?(:pseudonyms, index_name)
 
       rename_index :pseudonyms, index_name, "#{index_name}_old"
     end
@@ -134,20 +134,30 @@ class NormalizePseudonyms < ActiveRecord::Migration[7.1]
     # and it's okay that they're in a postdeploy because they won't be used
     # by Pseudonym.by_unique_id until the flag is set below
 
-    add_index :pseudonyms,
-              %i[unique_id_normalized account_id authentication_provider_id],
-              name: "index_pseudonyms_unique_without_login_attribute",
-              unique: true,
-              where: "workflow_state IN ('active', 'suspended') AND login_attribute IS NULL",
-              algorithm: :concurrently,
-              if_not_exists: true
-    add_index :pseudonyms,
-              %i[unique_id_normalized account_id authentication_provider_id login_attribute],
-              name: "index_pseudonyms_unique_with_login_attribute",
-              unique: true,
-              where: "workflow_state IN ('active', 'suspended')",
-              algorithm: :concurrently,
-              if_not_exists: true
+    if connection.column_exists?(:pseudonyms, :login_attribute)
+      add_index :pseudonyms,
+                %i[unique_id_normalized account_id authentication_provider_id],
+                name: "index_pseudonyms_unique_without_login_attribute",
+                unique: true,
+                where: "workflow_state IN ('active', 'suspended') AND login_attribute IS NULL",
+                algorithm: :concurrently,
+                if_not_exists: true
+      add_index :pseudonyms,
+                %i[unique_id_normalized account_id authentication_provider_id login_attribute],
+                name: "index_pseudonyms_unique_with_login_attribute",
+                unique: true,
+                where: "workflow_state IN ('active', 'suspended')",
+                algorithm: :concurrently,
+                if_not_exists: true
+    else
+      add_index :pseudonyms,
+                %i[unique_id_normalized account_id authentication_provider_id],
+                name: "index_pseudonyms_unique",
+                unique: true,
+                where: "workflow_state IN ('active', 'suspended')",
+                algorithm: :concurrently,
+                if_not_exists: true
+    end
     add_index :pseudonyms,
               %i[unique_id_normalized account_id],
               name: "index_pseudonyms_unique_without_auth_provider",
@@ -181,6 +191,10 @@ class NormalizePseudonyms < ActiveRecord::Migration[7.1]
 
     remove_index :pseudonyms,
                  name: "index_pseudonyms_unique_without_login_attribute",
+                 algorithm: :concurrently,
+                 if_exists: true
+    remove_index :pseudonyms,
+                 name: "index_pseudonyms_unique",
                  algorithm: :concurrently,
                  if_exists: true
     INDEX_NAMES.each do |index_name|

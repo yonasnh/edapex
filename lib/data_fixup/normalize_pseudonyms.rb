@@ -36,8 +36,12 @@ module DataFixup::NormalizePseudonyms
 
     def dedup_all
       relink_canvas_auth_provider
-      dedup(Pseudonym.where(login_attribute: nil), :authentication_provider_id)
-      dedup(Pseudonym.where.not(authentication_provider_id: nil), :authentication_provider_id, :login_attribute)
+      if Pseudonym.column_names.include?("login_attribute")
+        dedup(Pseudonym.where(login_attribute: nil), :authentication_provider_id)
+        dedup(Pseudonym.where.not(authentication_provider_id: nil), :authentication_provider_id, :login_attribute)
+      else
+        dedup(Pseudonym.where.not(authentication_provider_id: nil), :authentication_provider_id)
+      end
       %w[canvas cas ldap saml].each do |auth_type|
         dedup_special(auth_type)
       end

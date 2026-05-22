@@ -2230,7 +2230,7 @@ class ApplicationController < ActionController::Base
   end
 
   def rescue_action_locally(exception, level: :error)
-    if api_request? || exception.is_a?(RequestError)
+    if api_request? || exception.is_a?(RequestError) || exception.is_a?(ActiveRecord::RecordNotFound)
       # we want api requests to behave the same on error locally as in prod, to
       # ease testing and development. you can still view the backtrace, etc, in
       # the logs.

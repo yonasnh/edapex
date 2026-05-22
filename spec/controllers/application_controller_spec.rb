@@ -1595,6 +1595,28 @@ RSpec.describe ApplicationController do
       end
     end
 
+    describe "rescue_exception" do
+      before do
+        allow(controller).to receive(:headers).and_return({})
+      end
+
+      it "renders the public error page for ActiveRecord::RecordNotFound locally" do
+        allow(Rails.application.config).to receive(:consider_all_requests_local).and_return(true)
+        allow(controller).to receive(:api_request?).and_return(false)
+        expect(controller).to receive(:rescue_action_in_public).with(an_instance_of(ActiveRecord::RecordNotFound), level: :error)
+        controller.send(:rescue_exception, ActiveRecord::RecordNotFound.new)
+      end
+
+      it "raises the exception for generic Exception locally" do
+        allow(Rails.application.config).to receive(:consider_all_requests_local).and_return(true)
+        allow(controller).to receive(:api_request?).and_return(false)
+        expect(Canvas::Errors).to receive(:capture).with(an_instance_of(Exception), {}, :error)
+        expect {
+          controller.send(:rescue_exception, Exception.new)
+        }.to raise_error(Exception)
+      end
+    end
+
     describe "content_tag_redirect" do
       def create_tag(overrides)
         ContentTag.create!(
