@@ -178,6 +178,7 @@ class ApplicationController < ActionController::Base
       &
     )
   end
+
   def supported_timezones
     ActiveSupport::TimeZone.all.map { |tz| tz.tzinfo.name }
   end
@@ -477,7 +478,8 @@ class ApplicationController < ActionController::Base
     permanent_page_links
     enhanced_course_creation_account_fetching
     instui_for_import_page
-    multiselect_gradebook_filters    assignment_edit_placement_not_on_announcements
+    multiselect_gradebook_filters
+    assignment_edit_placement_not_on_announcements
     a11y_checker_ga2_features
     block_content_editor_toolbar_reorder
     commons_new_quizzes
@@ -546,9 +548,11 @@ class ApplicationController < ActionController::Base
     mobile_offline_mode
     modules_requirements_allow_percentage
     discussion_checkpoints
-    course_pace_allow_bulk_pace_assign  ].freeze
+    course_pace_allow_bulk_pace_assign
+  ].freeze
   JS_ENV_BRAND_ACCOUNT_FEATURES = %i[
-    embedded_release_notes  ].freeze
+    embedded_release_notes
+  ].freeze
   JS_ENV_FEATURES_HASH = Digest::SHA256.hexdigest([JS_ENV_SITE_ADMIN_FEATURES + JS_ENV_ROOT_ACCOUNT_FEATURES + JS_ENV_BRAND_ACCOUNT_FEATURES].sort.join(",")).freeze
   def cached_js_env_account_features
     # can be invalidated by a flag change on site admin, the domain root account, or the brand config account
@@ -689,9 +693,10 @@ class ApplicationController < ActionController::Base
 
     context = context.account if context.is_a?(User)
     tools = GuardRail.activate(:secondary) do
-      Lti::ContextToolFinder.all_tools_for(context, placements: type,
-                                                      current_user: @current_user,
-                                                      tool_ids: nil).to_a
+      Lti::ContextToolFinder.all_tools_for(context,
+                                           placements: type,
+                                           current_user: @current_user,
+                                           tool_ids: nil).to_a
     end
 
     tools.select! do |tool|
@@ -1730,7 +1735,7 @@ class ApplicationController < ActionController::Base
       end
       if !@context
         @problem = t "#application.errors.invalid_verification_code", "The verification code is invalid."
-      elsif (@context.respond_to?(:is_public) && !@context.is_public) && (!@context.respond_to?(:uuid) || pieces[1] != @context.uuid)
+      elsif @context.respond_to?(:is_public) && !@context.is_public && (!@context.respond_to?(:uuid) || pieces[1] != @context.uuid)
         @problem = case @context_type
                    when "course"
                      t "#application.errors.feed_private_course", "The matching course has gone private, so public feeds like this one will no longer be visible."
@@ -2781,6 +2786,7 @@ class ApplicationController < ActionController::Base
   def user_content(str)
     return nil unless str
     return str.html_safe unless str.match?(/object|embed|equation_image/)
+
     UserContent.escape(str, request.host_with_port, use_new_math_equation_handling?)
   end
   helper_method :user_content
@@ -2799,7 +2805,8 @@ class ApplicationController < ActionController::Base
         is_public:
       ).processed_url
     end
-    UserContent.escape(rewriter.translate_content(str), request.host_with_port, use_new_math_equation_handling?)  end
+    UserContent.escape(rewriter.translate_content(str), request.host_with_port, use_new_math_equation_handling?)
+  end
   helper_method :public_user_content
 
   def find_bank(id, check_context_chain: true)
@@ -3227,7 +3234,7 @@ class ApplicationController < ActionController::Base
     # 1. assignments_controller (context of this will be Course)
     # 2. courses_controller (context of this will be Account)
     # discussion_checkpoints_enabled? works for either context
-    account_has_discussion_checkpoints_enabled = @context.discussion_checkpoints_enabled?
+    @context.discussion_checkpoints_enabled?
     course_has_peer_reviews_enabled = @context.is_a?(Course) && @context.feature_enabled?(:peer_review_allocation_and_grading)
     prefetch_xhr(api_v1_course_assignment_groups_url(
                    @context,
@@ -3488,6 +3495,7 @@ class ApplicationController < ActionController::Base
 
     @context.feature_enabled?(:new_quizzes_native_experience)
   end
+
   def show_blueprint_button?
     @context.is_a?(Course) && MasterCourses::MasterTemplate.is_master_course?(@context)
   end

@@ -1611,9 +1611,9 @@ RSpec.describe ApplicationController do
         allow(Rails.application.config).to receive(:consider_all_requests_local).and_return(true)
         allow(controller).to receive(:api_request?).and_return(false)
         expect(Canvas::Errors).to receive(:capture).with(an_instance_of(Exception), {}, :error)
-        expect {
+        expect do
           controller.send(:rescue_exception, Exception.new)
-        }.to raise_error(Exception)
+        end.to raise_error(Exception)
       end
     end
 
