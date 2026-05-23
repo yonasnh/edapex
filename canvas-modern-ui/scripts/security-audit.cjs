@@ -11,7 +11,7 @@
  */
 
 const { execSync } = require('child_process')
-const { readFileSync, existsSync, writeFileSync } = require('fs')
+const { readFileSync, existsSync } = require('fs')
 const { join } = require('path')
 
 /**
@@ -49,6 +49,10 @@ const AUDIT_CONFIG = {
     'coverage',
     'test-results',
     '.env.example',
+    'storybook-static',
+    'docs',
+    '.git-backup',
+    'canvas-admin-setup.md',
   ],
 }
 
@@ -171,7 +175,7 @@ async function validateEnvironmentConfig(results) {
   const envFiles = ['.env.example', '.env.local', '.env.production']
   
   envFiles.forEach(envFile => {
-    const envPath = join(process.cwd(), 'apps/demo', envFile)
+    const envPath = join(process.cwd(), 'apps/classapex-lms', envFile)
     
     if (existsSync(envPath)) {
       const envContent = readFileSync(envPath, 'utf8')
@@ -237,7 +241,7 @@ async function scanSensitiveData(results) {
             })
           }
         })
-      } catch (error) {
+      } catch {
         // Skip files that can't be read
       }
     })
@@ -296,7 +300,7 @@ async function validateOAuth2Config(results) {
  * Check build security
  */
 async function checkBuildSecurity(results) {
-  const viteConfigFile = join(process.cwd(), 'apps/demo/vite.config.ts')
+  const viteConfigFile = join(process.cwd(), 'apps/classapex-lms/vite.config.ts')
   
   if (existsSync(viteConfigFile)) {
     const viteContent = readFileSync(viteConfigFile, 'utf8')
@@ -325,10 +329,11 @@ async function validateTypeScriptConfig(results) {
   if (existsSync(tsconfigFile)) {
     const tsconfigContent = readFileSync(tsconfigFile, 'utf8')
 
-    // Remove comments from JSON (simple approach)
+    // Remove comments and trailing commas from JSON safely (without matching /* in path mapping strings)
     const cleanedContent = tsconfigContent
-      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
-      .replace(/\/\/.*$/gm, '') // Remove // comments
+      .replace(/^\s*\/\/.*$/gm, '') // Remove // comments starting a line
+      .replace(/^\s*\/\*[\s\S]*?\*\/\s*$/gm, '') // Remove /* */ comments starting a line
+      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
 
     let tsconfig
     try {

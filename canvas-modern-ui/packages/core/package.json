@@ -26,8 +26,8 @@
     "copy-css": "for f in $(find src/config -name '*.css'); do target=\"dist/${f#src/}\"; mkdir -p \"$(dirname \"$target\")\"; cp \"$f\" \"$target\"; done",
     "dev": "tsc --build --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

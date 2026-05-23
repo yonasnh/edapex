@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 
 // Mock the Canvas query hook
 vi.mock('../../hooks/useCanvasQuery', () => ({
-  useCanvasQuery: vi.fn().mockImplementation((url: string) => {
+  useCanvasQuery: vi.fn().mockImplementation(() => {
     return {
       data: [{ page_id: 1, url: 'home', title: 'Welcome to Class', updated_at: new Date().toISOString(), published: true }],
       isLoading: false
@@ -17,6 +17,15 @@ vi.mock('../../hooks/useCanvasQuery', () => ({
 // Mock context
 vi.mock('../../contexts/RoleContext', () => ({
   useRole: () => ({ role: 'student' })
+}))
+
+// Mock useNotification hook
+vi.mock('../../hooks/useNotification', () => ({
+  useNotification: () => ({
+    showConfirm: vi.fn(),
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+  })
 }))
 
 describe('Pages (Wiki)', () => {
