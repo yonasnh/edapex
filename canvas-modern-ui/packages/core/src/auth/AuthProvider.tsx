@@ -351,8 +351,8 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
     bgPage: isDark ? '#0f172a' : 'var(--cx-bg-canvas, #f5f5f5)',
     bgCard: isDark ? '#1e293b' : 'var(--cx-bg-surface, #ffffff)',
     textPrimary: isDark ? '#f8fafc' : 'var(--cx-text-primary, #1a1a1a)',
-    textSecondary: isDark ? '#94a3b8' : 'var(--cx-text-secondary, #666666)',
-    textTertiary: isDark ? '#64748b' : 'var(--cx-text-tertiary, #999999)',
+    textSecondary: isDark ? '#cbd5e1' : 'var(--cx-text-secondary, #666666)',
+    textTertiary: isDark ? '#94a3b8' : 'var(--cx-text-tertiary, #999999)',
     textBrand: isDark ? '#ffffff' : '#000000',
     border: isDark ? '#334155' : 'var(--cx-border-subtle, #e5e5e5)',
     inputBg: isDark ? '#0f172a' : 'var(--cx-bg-canvas, #f9fafb)',
@@ -360,6 +360,7 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
     inputColor: isDark ? '#f8fafc' : 'var(--cx-text-primary, #1a1a1a)',
     shadow: isDark ? '0 10px 25px rgba(0,0,0,0.3)' : '0 10px 25px rgba(0,0,0,0.05)',
   }
+  const linkColor = isDark ? '#60a5fa' : 'var(--cx-color-primary, #2563eb)'
 
   if (isLoading) {
     return fallback || <div className="cx-auth-loading">Loading...</div>
@@ -632,7 +633,7 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
               paddingBottom: '1rem',
               borderBottom: `1px solid ${colors.border}` 
             }}>
-              New to ClassApex? <a href="#" style={{ color: 'var(--cx-color-primary, #2563eb)', textDecoration: 'none', fontWeight: 500 }}>Sign up</a>
+              New to ClassApex? <a href="#" style={{ color: linkColor, textDecoration: 'none', fontWeight: 500 }}>Sign up</a>
             </p>
             
             <form onSubmit={(e) => { e.preventDefault(); login(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -655,7 +656,7 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                   <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Password</label>
-                  <a href="#" style={{ fontSize: '0.8125rem', color: 'var(--cx-color-primary, #2563eb)', textDecoration: 'none' }}>Forgot password?</a>
+                  <a href="#" style={{ fontSize: '0.8125rem', color: linkColor, textDecoration: 'none' }}>Forgot password?</a>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <input 
@@ -663,7 +664,7 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
                     required 
                     placeholder="••••••••"
                     style={{
-                      width: '100%', padding: '0.625rem 2.5rem 0.625rem 0.75rem', borderRadius: '0.5rem',
+                      width: '100%', padding: '0.625rem 3rem 0.625rem 0.75rem', borderRadius: '0.5rem',
                       border: `1px solid ${colors.inputBorder}`,
                       background: colors.inputBg,
                       color: colors.inputColor,
@@ -675,8 +676,9 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
                     type="button"
                     onClick={() => setShowPassword(p => !p)}
                     style={{
-                      position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                      position: 'absolute', right: 0, top: 0, bottom: 0, width: '48px',
                       background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
                       color: colors.textTertiary
                     }}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
