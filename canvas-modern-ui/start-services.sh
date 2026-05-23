@@ -311,9 +311,6 @@ show_status() {
                 "lms-frontend")
                     url="http://localhost:$port (LMS Frontend)"
                     ;;
-                "lti-service")
-                    url="http://localhost:$port (LTI Service)"
-                    ;;
                 "lms-api")
                     url="http://localhost:$port/graphql (GraphQL API)"
                     ;;

@@ -18,9 +18,7 @@ This document explains how to manage all Canvas LMS services using the provided 
 
 | Service | Port | Description | URL |
 |---------|------|-------------|-----|
-| **demo** | 3001 | SchoolApex Demo App | http://localhost:3001 |
-| **lms-frontend** | 3002 | LMS Frontend App | http://localhost:3002 |
-| **lti-service** | 4001 | LTI Service | http://localhost:4001 |
+| **lms-frontend** | 3003 | LMS Frontend App | http://localhost:3003 |
 | **lms-api** | 4003 | GraphQL LMS API | http://localhost:4003/graphql |
 | **canvas-lms** | 3000 | Canvas LMS (if running locally) | http://localhost:3000 |
 
@@ -52,9 +50,7 @@ This document explains how to manage all Canvas LMS services using the provided 
 ### View Logs
 ```bash
 # View logs for a specific service
-./start-services.sh logs demo
 ./start-services.sh logs lms-frontend
-./start-services.sh logs lti-service
 ./start-services.sh logs lms-api
 
 # List available services
@@ -76,7 +72,7 @@ This document explains how to manage all Canvas LMS services using the provided 
 ### Port Management
 - **Automatically detects** processes using required ports
 - **Gracefully terminates** existing processes (SIGTERM first, then SIGKILL if needed)
-- **Frees up ports** 3001, 3002, 4001, 4003, and 3000 (Canvas LMS)
+- **Frees up ports** 3003, 4003, and 3000 (Canvas LMS)
 
 ### Service Startup
 - **Installs dependencies** using pnpm
@@ -130,19 +126,13 @@ canvas-modern-ui/
 ├── start-services.sh      # Main service management script
 ├── quick-start.sh         # Quick start script for development
 ├── logs/                  # Service logs and PID files
-│   ├── demo.log
-│   ├── demo.pid
 │   ├── lms-frontend.log
 │   ├── lms-frontend.pid
-│   ├── lti-service.log
-│   ├── lti-service.pid
 │   ├── lms-api.log
 │   └── lms-api.pid
 ├── apps/
-│   ├── demo/              # Demo app (port 3001)
-│   └── schoolapex-lms/    # LMS frontend (port 3002)
+│   └── classapex-lms/    # LMS frontend (port 3003)
 └── packages/
-    ├── lti-service/       # LTI service (port 4001)
     └── schoolapex-lms/    # GraphQL API (port 4003)
 ```
 
@@ -165,11 +155,7 @@ canvas-modern-ui/
 
 ### After Code Changes
 ```bash
-# Restart specific service (manual)
-cd packages/lti-service
-pnpm dev
-
-# Or restart everything
+# Restart everything
 ./start-services.sh restart
 ```
 
@@ -182,7 +168,7 @@ pnpm dev
 ## 🚨 Important Notes
 
 1. **Dependencies**: Make sure you have `node`, `pnpm`, and `lsof` installed
-2. **Ports**: The script manages ports 3000-3002 and 4001-4003
+2. **Ports**: The script manages ports 3000, 3003, and 4003
 3. **Background Processes**: Services run in the background; use the script to manage them
 4. **Logs**: Check logs if services fail to start or behave unexpectedly
 5. **Canvas LMS**: If you're running Canvas LMS locally on port 3000, the script will detect and manage it
@@ -191,10 +177,8 @@ pnpm dev
 
 After starting the services:
 
-1. **Visit the Demo App**: http://localhost:3001
-2. **Test LMS Frontend**: http://localhost:3002  
-3. **Check LTI Service**: http://localhost:4001/health
-4. **Explore GraphQL**: http://localhost:4003/graphql
-5. **Monitor logs** for any issues
+1. **Test LMS Frontend**: http://localhost:3003  
+2. **Explore GraphQL**: http://localhost:4003/graphql
+3. **Monitor logs** for any issues
 
-For production deployment, see `PRODUCTION_SETUP.md` and use `./deploy.sh` instead.
+For production deployment, see `PRODUCTION_SETUP.md`.

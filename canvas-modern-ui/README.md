@@ -25,7 +25,6 @@ ClassApex Modern UI is a comprehensive, high-performance transformation of the L
 - **SchoolApex LMS**: Secondary interface with specialized educational workflows
 - **Demo Application**: Interactive showcase of all reusable Carbon components and features
 - **GraphQL API**: Powerful backend service for low-latency widget and notification management
-- **LTI Service**: Seamless integration with the underlying Rails API core and LTI 1.3 support
 
 ### ✨ Features
 
@@ -48,7 +47,7 @@ ClassApex Modern UI is a comprehensive, high-performance transformation of the L
 ├─────────────────────────────────────────────────────────┤
 │  React 18 + TypeScript + Carbon Design System          │
 ├─────────────────────────────────────────────────────────┤
-│  GraphQL API    │  LTI Service     │  Rails REST API   │
+│  GraphQL API    │                  │  Rails REST API   │
 ├─────────────────────────────────────────────────────────┤
 │                 ClassApex Core Engine                   │
 └─────────────────────────────────────────────────────────┘
@@ -83,7 +82,6 @@ schoolapex/
 │   │   ├── src/services/     # Canvas API services
 │   │   ├── src/hooks/        # React hooks
 │   │   └── src/contexts/     # React contexts
-│   ├── lti-service/          # LTI 1.3 integration service
 │   └── classapex-lms/        # GraphQL API server
 ├── 📚 docs/                   # Documentation
 │   ├── setup/                # Setup and installation guides
@@ -126,7 +124,6 @@ After starting the development server, access these applications:
 - **SchoolApex LMS**: http://localhost:3003/ (Alternative interface)
 - **Demo App**: http://localhost:3002/ (Demonstration)
 - **GraphQL API**: http://localhost:4003/graphql (Backend API)
-- **LTI Service**: http://localhost:4001 (Canvas integration)
 
 ### Environment Configuration
 
@@ -283,7 +280,6 @@ SchoolApex includes comprehensive testing:
 ### 🔧 API Reference
 - [GraphQL API](./docs/api/GRAPHQL.md) - GraphQL API documentation
 - [Canvas API Integration](./docs/api/CANVAS.md) - Canvas API integration guide
-- [LTI Service](./docs/api/LTI.md) - LTI 1.3 service documentation
 
 ## 🤝 Contributing
 
@@ -315,7 +311,6 @@ We welcome contributions! Please see our [Contributing Guide](./docs/CONTRIBUTIN
 - **Component Library**: 25+ production-ready components with Carbon Design System
 - **Canvas Integration**: Real-time API integration with Canvas LMS
 - **GraphQL API**: Powerful backend service for data management
-- **LTI Service**: LTI 1.3 compliant service for Canvas integration
 - **Testing Infrastructure**: Comprehensive E2E testing with Playwright
 - **Documentation**: Extensive documentation and setup guides
 - **Accessibility**: WCAG 2.1 AA compliant components
