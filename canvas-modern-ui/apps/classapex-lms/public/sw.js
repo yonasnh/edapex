@@ -48,6 +48,17 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(event.request.url);
 
+  // Bypass service worker caching in Vite development mode (hot-reloads, source files, and dependency optimization)
+  if (
+    requestUrl.pathname.includes('/@vite/') ||
+    requestUrl.pathname.includes('/@react-refresh') ||
+    requestUrl.pathname.includes('/node_modules/') ||
+    requestUrl.pathname.endsWith('.tsx') ||
+    requestUrl.pathname.endsWith('.ts')
+  ) {
+    return;
+  }
+
   // Canvas API caching: Network-first, fallback to cache
   if (requestUrl.pathname.includes('/api/v1/')) {
     event.respondWith(

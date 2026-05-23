@@ -34,17 +34,27 @@ const suppressWarnings = () => {
 // Apply warning suppression immediately
 suppressWarnings();
 
-// Register PWA service worker (S22-01)
+// Register PWA service worker in production, unregister in development (S22-01)
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('[Service Worker] Registered successfully with scope:', registration.scope);
-      })
-      .catch((error) => {
-        console.error('[Service Worker] Registration failed:', error);
-      });
-  });
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('[Service Worker] Registered successfully with scope:', registration.scope);
+        })
+        .catch((error) => {
+          console.error('[Service Worker] Registration failed:', error);
+        });
+    });
+  } else {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.unregister().then(() => {
+          console.log('[Service Worker] Unregistered active service worker in development mode.');
+        });
+      }
+    });
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
