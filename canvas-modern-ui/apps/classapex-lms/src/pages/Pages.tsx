@@ -11,8 +11,10 @@
 
 import React, { useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
+import { useNotification } from '../hooks/useNotification'
+import { MediaLibrary } from '../widgets/MediaLibrary'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,22 +30,6 @@ interface WikiPage {
   body?: string
   last_edited_by?: { display_name: string; avatar_image_url?: string }
   front_page?: boolean
-}
-
-// ─── CSRF helper ─────────────────────────────────────────────────────────────
-
-async function csrfFetch(path: string, method: string, body?: object): Promise<Response> {
-  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
-  return fetch(path, {
-    method,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-CSRF-Token': decodeURIComponent(token),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
 }
 
 // ─── Rich Text Editor ────────────────────────────────────────────────────────
@@ -62,19 +48,24 @@ const TOOLBAR_ITEMS = [
   { cmd: 'insertUnorderedList', label: '• List', title: 'Bullet list', style: {} },
   { cmd: 'insertOrderedList',   label: '1. List', title: 'Numbered list', style: {} },
   { cmd: '---',           label: '|',   title: '',             style: {} },
-  { cmd: 'createLink',    label: '🔗',  title: 'Insert link',  style: {} },
+  { cmd: 'createLink',    label: 'Link',        title: 'Insert link',  style: {} },
+  { cmd: 'insertMediaUrl', label: 'Media URL',  title: 'Insert Media URL', style: {} },
+  { cmd: 'insertCourseMedia', label: 'Course Media', title: 'Insert Course Media', style: {} },
   { cmd: 'removeFormat',  label: '✕',   title: 'Clear formatting', style: {} },
 ]
 
 function RichTextEditor({
   value,
   onChange,
+  courseId,
 }: {
   value: string
   onChange: (html: string) => void
+  courseId: string
 }) {
   const editorRef = useRef<HTMLDivElement>(null)
   const isComposing = useRef(false)
+  const [showPicker, setShowPicker] = useState(false)
 
   // Sync initial value only on mount
   React.useLayoutEffect(() => {
@@ -87,6 +78,26 @@ function RichTextEditor({
     if (cmd === 'createLink') {
       const url = prompt('Enter URL:', 'https://')
       if (url) document.execCommand('createLink', false, url)
+    } else if (cmd === 'insertMediaUrl') {
+      const url = prompt('Enter Media URL (video, audio, or image):', 'https://')
+      if (url) {
+        const lowerUrl = url.toLowerCase()
+        let html = ''
+        if (lowerUrl.match(/\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/)) {
+          html = `<p><video src="${url}" controls style="max-width: 100%; width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);"></video></p>`
+        } else if (lowerUrl.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/)) {
+          html = `<p><audio src="${url}" controls style="max-width: 100%; width: 100%;"></audio></p>`
+        } else if (lowerUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)$/)) {
+          html = `<p><img src="${url}" style="max-width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);" /></p>`
+        } else {
+          // Default to generic link if format is unrecognized
+          html = `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+        }
+        document.execCommand('insertHTML', false, html)
+      }
+    } else if (cmd === 'insertCourseMedia') {
+      setShowPicker(true)
+      return // Don't focus or trigger change on editor since picker modal is launching
     } else if (arg) {
       document.execCommand(cmd, false, arg)
     } else {
@@ -94,6 +105,23 @@ function RichTextEditor({
     }
     editorRef.current?.focus()
     onChange(editorRef.current?.innerHTML ?? '')
+  }
+
+  const handleSelectMedia = (url: string, type: 'video' | 'audio' | 'image', title: string) => {
+    let html = ''
+    if (type === 'video') {
+      html = `<p><video src="${url}" controls style="max-width: 100%; width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);"></video></p>`
+    } else if (type === 'audio') {
+      html = `<p><audio src="${url}" controls style="max-width: 100%; width: 100%;"></audio></p>`
+    } else if (type === 'image') {
+      html = `<p><img src="${url}" alt="${title}" style="max-width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);"/></p>`
+    }
+    
+    // Focus the editor, restore cursor selection if lost, and insert HTML
+    editorRef.current?.focus()
+    document.execCommand('insertHTML', false, html)
+    onChange(editorRef.current?.innerHTML ?? '')
+    setShowPicker(false)
   }
 
   return (
@@ -165,6 +193,58 @@ function RichTextEditor({
         aria-multiline="true"
         role="textbox"
       />
+
+      {/* Media Picker Modal */}
+      {showPicker && (
+        <div 
+          className="cx-modal-overlay" 
+          onClick={() => setShowPicker(false)}
+          style={{ zIndex: 1100 }}
+        >
+          <div 
+            className="cx-modal cx-modal--lg" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'rgba(30, 41, 59, 0.75)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.3)',
+              borderRadius: 16,
+              width: '90%',
+              maxWidth: 800,
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '85vh',
+              overflow: 'hidden'
+            }}
+          >
+            <div className="cx-modal__header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', flexShrink: 0 }}>
+              <h2 className="cx-modal__title" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>
+                Select Course Instructional Media
+              </h2>
+              <button 
+                className="cx-btn cx-btn--ghost" 
+                onClick={() => setShowPicker(false)}
+                style={{ color: '#fff', opacity: 0.8 }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="cx-modal__body" style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+              <MediaLibrary courseId={courseId} isSelectMode={true} onSelectMedia={handleSelectMedia} />
+            </div>
+            <div style={{ display: 'flex', padding: 12, borderTop: '1px solid rgba(255,255,255,0.05)', justifyContent: 'flex-end', gap: 8, flexShrink: 0 }}>
+              <button 
+                className="cx-btn cx-btn--secondary cx-btn--sm" 
+                onClick={() => setShowPicker(false)}
+                style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -193,10 +273,17 @@ function PageEditor({
     setSaving(true); setError(null)
     try {
       const payload = { wiki_page: { title, body, published } }
-      const res = page?.url
-        ? await csrfFetch(`/api/v1/courses/${courseId}/pages/${page.url}`, 'PUT', payload)
-        : await csrfFetch(`/api/v1/courses/${courseId}/pages`, 'POST', payload)
-      if (!res.ok) throw new Error(await res.text())
+      if (page?.url) {
+        await canvasFetch(`/api/v1/courses/${courseId}/pages/${page.url}`, {
+          method: 'PUT',
+          body: payload
+        })
+      } else {
+        await canvasFetch(`/api/v1/courses/${courseId}/pages`, {
+          method: 'POST',
+          body: payload
+        })
+      }
       onSave()
     } catch (e: any) {
       setError(e.message || 'Failed to save page')
@@ -232,7 +319,7 @@ function PageEditor({
         aria-label="Page title"
         style={{ marginBottom: 12 }}
       />
-      <RichTextEditor value={body} onChange={setBody} />
+      <RichTextEditor value={body} onChange={setBody} courseId={courseId} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.875rem', cursor: 'pointer' }}>
           <input
@@ -325,6 +412,7 @@ function PageViewer({
 // ─── Main Pages Component ─────────────────────────────────────────────────────
 
 export default function Pages() {
+  const { showConfirm } = useNotification()
   const { courseId } = useParams<{ courseId: string }>()
   const { role } = useRole()
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -347,11 +435,19 @@ export default function Pages() {
   )
 
   const handleDelete = useCallback(async (pageUrl: string) => {
-    if (!confirm('Delete this page? This cannot be undone.')) return
+    const isConfirmed = await showConfirm({
+      title: 'Delete Page',
+      message: 'Are you sure you want to delete this page? This cannot be undone.',
+      confirmLabel: 'Delete Page',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    })
+    if (!isConfirmed) return
     setDeletingId(pageUrl); setDeleteError(null)
     try {
-      const res = await csrfFetch(`/api/v1/courses/${courseId}/pages/${pageUrl}`, 'DELETE')
-      if (!res.ok) throw new Error('Failed to delete page')
+      await canvasFetch(`/api/v1/courses/${courseId}/pages/${pageUrl}`, {
+        method: 'DELETE'
+      })
       refetchRef.current?.()
     } catch {
       setDeleteError('Could not delete page. Please try again.')

@@ -93,6 +93,9 @@ export function FavoriteCourses() {
   const [items, setItems] = useState<FavoriteCourse[]>([])
   const [removing, setRemoving] = useState<Set<number>>(new Set())
   const [error, setError] = useState<string | null>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const defaultVisible = 3
 
   const dragIdx = useRef<number | null>(null)
   const dragOverIdx = useRef<number | null>(null)
@@ -209,7 +212,7 @@ export function FavoriteCourses() {
       )}
 
       <ul className="cx-favorites__list">
-        {items.map((course, idx) => {
+        {(isExpanded ? items : items.slice(0, defaultVisible)).map((course, idx) => {
           const color = COURSE_COLORS[course.id % COURSE_COLORS.length]
           const isRemoving = removing.has(course.id)
           const teacher = course.teachers?.[0]?.display_name
@@ -280,6 +283,19 @@ export function FavoriteCourses() {
           )
         })}
       </ul>
+
+      {items.length > defaultVisible && (
+        <button
+          className="cx-widget__toggle-btn"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? (
+            <>Show Less ▴</>
+          ) : (
+            <>Show More ({items.length - defaultVisible} more) ▾</>
+          )}
+        </button>
+      )}
 
       <p style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', marginTop: 8, textAlign: 'right' }}>
         Drag to reorder · Order saved locally

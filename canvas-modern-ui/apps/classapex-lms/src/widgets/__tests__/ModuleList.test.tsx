@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { ModuleList } from '../ModuleList'
 
 describe('ModuleList', () => {
@@ -16,13 +17,21 @@ describe('ModuleList', () => {
   ]
 
   it('renders modules and items', () => {
-    render(<ModuleList modules={mockModules} courseId="123" />)
+    render(
+      <MemoryRouter>
+        <ModuleList modules={mockModules} courseId="123" />
+      </MemoryRouter>
+    )
     expect(screen.getByText('Week 1: Intro')).toBeInTheDocument()
     expect(screen.getByText('Readings')).toBeInTheDocument()
   })
 
   it('shows publish toggles when teacher', () => {
-    render(<ModuleList modules={mockModules} courseId="123" isTeacher={true} />)
+    render(
+      <MemoryRouter>
+        <ModuleList modules={mockModules} courseId="123" isTeacher={true} />
+      </MemoryRouter>
+    )
     // The "Published" toggle or the drag grip `::` should be visible
     expect(screen.getByText('::')).toBeInTheDocument()
   })

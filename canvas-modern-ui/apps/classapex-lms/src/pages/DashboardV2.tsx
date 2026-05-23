@@ -6,7 +6,9 @@
  */
 
 import React, { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge, BookIcon, CheckCircleIcon, CalendarIcon, AlertTriangleIcon, StarIcon } from '@schoolapex/components'
+import { BookmarkIcon } from '../navigation'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useTenant } from '../contexts/TenantContext'
 import { TodoWidget, type TodoItem } from '../widgets/TodoWidget'
@@ -40,6 +42,7 @@ export default function DashboardV2() {
   const { config: tenant } = useTenant()
   const isGamified = tenant.ui.dashboardLayout === 'gamified'
   const [viewMode, setViewMode] = useState<'cards' | 'list'>(tenant.ui.dashboardLayout === 'list' ? 'list' : 'cards')
+  const [missingExpanded, setMissingExpanded] = useState(false)
 
   // Canvas API queries
   const { data: courses, isLoading: coursesLoading } = useCanvasQuery<CourseData[]>(
@@ -76,7 +79,7 @@ export default function DashboardV2() {
   }, [courses, todoItems, upcomingEvents, missingSubmissions])
 
   return (
-    <div className="cx-dashboard">
+    <div className="cx-dashboard" data-testid="dashboard-content">
       {/* ── View Toggle ── */}
       <div className="cx-dashboard__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <div className="cx-dashboard__view-toggle" role="radiogroup" aria-label="View mode">
@@ -121,7 +124,7 @@ export default function DashboardV2() {
         <section className="cx-dashboard__section cx-dashboard__section--courses">
           <div className="cx-section-header">
             <h2 className="cx-section-title">My Courses</h2>
-            <a href="/courses" className="cx-section-link">View all →</a>
+            <Link to="/courses" className="cx-section-link">View all →</Link>
           </div>
 
           {coursesLoading ? (
@@ -147,7 +150,7 @@ export default function DashboardV2() {
           </section>
 
           <section className="cx-widget">
-            <h3 className="cx-widget__title">⭐ Favorite Courses</h3>
+            <h3 className="cx-widget__title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BookmarkIcon size={16} /> Favorite Courses</h3>
             <FavoriteCourses />
           </section>
 
@@ -166,20 +169,32 @@ export default function DashboardV2() {
           {/* At-Risk: Missing Work */}
           {missingSubmissions && missingSubmissions.length > 0 && (
             <section className="cx-widget">
-              <h3 className="cx-widget__title" style={{ color: 'var(--cx-status-overdue-fg)' }}>⚠ Missing Work</h3>
+              <h3 className="cx-widget__title" style={{ color: 'var(--cx-status-overdue-fg)', display: 'flex', alignItems: 'center', gap: 6 }}><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L1 18h18L10 2z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.5" fill="currentColor"/></svg> Missing Work</h3>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {missingSubmissions.map((item: any) => (
+                {(missingExpanded ? missingSubmissions : missingSubmissions.slice(0, 2)).map((item: any) => (
                   <li key={item.id} style={{
-                    padding: '10px 12px', background: 'var(--cx-status-overdue-bg)', borderRadius: 8,
-                    borderLeft: '3px solid var(--cx-status-overdue-fg)', fontSize: '0.82rem'
+                    padding: '8px 12px', background: 'transparent', borderRadius: '0 8px 8px 0',
+                    borderLeft: '3px solid var(--cx-status-overdue-fg)', borderTop: 'none', fontSize: '0.82rem'
                   }}>
-                    <div style={{ fontWeight: 600, color: 'var(--cx-status-late-fg)' }}>{item.name}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--cx-status-late-fg)', marginTop: 2 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{item.name}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-secondary)', marginTop: 2 }}>
                       {item.course?.name || 'Course'} · Due {new Date(item.due_at).toLocaleDateString()}
                     </div>
                   </li>
                 ))}
               </ul>
+              {missingSubmissions.length > 2 && (
+                <button
+                  className="cx-widget__toggle-btn"
+                  onClick={() => setMissingExpanded(!missingExpanded)}
+                >
+                  {missingExpanded ? (
+                    <>Show Less ▴</>
+                  ) : (
+                    <>Show More ({missingSubmissions.length - 2} more) ▾</>
+                  )}
+                </button>
+              )}
             </section>
           )}
         </aside>
@@ -195,10 +210,10 @@ function StatCard({ label, value, icon, alert = false }: {
 }) {
   return (
     <div className={`cx-stat-card ${alert ? 'cx-stat-card--alert' : ''}`}>
-      <span className="cx-stat-card__icon">{icon}</span>
-      <div>
-        <span className="cx-stat-card__value">{value}</span>
-        <span className="cx-stat-card__label">{label}</span>
+      <div className="cx-stat-card__icon">{icon}</div>
+      <div className="cx-stat-card__body">
+        <div className="cx-stat-card__label">{label}</div>
+        <div className="cx-stat-card__value">{value}</div>
       </div>
     </div>
   )
@@ -206,7 +221,8 @@ function StatCard({ label, value, icon, alert = false }: {
 
 function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'cards' | 'list' }) {
   const COURSE_COLORS = ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#10b981', '#ec4899', '#6366f1', '#14b8a6']
-  const color = COURSE_COLORS[course.id % COURSE_COLORS.length]
+  const colorIndex = (typeof course.id === 'number' ? course.id : parseInt(String(course.id), 10) || 0) % 8
+  const color = COURSE_COLORS[colorIndex]
   const teacher = course.teachers?.[0]?.display_name || ''
 
   const progress = course.course_progress
@@ -216,7 +232,7 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'cards
 
   if (viewMode === 'list') {
     return (
-      <a href={`/courses/${course.id}`} className="cx-course-row">
+      <Link to={`/courses/${course.id}`} className="cx-course-row">
         <div className="cx-course-row__color" style={{ background: color }} />
         <div className="cx-course-row__info">
           <span className="cx-course-row__name">{course.name}</span>
@@ -240,23 +256,41 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'cards
           </div>
         )}
         {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
-      </a>
+      </Link>
     )
   }
 
+  const bannerImage = course.course_image
+
   return (
-    <a href={`/courses/${course.id}`} className="cx-course-card">
+    <Link to={`/courses/${course.id}`} className="cx-course-card">
       <div
-        className="cx-course-card__banner"
-        style={{
-          background: course.course_image
-            ? `url(${course.course_image}) center/cover`
-            : `linear-gradient(135deg, ${color}, ${color}88)`,
-        }}
-      />
+        className={`cx-course-card__banner cx-course-card__banner--c${colorIndex}`}
+        style={bannerImage ? {
+          background: `url(${bannerImage}) center/cover`,
+        } : undefined}
+      >
+        <div className="cx-course-card__banner-overlay" />
+        
+        {!bannerImage && (
+          <div className="cx-course-card__banner-deco">
+            <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+          </div>
+        )}
+
+        <div className="cx-course-card__banner-meta">
+          <span className="cx-course-card__code-badge">{course.course_code}</span>
+          {course.term && (
+            <span className="cx-course-card__term-badge">{course.term.name}</span>
+          )}
+        </div>
+      </div>
+
       <div className="cx-course-card__body">
-        <span className="cx-course-card__code">{course.course_code}</span>
-        <h3 className="cx-course-card__name">{course.name}</h3>
+        <h3 className="cx-course-card__name" style={{ marginTop: 0 }}>{course.name}</h3>
 
         {/* Progress Bar */}
         {progressPct !== null && (
@@ -286,12 +320,9 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'cards
 
         <div className="cx-course-card__footer">
           <span className="cx-course-card__teacher">{teacher}</span>
-          {course.term && (
-            <Badge variant="default" size="sm">{course.term.name}</Badge>
-          )}
         </div>
       </div>
-    </a>
+    </Link>
   )
 }
 

@@ -819,7 +819,7 @@ export function AIAssistantDrawer({ isOpen, onClose, currentPath = '', currentRo
                       borderRadius: 8, 
                       padding: '8px 10px', 
                       fontSize: '0.75rem', 
-                      fontFamily: 'monospace',
+                      fontFamily: 'var(--cm-font-family-mono, monospace)',
                       outline: 'none'
                     }}
                   />

@@ -47,8 +47,8 @@
 
 /* Header Styling */
 .classapex-header {
-  background-color: #161616;
-  border-bottom: 1px solid #393939;
+  background-color: var(--cx-bg-surface, #161616);
+  border-bottom: 1px solid var(--cx-border-subtle, #393939);
 }
 
 .classapex-header-action:hover {

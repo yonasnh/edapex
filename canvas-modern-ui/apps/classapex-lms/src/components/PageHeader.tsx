@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Link } from 'react-router-dom';
 
 export interface BreadcrumbItemType {
   text: string;
@@ -67,7 +68,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             <span key={index} className="cx-breadcrumb-item">
               {index > 0 && <span className="cx-breadcrumb-sep">{angleRight}</span>}
               {crumb.href && !crumb.isCurrentPage ? (
-                <a href={crumb.href} className="cx-breadcrumb-link">{crumb.text}</a>
+                <Link to={crumb.href} className="cx-breadcrumb-link">{crumb.text}</Link>
               ) : (
                 <span className={clsx('cx-breadcrumb-text', crumb.isCurrentPage && 'cx-breadcrumb-text--current')}>
                   {crumb.text}

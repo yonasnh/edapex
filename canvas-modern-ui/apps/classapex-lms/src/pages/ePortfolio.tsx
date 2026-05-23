@@ -173,7 +173,7 @@ export default function EPortfolioPage() {
               className={`cx-btn ${isPreviewMode ? 'cx-btn--primary' : 'cx-btn--secondary'} cx-btn--sm`}
               onClick={() => setIsPreviewMode(!isPreviewMode)}
             >
-              {isPreviewMode ? '✏️ Edit Portfolio' : '👁️ Preview Portfolio'}
+              {isPreviewMode ? (<><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ verticalAlign: 'middle', marginRight: 4 }}><path d="M14.5 3.5l2 2L6 16H4v-2L14.5 3.5z"/></svg>Edit Portfolio</>) : (<><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ verticalAlign: 'middle', marginRight: 4 }}><path d="M1 10s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7z"/><circle cx="10" cy="10" r="3"/></svg>Preview Portfolio</>)}
             </button>
           )}
           <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowCreateModal(true)}>
@@ -184,7 +184,7 @@ export default function EPortfolioPage() {
 
       {!activePortfolio ? (
         <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface)', borderRadius: 12, border: '1px solid var(--cx-border-subtle)' }}>
-          <span style={{ fontSize: '3rem', marginBottom: 12 }}>📁</span>
+          <span style={{ marginBottom: 12, color: 'var(--cx-text-tertiary)' }}><svg width="48" height="48" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1.5 4a1 1 0 011-1h5l2 2h7a1 1 0 011 1v10a1 1 0 01-1 1h-14a1 1 0 01-1-1V4z"/></svg></span>
           <h3>No ePortfolios Found</h3>
           <p style={{ maxWidth: '360px', margin: '8px auto 16px auto' }}>Create a new portfolio to display your course accomplishments to advisors and peers.</p>
           <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(true)}>Create Portfolio</button>
@@ -289,7 +289,7 @@ export default function EPortfolioPage() {
                       border: `1px solid ${selectedSectionId === sec.id ? 'var(--cx-color-primary-hover)' : 'transparent'}`
                     }}
                   >
-                    📂 {sec.name}
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ verticalAlign: 'middle', marginRight: 4 }}><path d="M1.5 4a1 1 0 011-1h5l2 2h7a1 1 0 011 1v10a1 1 0 01-1 1h-14a1 1 0 01-1-1V4z"/></svg>{sec.name}
                   </li>
                 ))}
               </ul>
@@ -327,7 +327,7 @@ export default function EPortfolioPage() {
                       className={`cx-btn cx-btn--sm ${selectedEntryId === ent.id ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
                       onClick={() => setSelectedEntryId(ent.id)}
                     >
-                      📄 {ent.title}
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ verticalAlign: 'middle', marginRight: 4 }}><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><path d="M12 2v5h5"/></svg>{ent.title}
                     </button>
                   ))}
                 </div>

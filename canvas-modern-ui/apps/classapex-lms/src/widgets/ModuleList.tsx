@@ -41,12 +41,19 @@ function ModuleCollapse({ module: mod, courseId, defaultOpen = true, isTeacher, 
       onDragOver={e => onDragOver?.(e, mod.position)}
       onDrop={e => onDrop?.(e, mod.position)}
     >
-      <button
-        className="cx-module__header"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-      >
-        <div className="cx-module__header-left">
+      {/* Header row — note: publish button is a sibling of the toggle, NOT nested inside it */}
+      <div className="cx-module__header">
+        {/* Collapse toggle — left portion only */}
+        <div
+          role="button"
+          tabIndex={0}
+          className="cx-module__header-left"
+          onClick={() => setOpen(!open)}
+          onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setOpen(!open)}
+          aria-expanded={open}
+          aria-label={`${open ? 'Collapse' : 'Expand'} module: ${mod.name}`}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
+        >
           {isTeacher && <span className="cx-module__grip" title="Drag to reorder">::</span>}
           <span className="cx-module__chevron">{open ? '\u25BC' : '\u25B6'}</span>
           <div>
@@ -56,15 +63,14 @@ function ModuleCollapse({ module: mod, courseId, defaultOpen = true, isTeacher, 
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+        {/* Publish toggle and lock badge — sibling, NOT inside the collapse button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {isTeacher && (
             <button
               className={`cx-btn cx-btn--sm ${mod.published ? 'cx-btn--success' : 'cx-btn--outline'}`}
               style={{ padding: '2px 8px', fontSize: '0.7rem', borderRadius: '12px' }}
-              onClick={(e) => {
-                e.stopPropagation()
-                onTogglePublish?.(mod.id, !mod.published)
-              }}
+              onClick={() => onTogglePublish?.(mod.id, !mod.published)}
               aria-label={mod.published ? 'Unpublish module' : 'Publish module'}
             >
               {mod.published ? '✓ Published' : 'Unpublished'}
@@ -72,7 +78,8 @@ function ModuleCollapse({ module: mod, courseId, defaultOpen = true, isTeacher, 
           )}
           {isLocked && <span className="cx-module__lock" title="Prerequisites required">locked</span>}
         </div>
-      </button>
+      </div>
+
       {open && mod.items.length > 0 && (
         <div className="cx-module__items">
           {mod.items.map(item => (

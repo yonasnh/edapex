@@ -1,263 +1,127 @@
-Canvas LMS
-======
+# 🎓 ClassApex LMS Ecosystem
 
-Canvas is a modern, open-source [LMS](https://en.wikipedia.org/wiki/Learning_management_system)
-developed and maintained by [Instructure Inc.](https://www.instructure.com/) It is released under the
-AGPLv3 license for use by anyone interested in learning more about or using
-learning management systems.
+<div align="center">
+  <img src="canvas-modern-ui/classapex.png" alt="ClassApex Logo" width="160" height="160" style="border-radius: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.15)">
 
-[Please see our main wiki page for more information](http://github.com/instructure/canvas-lms/wiki)
+  **Next-Generation Learning Management System combining a robust Rails API Core with a state-of-the-art React/Carbon frontend.**
 
-Installation
-=======
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Ruby on Rails](https://img.shields.io/badge/Ruby_on_Rails-7.2+-CC0000?logo=ruby-on-rails&logoColor=white)](https://rubyonrails.org/)
+  [![Carbon Design System](https://img.shields.io/badge/Carbon-Design-System-161616?logo=ibm&logoColor=white)](https://carbondesignsystem.com/)
+  [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+  [![React](https://img.shields.io/badge/React-18.2+-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
+</div>
 
-## Quick Start (Native Development Environment)
+---
 
-> **Note**: This installation guide is for **native Ruby/Rails setup**. While this repository includes Docker files for containerized deployment, this guide covers the native installation method that's currently configured and running.
+## 🌟 Overview
 
-### Prerequisites
-- Ruby 3.4+
-- Node.js 18+
-- PostgreSQL
-- Redis
-- Git
-- Bundler (`gem install bundler`)
+**ClassApex LMS** is an enterprise-grade, high-performance Learning Management System designed to bring premium aesthetics, accessibility, and modern interactivity to educational technology. 
 
-### 1. Clone and Setup
-```bash
-git clone https://github.com/instructure/canvas-lms.git
-cd canvas-lms
+By combining the battle-tested, sharded database infrastructure of the Rails Core with a cutting-edge, mobile-first frontend built using the **IBM Carbon Design System**, ClassApex delivers a fast, intuitive, and accessible learning ecosystem for institutions, teachers, and students.
+
+---
+
+## 🏗️ System Architecture
+
+ClassApex is organized as a clean, unified workspace where the heavy-duty Rails backend handles business logic, databases, and GraphQL/REST APIs, while Vite servers deliver specialized frontend clients.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                         ClassApex LMS                            │
+├──────────────────────────────────────────────────────────────────┤
+│             Vite-Powered Frontend Client (:3003)                 │
+│         React 18 + TypeScript + Carbon Design System             │
+├──────────────────┬─────────────────────────────┬─────────────────┤
+│   GraphQL API    │      LTI 1.3 Service        │   REST Proxy    │
+│     (:4003)      │          (:4001)            │     (:3000)     │
+├──────────────────┴─────────────────────────────┴─────────────────┤
+│                       ClassApex Rails Core                       │
+│              Multi-tenancy + Sharding + PostgreSQL               │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Install Dependencies
-```bash
-# Install Ruby gems
-bundle install
+### Core Services:
+* **ClassApex Frontend** (`:3003`): The primary modern app designed for students, teachers, and admins.
+* **SchoolApex Demo Application** (`:3001`): A sandboxed alternative presentation application.
+* **LTI Service** (`:4001`): Standardized LTI 1.3 integration engine.
+* **GraphQL API Gateway** (`:4003`): Low-latency schema resolver for real-time notifications and widgets.
+* **Rails Backend Engine** (`:3000`): The persistent relational controller layer.
 
-# Install Node.js packages
-npm install
+---
+
+## ✨ Platform Features
+
+### 🔧 Unified Admin & Institution Operations
+* **Administrative User Provisioning**: Fully integrated creation panel (`/admin/users`) allowing admins to register users, configure emails, passwords, and assign key institutional roles (`student`, `teacher`, `ta`, `observer`, `designer`, `admin`) directly syncing with the backend DB.
+* **Act-As-User Masquerading**: Admins can instantly preview views through other student or instructor personas for live support and testing.
+* **Parent / Observer Linking**: Direct UI and API capabilities to link student accounts to family/observer nodes.
+* **SIS Imports Dashboard**: Queues bulk uploads of CSV/ZIP formatted rosters, syncing students, courses, and schedules securely via `/api/v1/accounts/1/sis_imports`.
+
+### 📚 Course & Curriculum Management
+* **Course Allocation**: Manage courses, schedule terms, edit syllabi, and coordinate multiple sections.
+* **Content Migrations**: Upload standard Common Cartridge packages (`.imscc`) to automatically populate assignments, modules, and quizzes.
+* **Course Catalog**: Accessible search engine allowing students to browse and self-enroll in courses.
+
+### 👩‍🏫 Classroom & Learning Features
+* **Modern Gradebook & Submissions**: Rich analytics dashboard to inspect score distributions and grading queues.
+* **Enhanced Discussions**: Fast, responsive, threaded conversations with instant search.
+* **AI-Powered Learning Assistant**: Conversational assistant drawer acting as a personal study tutor.
+
+---
+
+## 🚀 Quick Start (Development Setup)
+
+ClassApex uses a multi-service runner to launch all services concurrently.
+
+### 1. Prerequisites
+Ensure you have the following installed on your machine:
+* **Ruby** >= 3.4
+* **Node.js** >= 18.0.0
+* **pnpm** >= 8.0.0
+* **PostgreSQL** & **Redis**
+
+### 2. Startup Script
+To launch the entire modern ecosystem at once:
+```bash
+# Start all background servers (Vite client, Rails server, LTI engine, GraphQL)
+./canvas-modern-ui/start-services.sh start
+
+# Check the health and PIDs of active servers
+./canvas-modern-ui/start-services.sh status
+
+# Stop all background servers
+./canvas-modern-ui/start-services.sh stop
 ```
 
-### 3. Database Setup
+---
+
+## 🧪 Testing & Database Seeding
+
+### Seeding Demo Data
+ClassApex includes custom Rails runners to populate your PostgreSQL DB with test records:
 ```bash
-# Create and migrate database
-rails db:create
-rails db:initial_setup
-```
-
-### 4. Start the Application
-```bash
-# Start Rails server
-rails server
-
-# Or start with specific port
-rails server -p 3000
-```
-
-### 5. Generate Demo Data (Optional)
-Canvas includes a comprehensive data generation script for testing:
-
-```bash
-# Generate basic course with students
+# Seed a basic course with students and sections
 rails runner spec/fixtures/data_generation/generate_data.rb -b -i 1
 
-# Generate course with assignments
-rails runner spec/fixtures/data_generation/generate_data.rb -d -i 1 -c "Demo Course with Assignments"
-
-# Generate course with submissions
-rails runner spec/fixtures/data_generation/generate_data.rb -s -i 1 -c "Demo Course with Submissions"
+# Seed courses with assignments and submissions
+rails runner spec/fixtures/data_generation/generate_data.rb -a -i 1 -c "CS 101: Introduction to Programming"
 ```
 
-**Data Generation Options:**
-- `-a` - Generate all types of data (comprehensive)
-- `-b` - Generate basic course with students
-- `-d` - Generate course with assignments
-- `-s` - Generate course with submissions
-- `-g` - Generate gradebook data
-- `-i [account_id]` - Specify account ID (use 1 for main account)
-- `-c [course_name]` - Custom course name
-
-### 6. Create Demo Users
-Create a Ruby script file for demo users:
-
-```ruby
-# create_demo_users.rb
-# Demo teacher
-user = User.create!(name: 'Demo Teacher', workflow_state: 'registered')
-pseudonym = user.pseudonyms.create!(
-  unique_id: 'teacher@demo.com',
-  password: 'password123',
-  password_confirmation: 'password123',
-  account: Account.find(1)
-)
-Course.where('name LIKE ?', '%Play Course%').each { |c| c.enroll_teacher(user).accept! }
-puts 'Teacher: teacher@demo.com / password123'
-
-# Demo student
-user = User.create!(name: 'Demo Student', workflow_state: 'registered')
-pseudonym = user.pseudonyms.create!(
-  unique_id: 'student@demo.com',
-  password: 'password123',
-  password_confirmation: 'password123',
-  account: Account.find(1)
-)
-Course.where('name LIKE ?', '%Play Course%').each { |c| c.enroll_student(user).accept! }
-puts 'Student: student@demo.com / password123'
-```
-
+### Running Tests
+To verify system integrity across frontend and backend layers:
 ```bash
-# Run the script
-rails runner create_demo_users.rb
-```
-
-### 7. Access Canvas
-- **URL**: http://localhost:3000
-- **Demo Teacher**: teacher@demo.com / password123
-- **Demo Student**: student@demo.com / password123
-
-## Running the Application
-
-### Start Canvas LMS
-```bash
-# Start Rails server
-rails server
-
-# Or start on specific port
-rails server -p 3000
-
-# Start in background
-rails server -d
-```
-
-### Stop Canvas LMS
-```bash
-# Stop Rails server (Ctrl+C if running in foreground)
-# Or if running in background, find and kill the process:
-ps aux | grep rails
-kill [process_id]
-```
-
-### Development Commands
-```bash
-# Access Rails console
-rails console
-
-# Run database migrations
-rails db:migrate
-
-# Run tests
+# Run backend RSpec suites
 bundle exec rspec
 
-# Generate demo data
-rails runner spec/fixtures/data_generation/generate_data.rb -h
+# Run frontend Vitest suite
+pnpm --filter classapex-lms test
+
+# Run End-to-End Playwright UI tests
+pnpm --filter classapex-lms test:e2e
 ```
 
-### Check Application Status
-```bash
-# Check if Canvas is responding
-curl http://localhost:3000/login/canvas
+---
 
-# View application logs
-tail -f log/development.log
-```
-
-
-
-## Troubleshooting
-
-### Common Issues and Fixes
-
-**1. Feature Flag Errors**
-If you encounter `NoMethodError: undefined method 'enabled?' for nil:NilClass`, ensure proper nil checking in feature flag calls:
-```ruby
-# Fix in app/controllers/application_controller.rb
-tools.select! { |tool| tool.feature_flag&.enabled? } if tool.feature_flag
-```
-
-**2. Missing Template Errors**
-If you see `Missing partial shared/_top_header`, create the missing template:
-```erb
-<!-- app/views/shared/_top_header.html.erb -->
-<%= render partial: "shared/new_nav_header" %>
-```
-
-**3. Missing Helper Methods**
-Add missing helper methods to ApplicationController as needed:
-```ruby
-def show_career_switch?
-  return false unless @current_user
-  return false unless @domain_root_account&.feature_enabled?(:horizon_learner_app)
-  # ... implementation
-end
-helper_method :show_career_switch?
-```
-
-**4. User Model Methods**
-If you encounter missing user methods like `show_sidebar`:
-```ruby
-# Add to app/models/user.rb
-def show_sidebar
-  if has_attribute?(:show_sidebar)
-    read_attribute(:show_sidebar)
-  else
-    true
-  end
-end
-```
-
-**5. Route Helper Errors**
-Fix incorrect route helper references in models:
-```ruby
-# Fix in app/models/account.rb - change account_reports_path to account_reports_tab_path
-href: :account_reports_tab_path
-```
-
-## Alternative Installation Methods
-
-### Docker Installation
-This repository includes Docker files for containerized deployment. If you prefer Docker:
-- See `docker-compose.yml` and the `docker-compose/` directory
-- Follow the [Docker documentation](http://github.com/instructure/canvas-lms/wiki/Quick-Start) on the Canvas wiki
-
-### Production Installation
-For production deployments, see our detailed guides:
-- [Quick Start](http://github.com/instructure/canvas-lms/wiki/Quick-Start)
-- [Production Start](http://github.com/instructure/canvas-lms/wiki/Production-Start)
-
-
-## Modern UI and LTI 1.3 Integration
-
-This repository includes a Carbon‑powered Modern UI (canvas-modern-ui) and a plan to integrate it into Canvas LMS as an LTI 1.3 (Advantage) tool.
-
-### Quick Start for Modern UI Demo
-```bash
-cd canvas-modern-ui
-pnpm install
-pnpm build
-pnpm dev
-# Open http://localhost:3001/
-```
-
-### LTI 1.3 Integration Plan
-- Implement LTI service endpoints: `/.well-known/jwks.json`, `/lti/login`, `/lti/launch`
-- Register Developer Key and Tool in Canvas; enable course nav and deep linking
-- Parse launch claims → create secure session → bootstrap Modern UI
-- Optional: OAuth OBO to call Canvas REST; enable NRPS/AGS/Deep Linking services
-
-See `docs/IMPLEMENTATION_PLAN.md` for the full LTI section and `canvas-modern-ui/HANDOVER-CHECKLIST.md` for readiness checklist.
-
-## Development Notes
-
-### Recent Fixes Applied
-This installation includes fixes for common startup issues:
-- Feature flag nil checking in external tools
-- Missing navigation templates
-- Missing helper methods for Canvas Career functionality
-- User model method definitions
-- Route helper corrections
-
-### Testing
-After installation, you can run tests to verify everything is working:
-```bash
-bundle exec rspec spec/controllers/application_controller_spec.rb
-```
+## 📄 License & Attribution
+ClassApex is built in partnership with the educational technology community. The platform leverages Instructure's open-source Canvas LMS database core engine, licensed under the AGPLv3. All custom modern interfaces, Carbon implementations, and integration layers are licensed under the MIT License.

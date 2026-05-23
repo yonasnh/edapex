@@ -20,10 +20,10 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Service configuration (using arrays for compatibility)
-SERVICES_NAMES=("demo" "lms-frontend" "lti-service" "lms-api")
-SERVICES_PORTS=("3001" "3002" "4001" "4003")
-SERVICES_DIRS=("apps/demo" "apps/classapex-lms" "packages/lti-service" "packages/schoolapex-lms")
-SERVICES_COMMANDS=("pnpm dev" "pnpm dev" "pnpm dev" "pnpm dev")
+SERVICES_NAMES=("lms-frontend" "lms-api")
+SERVICES_PORTS=("3003" "4003")
+SERVICES_DIRS=("apps/classapex-lms" "packages/schoolapex-lms")
+SERVICES_COMMANDS=("pnpm dev" "pnpm dev")
 
 # Canvas LMS main application (if running locally)
 CANVAS_PORT="3000"
@@ -218,10 +218,9 @@ start_canvas_lms() {
     cd "$canvas_dir"
     # Install Ruby gems if needed
     bundle check || bundle install
-    # Start Rails server in background (daemon mode)
-    bundle exec rails server -p $CANVAS_PORT -d >> "$log_file" 2>&1
-    # Get the PID of the Rails server
-    local pid=$(cat tmp/pids/server.pid 2>/dev/null)
+    # Start Rails server in background (nohup mode for Rails 8 compatibility)
+    nohup bundle exec rails server -p $CANVAS_PORT >> "$log_file" 2>&1 &
+    local pid=$!
     cd - > /dev/null
     if [ -n "$pid" ]; then
         echo $pid > "$pid_file"
@@ -309,9 +308,6 @@ show_status() {
         if check_port $port; then
             status="${GREEN}RUNNING${NC}"
             case $service in
-                "demo")
-                    url="http://localhost:$port (SchoolApex Demo)"
-                    ;;
                 "lms-frontend")
                     url="http://localhost:$port (LMS Frontend)"
                     ;;
@@ -406,16 +402,14 @@ show_help() {
     echo "  help      - Show this help message"
     echo ""
     echo "Services:"
-    echo "  demo         - SchoolApex Demo App (port 3001)"
-    echo "  lms-frontend - LMS Frontend App (port 3002)"
-    echo "  lti-service  - LTI Service (port 4001)"
+    echo "  lms-frontend - LMS Frontend App (port 3003)"
     echo "  lms-api      - GraphQL LMS API (port 4003)"
     echo ""
     echo "Examples:"
     echo "  $0                    # Start all services"
     echo "  $0 start              # Start all services"
     echo "  $0 status             # Check service status"
-    echo "  $0 logs lti-service   # Show LTI service logs"
+    echo "  $0 logs lms-frontend  # Show frontend logs"
     echo "  $0 restart            # Restart all services"
 }
 

@@ -229,7 +229,7 @@ export default function OutcomesPage() {
             </div>
           ) : !groups || groups.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--cx-text-tertiary)' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>🎯</div>
+              <svg width="40" height="40" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ marginBottom: 8, opacity: 0.35 }}><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="5"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/></svg>
               <p style={{ fontSize: '0.875rem' }}>No outcome groups configured.</p>
             </div>
           ) : (
@@ -255,7 +255,10 @@ export default function OutcomesPage() {
                         gap: 8
                       }}
                     >
-                      <span style={{ fontSize: '1rem' }}>{isSub ? '📄' : '📁'}</span>
+                      {isSub
+                        ? <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0, opacity: 0.6 }}><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><path d="M12 2v5h5"/></svg>
+                        : <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0, opacity: 0.6 }}><path d="M1.5 4a1 1 0 011-1h5l2 2h7a1 1 0 011 1v10a1 1 0 01-1 1h-14a1 1 0 01-1-1V4z"/></svg>
+                      }
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }}>{group.title}</div>
                         <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
@@ -330,7 +333,7 @@ export default function OutcomesPage() {
             justifyContent: 'center',
             position: 'relative'
           }}>
-            <span style={{ fontSize: '1.5rem', marginBottom: 8 }}>📥</span>
+            <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.3" style={{ marginBottom: 8, opacity: 0.5 }}><path d="M10 2v10M6 8l4 4 4-4"/><path d="M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2"/></svg>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
               Drag &amp; drop standard CSV file here
             </span>
@@ -364,7 +367,7 @@ export default function OutcomesPage() {
                         'Extracted 4 outcomes successfully!',
                         'Outcome LO-1 & LO-2 updated.',
                         'Mastery calculation rules aligned to: Highest Score.',
-                        'Import Completed successfully. ✅'
+                        'Import completed successfully.'
                       ])
                       return 100
                     }
@@ -383,7 +386,7 @@ export default function OutcomesPage() {
 
           {/* Logs & Actions Section */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ flex: 1, background: 'var(--cx-bg-surface-sunken, #0f172a)', color: '#38bdf8', padding: '12px 16px', borderRadius: 8, fontFamily: 'monospace', fontSize: '0.72rem', minHeight: '120px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, background: 'var(--cx-bg-surface-sunken, #0f172a)', color: '#38bdf8', padding: '12px 16px', borderRadius: 8, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', minHeight: '120px', overflowY: 'auto' }}>
               <div style={{ color: '#94a3b8', borderBottom: '1px solid #334155', paddingBottom: 4, marginBottom: 6, fontWeight: 'bold' }}>
                 Outcome Import Sync Stream
               </div>

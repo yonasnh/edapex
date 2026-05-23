@@ -7,6 +7,7 @@ export interface LoadingSpinnerProps {
   withOverlay?: boolean
   description?: string
   className?: string
+  'data-testid'?: string
 }
 
 const sizeMap = { sm: 16, md: 24, lg: 48 }
@@ -15,7 +16,8 @@ export const LoadingSpinner = memo<LoadingSpinnerProps>(({
   size = 'md',
   withOverlay = false,
   description = 'Loading...',
-  className
+  className,
+  'data-testid': testId = 'loading-spinner'
 }) => {
   const sizePx = sizeMap[size]
 
@@ -24,6 +26,7 @@ export const LoadingSpinner = memo<LoadingSpinnerProps>(({
       className={clsx('cm-spinner-wrapper', `cm-spinner-wrapper--${size}`, className)}
       role="status"
       aria-label={description}
+      data-testid={testId}
     >
       <svg
         className="cm-spinner"
@@ -43,7 +46,7 @@ export const LoadingSpinner = memo<LoadingSpinnerProps>(({
 
   if (withOverlay) {
     return (
-      <div className="cm-loading-overlay">
+      <div className="cm-loading-overlay" data-testid={testId}>
         {spinner}
       </div>
     )

@@ -102,7 +102,7 @@ export class PremiumErrorBoundary extends Component<Props, State> {
                 marginBottom: '28px',
                 textAlign: 'left',
                 overflowX: 'auto',
-                fontFamily: 'monospace',
+                fontFamily: 'var(--cm-font-family-mono, monospace)',
                 fontSize: '0.8rem',
                 color: '#f87171',
                 maxHeight: '150px'

@@ -86,6 +86,7 @@ export function RoleProvider({ children, defaultRole = 'student' }: RoleProvider
     // If switching role, cancel masquerade
     setMasqueradedUser(null)
     localStorage.removeItem('classapex-masquerade-user')
+    window.location.reload()
   }
 
   const handleMasquerade = (user: RoleUser | null) => {
@@ -95,6 +96,7 @@ export function RoleProvider({ children, defaultRole = 'student' }: RoleProvider
     } else {
       localStorage.removeItem('classapex-masquerade-user')
     }
+    window.location.reload()
   }
 
   const realUser = DEMO_USERS[role]

@@ -1,11 +1,33 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig, mergeConfig } from 'vitest/config';
+import viteConfig from './vite.config';
 
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/setupTests.ts'],
-  },
-});
+export default mergeConfig(
+  viteConfig,
+  defineConfig({
+    define: {
+      'process.env': '{}',
+    },
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/setupTests.ts'],
+      // Use forks pool instead of threads to reduce per-worker memory overhead
+      pool: 'forks',
+      poolOptions: {
+        forks: {
+          // Limit to 2 concurrent worker processes to avoid OOM
+          maxForks: 2,
+          minForks: 1,
+        },
+      },
+      server: {
+        deps: {
+          inline: [
+            '@schoolapex/core',
+            '@schoolapex/components'
+          ]
+        }
+      }
+    },
+  })
+);

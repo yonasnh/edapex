@@ -6,9 +6,10 @@ import { useRole } from '../contexts/RoleContext'
 import { ModuleList } from '../widgets/ModuleList'
 import { PeopleList } from '../widgets/PeopleList'
 import { CourseSidebar } from '../widgets/CourseSidebar'
+import { MediaLibrary } from '../widgets/MediaLibrary'
 import './course-home.css'
 
-type Tab = 'modules' | 'syllabus' | 'people'
+type Tab = 'modules' | 'syllabus' | 'people' | 'media'
 
 type HomePageOption = 'modules' | 'syllabus' | 'assignments' | 'feed'
 
@@ -58,6 +59,23 @@ export default function CourseHome() {
     { include: ['syllabus_body', 'term', 'teachers', 'total_students'] } as any
   )
 
+  // Record course visited history in localStorage (recent tracking)
+  React.useEffect(() => {
+    if (course && courseId) {
+      try {
+        const key = 'classapex_recent_courses'
+        const currentRecent = localStorage.getItem(key)
+        let list: string[] = currentRecent ? JSON.parse(currentRecent) : []
+        list = list.filter(id => id !== String(courseId))
+        list.unshift(String(courseId))
+        list = list.slice(0, 10)
+        localStorage.setItem(key, JSON.stringify(list))
+      } catch (e) {
+        // Silently ignore storage or private mode issues
+      }
+    }
+  }, [course, courseId])
+
   const { data: modules, isLoading: modulesLoading } = useCanvasQuery<any[]>(
     `/api/v1/courses/${courseId}/modules`,
     { include: ['items'] } as any
@@ -73,6 +91,7 @@ export default function CourseHome() {
     { id: 'modules', label: 'Modules' },
     { id: 'syllabus', label: 'Syllabus' },
     { id: 'people', label: 'People' },
+    { id: 'media', label: 'Media Library' },
   ]
 
   const customLabel = HOME_PAGE_OPTIONS.find(o => o.value === homePage)?.label || 'Modules'
@@ -199,9 +218,16 @@ export default function CourseHome() {
           {activeTab === 'people' && (
             <PeopleList people={people || []} isLoading={peopleLoading} />
           )}
+
+          {activeTab === 'media' && (
+            <div className="cx-course-media-library" style={{ background: 'var(--cx-bg-surface)', padding: 24, borderRadius: 12, border: '1px solid var(--cx-border-subtle)' }}>
+              <MediaLibrary courseId={courseId!} />
+            </div>
+          )}
         </div>
 
         <CourseSidebar
+          courseId={courseId!}
           courseName={course.name}
           courseCode={course.course_code}
           peopleCount={course.total_students ?? 0}

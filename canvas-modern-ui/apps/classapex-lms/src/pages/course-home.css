@@ -134,9 +134,7 @@
   justify-content: space-between;
   width: 100%;
   padding: var(--cx-space-4) var(--cx-space-5);
-  border: none;
   background: var(--cx-bg-surface-sunken);
-  cursor: pointer;
   color: var(--cx-text-primary);
   font-size: var(--cx-text-base);
   font-weight: var(--cx-weight-semibold);
@@ -156,6 +154,14 @@
   display: flex;
   align-items: center;
   gap: var(--cx-space-3);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background var(--cx-duration-fast);
+}
+
+.cx-module__header-left:hover {
+  background: rgba(99, 102, 241, 0.06);
 }
 
 .cx-module__chevron {

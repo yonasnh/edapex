@@ -59,9 +59,11 @@ const categories = [
   { id: 'appearance', name: 'Appearance', icon: <PaletteSvg /> },
 ];
 
-import { useCanvasQuery } from '../../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
+import { useNotification } from '../../hooks/useNotification';
 
 const AdminSystemSettingsPage: React.FC = () => {
+  const { showConfirm, showToast } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
@@ -72,6 +74,118 @@ const AdminSystemSettingsPage: React.FC = () => {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
+
+  const [isDemoCleaning, setIsDemoCleaning] = useState(false);
+  const [isDemoImporting, setIsDemoImporting] = useState(false);
+  const [isFactoryResetting, setIsFactoryResetting] = useState(false);
+  const [demoMessage, setDemoMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleCleanupTestRecords = async () => {
+    const confirm = await showConfirm({
+      title: 'Clean Up Test Records',
+      message: 'Are you sure you want to completely clear all demonstration and test records? This will delete all demo courses (CS-402, HCI-350, DS-101), their student/teacher enrollments, and all mock reports.',
+      confirmLabel: 'Yes, Clean Up',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirm) return;
+
+    setIsDemoCleaning(true);
+    setDemoMessage(null);
+    try {
+      const data = await canvasFetch('/api/v1/classapex/cleanup_test_records', { method: 'POST' });
+      const msg = data?.message || 'Cleanup complete!';
+      setDemoMessage({ type: 'success', text: msg });
+      showToast({
+        title: 'Demo Data Cleaned',
+        message: msg,
+        type: 'success'
+      });
+    } catch (err: any) {
+      const errMsg = err.message || 'Error cleaning up test records';
+      setDemoMessage({ type: 'error', text: errMsg });
+      showToast({
+        title: 'Cleanup Failed',
+        message: errMsg,
+        type: 'error'
+      });
+    } finally {
+      setIsDemoCleaning(false);
+    }
+  };
+
+  const handleImportDemoData = async () => {
+    const confirm = await showConfirm({
+      title: 'Import Realistic Demo Data',
+      message: 'Are you sure you want to seed system-wide demonstration data? This will populate the system with courses, teacher assignments, mock students, quizzes, submissions, and grade history for evaluation.',
+      confirmLabel: 'Import Data',
+      cancelLabel: 'Cancel',
+      type: 'warning'
+    });
+    if (!confirm) return;
+
+    setIsDemoImporting(true);
+    setDemoMessage(null);
+    try {
+      const data = await canvasFetch('/api/v1/classapex/import_demo_data', { method: 'POST' });
+      const msg = data?.message || 'Demo data imported successfully!';
+      setDemoMessage({ type: 'success', text: msg });
+      showToast({
+        title: 'Demo Data Seeded',
+        message: msg,
+        type: 'success'
+      });
+    } catch (err: any) {
+      const errMsg = err.message || 'Error importing demo data';
+      setDemoMessage({ type: 'error', text: errMsg });
+      showToast({
+        title: 'Import Failed',
+        message: errMsg,
+        type: 'error'
+      });
+    } finally {
+      setIsDemoImporting(false);
+    }
+  };
+
+  const handleFactoryResetSystem = async () => {
+    const confirm = await showConfirm({
+      title: 'Erase All System Data (Factory Reset)',
+      message: 'WARNING: This will completely erase all system-wide data including all courses, assignments, student submissions, discussion topics, attachments, and custom institutional brand styles. Your administrator login accounts will be safely preserved. This action is permanent and cannot be undone!',
+      confirmLabel: 'Yes, Erase All Data',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirm) return;
+
+    setIsFactoryResetting(true);
+    setDemoMessage(null);
+    try {
+      const data = await canvasFetch('/api/v1/classapex/factory_reset', { method: 'POST' });
+      const msg = data?.message || 'Factory reset completed successfully!';
+      setDemoMessage({ type: 'success', text: msg });
+      showToast({
+        title: 'System Wiped Successfully',
+        message: msg,
+        type: 'success'
+      });
+      // Refresh the page after a brief delay to load clean default configs
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      const errMsg = err.message || 'Error executing factory reset';
+      setDemoMessage({ type: 'error', text: errMsg });
+      showToast({
+        title: 'Purge Action Failed',
+        message: errMsg,
+        type: 'error'
+      });
+    } finally {
+      setIsFactoryResetting(false);
+    }
+  };
+
 
   const { data: canvasSettings, refetch } = useCanvasQuery<any>('/api/v1/accounts/1/settings')
 
@@ -143,12 +257,10 @@ const AdminSystemSettingsPage: React.FC = () => {
         if (selectedSetting.key === 'max_file_size') formData.append('default_storage_quota_mb', String(Math.floor(parseInt(editValue) / (1024 * 1024))))
 
         if (Array.from(formData.keys()).length > 0) {
-          const res = await fetch('/api/v1/accounts/1/settings', {
+          await canvasFetch('/api/v1/accounts/1/settings', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: formData.toString()
+            body: formData
           })
-          if (!res.ok) throw new Error('Failed to update setting')
           refetch()
         }
 
@@ -195,7 +307,7 @@ const AdminSystemSettingsPage: React.FC = () => {
     return <input type="text" style={inpStyle} value={value} onChange={e => onChange(e.target.value)} placeholder={setting.description} />;
   };
 
-  const tabs = ['All Settings', 'Security', 'Integrations', 'Backup & Restore'];
+  const tabs = ['All Settings', 'Security', 'Integrations', 'Backup, Restore & Demo Data'];
 
   return (
     <div className="cx-page">
@@ -441,8 +553,8 @@ const AdminSystemSettingsPage: React.FC = () => {
 
       {activeTab === 3 && (
         <div className="cx-section">
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 16px' }}>Backup & Restore</h3>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 24 }}>Manage system backups and data recovery options.</p>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 16px' }}>Backup, Restore & Demo Data</h3>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 24 }}>Manage system backups, recovery options, and development demo data.</p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
             <div className="cx-card">
@@ -485,6 +597,51 @@ const AdminSystemSettingsPage: React.FC = () => {
                   <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 4 }}>Select a backup file to restore from</p>
                 </div>
                 <button className="cx-btn cx-btn--danger cx-btn--sm" disabled><DownloadSvg /> Restore System</button>
+              </div>
+            </div>
+
+            <div className="cx-card" data-testid="demo-data-management-card">
+              <div className="cx-card__header"><h3 className="cx-card__title">Demo Data Management</h3></div>
+              <div className="cx-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                  Manage test records and populate realistic system-wide demonstration data for evaluation.
+                </p>
+
+                {demoMessage && (
+                  <div className={clsx(
+                    'cx-notification',
+                    demoMessage.type === 'success' ? 'cx-notification--success' : 'cx-notification--warning'
+                  )} style={{ padding: '8px 12px', fontSize: '0.75rem', margin: 0 }}>
+                    <div>{demoMessage.text}</div>
+                  </div>
+                )}
+
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button 
+                    className="cx-btn cx-btn--secondary cx-btn--sm" 
+                    onClick={handleCleanupTestRecords} 
+                    disabled={isDemoCleaning || isDemoImporting || isFactoryResetting}
+                    style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--cx-color-danger-border)', color: 'var(--cx-color-danger-text)' }}
+                  >
+                    {isDemoCleaning ? 'Cleaning...' : 'Clean Up Test Records'}
+                  </button>
+                  <button 
+                    className="cx-btn cx-btn--primary cx-btn--sm" 
+                    onClick={handleImportDemoData} 
+                    disabled={isDemoCleaning || isDemoImporting || isFactoryResetting}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    {isDemoImporting ? 'Importing Demo Data...' : 'Import Realistic Demo Data'}
+                  </button>
+                  <button 
+                    className="cx-btn cx-btn--danger cx-btn--sm" 
+                    onClick={handleFactoryResetSystem} 
+                    disabled={isDemoCleaning || isDemoImporting || isFactoryResetting}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    {isFactoryResetting ? 'Erasing Everything...' : 'Erase All System Data'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

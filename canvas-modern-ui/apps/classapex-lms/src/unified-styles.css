@@ -9,8 +9,139 @@
 /* ── Tier 3 component tokens (--cm-* prefix) ── */
 @import '../../../packages/core/src/config/component-tokens.css';
 
-/* ── Global base/reset/a11y styles ── */
 @import '../../../packages/components/src/global.css';
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   CLASSAPEX BRAND SHORTHAND TOKENS (LIGHT + DARK THEME SPEC)
+   ═════════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Surfaces - Light Theme Defaults */
+  --bg: var(--cx-bg-app, #EFF3F8);
+  --bg-subtle: #E5E7EB;
+  --surface-0: var(--cx-bg-surface, #FFFFFF);
+  --surface-1: var(--cx-bg-surface, #FFFFFF);
+  --surface-2: var(--cx-bg-surface-raised, #F8FAFC);
+  --surface-3: var(--cx-border-strong, #CBD5E1);
+  --surface-4: #94a3b8;
+
+  /* Borders - Light Theme */
+  --border: var(--cx-border-subtle, #E2E8F0);
+  --border-hover: rgba(0, 0, 0, 0.12);
+  --border-focus: #f59e0b;
+  --border-glow: rgba(148, 163, 184, 0.12);
+
+  /* Text - Light Theme */
+  --text: var(--cx-text-primary, #0F172A);
+  --text-muted: var(--cx-text-secondary, #334155);
+  --text-dim: var(--cx-text-tertiary, #475569);
+  --text-heading: var(--cx-text-primary, #0F172A);
+
+  /* Primary (Amber) */
+  --primary: #f59e0b;
+  --primary-h: #d97706;
+  --primary-d: rgba(245, 158, 11, 0.08);
+  --primary-glow: rgba(148, 163, 184, 0.08);
+  --primary-glow-strong: rgba(148, 163, 184, 0.15);
+  --primary-rgb: 245, 158, 11;
+
+  /* Secondary (Indigo) */
+  --secondary: #6366f1;
+  --secondary-h: #4f46e5;
+  --secondary-d: rgba(99, 102, 241, 0.08);
+  --secondary-rgb: 99, 102, 241;
+
+  /* Semantic Colors */
+  --green: #10b981;
+  --green-h: #059669;
+  --green-d: rgba(16, 185, 129, 0.1);
+  --green-rgb: 16, 185, 129;
+  
+  --red: #ef4444;
+  --red-h: #dc2626;
+  --red-d: rgba(239, 68, 68, 0.1);
+  
+  --yellow: #f59e0b;
+  --yellow-d: rgba(245, 158, 11, 0.1);
+  
+  --cyan: #06b6d4;
+  --cyan-d: rgba(6, 182, 212, 0.1);
+  
+  --purple: #a855f7;
+  --purple-d: rgba(168, 85, 247, 0.1);
+  --purple-rgb: 168, 85, 247;
+  
+  --orange: #f97316;
+  --blue: #2563eb;
+  --blue-rgb: 37, 99, 235;
+
+  /* Typography */
+  --font-sans: var(--cm-font-family-base, 'Inter', system-ui, -apple-system, sans-serif);
+  --font-mono: var(--cm-font-family-mono, 'JetBrains Mono', 'Fira Code', ui-monospace, monospace);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows - Light Theme */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-glow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur: 180ms;
+}
+
+[data-theme="dark"],
+html[data-theme="dark"] {
+  /* Surfaces - Dark Theme Overrides */
+  --bg: #080c14;
+  --bg-subtle: #060a11;
+  --surface-0: #0c1018;
+  --surface-1: #111827;
+  --surface-2: #1a2234;
+  --surface-3: #243048;
+  --surface-4: #374151;
+
+  /* Borders - Dark Theme */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-focus: #f59e0b;
+  --border-glow: rgba(148, 163, 184, 0.16);
+
+  /* Text - Dark Theme */
+  --text: var(--cx-text-primary);
+  --text-muted: var(--cx-text-secondary);
+  --text-dim: var(--cx-text-tertiary);
+  --text-heading: var(--cx-text-primary);
+
+  /* Primary (Amber) - Dark Theme hover/glow tweaks */
+  --primary-h: #fbbf24;
+  --primary-d: rgba(245, 158, 11, 0.1);
+  --primary-glow: rgba(148, 163, 184, 0.12);
+  --primary-glow-strong: rgba(148, 163, 184, 0.22);
+
+  /* Secondary (Indigo) - Dark Theme hover tweaks */
+  --secondary-h: #818cf8;
+  --secondary-d: rgba(99, 102, 241, 0.1);
+
+  /* Semantic hover tweaks */
+  --green-h: #34d399;
+  --red-h: #f87171;
+
+  /* Shadows - Dark Theme */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-glow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PAGE TOKEN ALIASES
@@ -40,19 +171,19 @@ html[data-theme="light"],
   --cx-primary-dark:    var(--cx-color-primary-hover, #1D4ED8);
   --cx-primary-light:   var(--cx-color-primary-subtle, rgba(37, 99, 235, 0.08));
 
-  /* Status icon backgrounds — semantic pastels for light mode */
+  /* Status icon backgrounds — semantic pastels for light mode with WCAG AA compliance (> 4.5:1) */
   --cx-status-assignment-bg: #EEF2FF;
-  --cx-status-assignment-fg: #6366F1;
+  --cx-status-assignment-fg: #4F46E5; /* Indigo 600 (contrast 4.88:1 on #EEF2FF) */
   --cx-status-quiz-bg:       #FEF3C7;
-  --cx-status-quiz-fg:       #F59E0B;
+  --cx-status-quiz-fg:       #B45309; /* Amber 700 (contrast 5.5:1 on #FEF3C7) */
   --cx-status-discussion-bg: #ECFDF5;
-  --cx-status-discussion-fg: #10B981;
+  --cx-status-discussion-fg: #047857; /* Emerald 700 (contrast 5.8:1 on #ECFDF5) */
   --cx-status-overdue-bg:    #FEF2F2;
-  --cx-status-overdue-fg:    #EF4444;
+  --cx-status-overdue-fg:    #DC2626; /* Red 600 (contrast 4.7:1 on #FEF2F2) */
   --cx-status-event-bg:      #FCE7F3;
-  --cx-status-event-fg:      #EC4899;
+  --cx-status-event-fg:      #DB2777; /* Pink 600 (contrast 4.7:1 on #FCE7F3) */
   --cx-status-announce-bg:   #F0F9FF;
-  --cx-status-announce-fg:   #3B82F6;
+  --cx-status-announce-fg:   #2563EB; /* Blue 600 (contrast 5.02:1 on #F0F9FF) */
 
   /* Grading status */
   --cx-status-pending-bg:    #FEF3C7;
@@ -296,7 +427,7 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--classapex-font-family);
   font-size: var(--font-size-03);
   line-height: var(--line-height-normal);
   color: var(--classapex-text-primary);
@@ -421,7 +552,7 @@ body {
 }
 
 .classapex-logo-text {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--classapex-font-family);
   font-size: 1.5rem;
   font-weight: 700;
   background: var(--classapex-primary);
@@ -1619,7 +1750,9 @@ select:focus {
 
 .text-link:hover {
   color: var(--classapex-primary-hover);
-  text-decoration: underline;
+  text-decoration: none;
+  background-color: var(--cx-bg-hover, rgba(120, 169, 255, 0.15));
+  border-radius: 4px;
 }
 
 .text-link:focus {
@@ -1775,28 +1908,15 @@ a:hover, button:hover, .text-link:hover {
   filter: drop-shadow(0 0 16px rgba(99, 102, 241, 0.3));
 }
 
-.cx-page-fallback__progress-track {
-  width: 100px;
-  height: 2px;
-  background: var(--cx-border-subtle, rgba(0, 0, 0, 0.08));
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-}
-
-[data-theme="dark"] .cx-page-fallback__progress-track {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.cx-page-fallback__progress-bar {
+.cx-loading-ring {
   position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 40px;
-  background: linear-gradient(90deg, var(--cx-color-primary, #6366f1) 0%, #4f46e5 100%);
-  border-radius: 4px;
-  animation: cx-slide-loading 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  top: -4px; left: -4px;
+  width: calc(100% + 8px); height: calc(100% + 8px);
+  border-radius: 50%;
+  border: 3px solid rgba(99,102,241,0.15);
+  border-top-color: var(--cx-primary, #6366f1);
+  border-right-color: var(--cx-primary, #6366f1);
+  animation: cx-spin 0.8s linear infinite;
 }
 
 @keyframes cx-logo-breathe {
@@ -1804,9 +1924,8 @@ a:hover, button:hover, .text-link:hover {
   50%      { transform: scale(1.02); opacity: 1; }
 }
 
-@keyframes cx-slide-loading {
-  0%   { left: -50px; }
-  100% { left: 110px; }
+@keyframes cx-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ---------------------------------------------------------------------------=
@@ -1853,7 +1972,16 @@ a:hover, button:hover, .text-link:hover {
    so it aligns under the notifications bell icon (~200px from right). */
 .cx-topbar__right .cx-notification-dropdown,
 [style*="position: relative"] .cx-notification-dropdown {
-  right: 0;
+  right: 24px;
+}
+
+@media (max-width: 640px) {
+  .cx-topbar__right .cx-notification-dropdown,
+  [style*="position: relative"] .cx-notification-dropdown {
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
 }
 
 /* ---------------------------------------------------------------------------=
@@ -1874,6 +2002,9 @@ a:hover, button:hover, .text-link:hover {
   max-width: var(--cx-max-content-width);
   margin: 0 auto;
   padding: var(--spacing-07) var(--spacing-06);
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .cx-page__header {
@@ -1971,6 +2102,23 @@ a:hover, button:hover, .text-link:hover {
   line-height: 1.1;
 }
 
+.cx-file-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-03);
+  margin-bottom: var(--spacing-05);
+  background: var(--cx-bg-surface);
+  padding: var(--spacing-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cx-border-subtle);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .cx-stat-card__change {
   font-size: var(--font-size-01);
   margin-top: var(--spacing-01);
@@ -1980,13 +2128,42 @@ a:hover, button:hover, .text-link:hover {
 .cx-stat-card__change--decrease { color: var(--cx-color-danger); }
 .cx-stat-card__change--neutral  { color: var(--cx-text-tertiary); }
 
+.cx-stat-card__metric-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-02, 8px);
+}
+
+.cx-stat-card__metric-row .cx-stat-card__label {
+  margin-bottom: 0;
+}
+
 /* ─── Toolbar ─── */
 .cx-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--spacing-04);
-  flex-wrap: wrap;
+  gap: var(--spacing-03);
   margin-bottom: var(--spacing-05);
+  background: var(--cx-bg-surface);
+  padding: var(--spacing-02);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cx-border-subtle);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cx-toolbar::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for a cleaner look */
+}
+.cx-toolbar > * {
+  flex-shrink: 0;
+}
+.cx-search {
+  flex: 1 0 220px;
+  position: relative;
 }
 
 /* ─── Section ─── */
@@ -2255,9 +2432,9 @@ a:hover, button:hover, .text-link:hover {
 
 .cx-discussion-card__titles {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-02);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex: 1;
   min-width: 0;
 }
@@ -2292,6 +2469,7 @@ a:hover, button:hover, .text-link:hover {
   border-radius: 50%;
   background: var(--cx-color-primary);
   flex-shrink: 0;
+  margin-top: 8px; /* Align with first line of wrapped title */
 }
 
 .cx-discussion-card__meta {
@@ -2744,6 +2922,11 @@ a:hover, button:hover, .text-link:hover {
   border-radius: var(--radius-md);
   transition: box-shadow var(--cx-duration-fast) ease;
   cursor: pointer;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .cx-notification-item:hover {
@@ -2751,7 +2934,7 @@ a:hover, button:hover, .text-link:hover {
 }
 
 .cx-notification-item--unread {
-  border-left: 3px solid var(--cx-color-primary);
+  border-top: 3px solid var(--cx-color-primary);
   background: var(--cx-color-primary-subtle);
 }
 
@@ -2781,6 +2964,8 @@ a:hover, button:hover, .text-link:hover {
   font-weight: var(--font-weight-medium);
   color: var(--cx-text-primary);
   margin-bottom: var(--spacing-01);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .cx-notification-item__message {
@@ -2788,11 +2973,29 @@ a:hover, button:hover, .text-link:hover {
   color: var(--cx-text-secondary);
   margin-bottom: var(--spacing-01);
   line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .cx-notification-item__time {
   font-size: 0.75rem;
   color: var(--cx-text-tertiary);
+}
+
+.cx-notification-item__category {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 600px) {
+  .cx-notification-item {
+    flex-wrap: wrap;
+    gap: var(--spacing-03);
+  }
+  .cx-notification-item__category {
+    margin-left: 52px; /* Aligns with content column */
+    width: auto;
+  }
 }
 
 /* ─── Settings ─── */
@@ -3026,7 +3229,9 @@ a:hover, button:hover, .text-link:hover {
 }
 
 .cx-breadcrumb a:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  background-color: var(--cx-bg-hover, rgba(120, 169, 255, 0.15));
+  border-radius: 4px;
 }
 
 .cx-breadcrumb__sep {
@@ -3124,13 +3329,13 @@ a:hover, button:hover, .text-link:hover {
   }
 
   .cx-file-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 
   .cx-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 }
 
@@ -3307,12 +3512,13 @@ a:hover, button:hover, .text-link:hover {
 }
 
 .cx-search__input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--cx-text-primary);
-  font-size: var(--font-size-02);
-  outline: none;
+  flex: 1 !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--cx-text-primary) !important;
+  font-size: var(--font-size-02) !important;
+  outline: none !important;
   font-family: inherit;
 }
 
@@ -3338,6 +3544,7 @@ a:hover, button:hover, .text-link:hover {
   border-radius: var(--radius-md);
   cursor: pointer;
   min-width: 140px;
+  width: auto !important;
   appearance: none;
   -webkit-appearance: none;
   transition: all var(--cx-duration-fast) ease-in-out;
@@ -3555,7 +3762,9 @@ a:hover, button:hover, .text-link:hover {
 }
 
 .cx-breadcrumb-link:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  background-color: var(--cx-bg-hover, rgba(120, 169, 255, 0.15));
+  border-radius: 4px;
 }
 
 .cx-breadcrumb-text {
@@ -3827,9 +4036,20 @@ hr,
     padding-bottom: 72px !important;
   }
 
-  /* Hide normal sidebar on mobile */
+  /* Premium Glassmorphic Mobile Slide-out Drawer Override */
   .cm-shell__sidebar {
-    display: none;
+    display: block !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  [data-theme="dark"] .cm-shell__sidebar {
+    background: rgba(22, 22, 22, 0.85) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5) !important;
   }
 }
 
@@ -3885,6 +4105,980 @@ hr,
   --cx-bg-surface-raised: #0f172a !important;
   --cx-bg-surface-sunken: #1e293b !important;
   outline-color: #ffffff !important;
+}
+
+/* ===========================================================================
+   VISUAL UI/UX AUDIT & REFINEMENTS APPLIED
+   =========================================================================== */
+
+:root {
+  /* Premium Glassmorphic Refraction Tokens */
+  --cx-glass-bg-dark: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
+  --cx-glass-bg-light: rgba(255, 255, 255, 0.65);
+  --cx-glass-border-dark: rgba(255, 255, 255, 0.08);
+  --cx-glass-border-light: rgba(15, 23, 42, 0.06);
+  --cx-glass-blur: 16px;
+  --cx-ease-premium: cubic-bezier(0.16, 1, 0.3, 1); /* easeOutExpo */
+  --cx-glass-shadow-dark: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --cx-glass-shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+  --cx-icon-drop-shadow: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.08));
+}
+
+[data-theme="dark"] {
+  --cx-icon-drop-shadow: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+/* Glassmorphic Panel/Card Base */
+.cx-glass-panel, .cx-glass-card {
+  background: var(--cx-glass-bg-dark);
+  backdrop-filter: blur(var(--cx-glass-blur));
+  -webkit-backdrop-filter: blur(var(--cx-glass-blur));
+  border: 1px solid var(--cx-glass-border-dark);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--cx-glass-shadow-dark);
+  transition: all 0.4s var(--cx-ease-premium);
+}
+
+[data-theme="light"] .cx-glass-panel,
+[data-theme="light"] .cx-glass-card {
+  background: var(--cx-glass-bg-light);
+  border-color: var(--cx-glass-border-light);
+  border-top-color: rgba(255, 255, 255, 0.6);
+  box-shadow: var(--cx-glass-shadow-light);
+}
+
+.cx-glass-panel:hover, .cx-glass-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--cx-color-primary, #6366f1);
+  box-shadow: var(--cx-shadow-primary-glow, 0 4px 12px rgba(0,0,0,0.12)), var(--shadow-04);
+}
+
+/* Apply Glassmorphic styles to all Cards and Widgets in Dark Mode */
+[data-theme="dark"] .cx-stat-card,
+[data-theme="dark"] .cx-course-card,
+[data-theme="dark"] .cx-widget,
+[data-theme="dark"] .classapex-card,
+[data-theme="dark"] .course-card,
+[data-theme="dark"] .cx-card,
+[data-theme="dark"] .analytics-metric,
+[data-theme="dark"] .cx-discussion-card {
+  background: var(--cx-glass-bg-dark) !important;
+  backdrop-filter: blur(var(--cx-glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--cx-glass-blur)) !important;
+  border: 1px solid var(--cx-glass-border-dark) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: var(--cx-glass-shadow-dark) !important;
+  transition: all 0.4s var(--cx-ease-premium, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+[data-theme="dark"] .cx-stat-card:hover,
+[data-theme="dark"] .cx-course-card:hover,
+[data-theme="dark"] .cx-widget:hover,
+[data-theme="dark"] .classapex-card:hover,
+[data-theme="dark"] .course-card:hover,
+[data-theme="dark"] .cx-card:hover,
+[data-theme="dark"] .analytics-metric:hover,
+[data-theme="dark"] .cx-discussion-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--cx-color-primary, #6366f1) !important;
+  box-shadow: var(--cx-shadow-primary-glow, 0 4px 12px rgba(0, 0, 0, 0.25)), var(--shadow-04) !important;
+}
+
+/* Apply Glassmorphic styles to all Cards and Widgets in Light Mode */
+[data-theme="light"] .cx-stat-card,
+[data-theme="light"] .cx-course-card,
+[data-theme="light"] .cx-widget,
+[data-theme="light"] .classapex-card,
+[data-theme="light"] .course-card,
+[data-theme="light"] .cx-card,
+[data-theme="light"] .analytics-metric,
+[data-theme="light"] .cx-discussion-card {
+  background: var(--cx-glass-bg-light) !important;
+  backdrop-filter: blur(var(--cx-glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--cx-glass-blur)) !important;
+  border: 1px solid var(--cx-glass-border-light) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: var(--cx-glass-shadow-light) !important;
+  transition: all 0.4s var(--cx-ease-premium, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+
+[data-theme="light"] .cx-stat-card:hover,
+[data-theme="light"] .cx-course-card:hover,
+[data-theme="light"] .cx-widget:hover,
+[data-theme="light"] .classapex-card:hover,
+[data-theme="light"] .course-card:hover,
+[data-theme="light"] .cx-card:hover,
+[data-theme="light"] .analytics-metric:hover,
+[data-theme="light"] .cx-discussion-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: var(--cx-color-primary, #6366f1) !important;
+  box-shadow: var(--cx-shadow-primary-glow, 0 4px 12px rgba(31, 38, 135, 0.08)), var(--shadow-04) !important;
+}
+
+/* Elevated Icon Drop Shadows */
+.cx-stat-card__icon svg,
+.cx-course-card__banner-deco svg,
+.cx-widget__title svg {
+  filter: var(--cx-icon-drop-shadow);
+}
+
+/* FLOATING AI COMPANION BUTTON - PREMIUM GLASSMORPHIC & ACCESSIBLE STYLING */
+.cx-floating-ai-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cx-color-primary, #6366f1) 0%, var(--classapex-secondary, #8a3ffc) 100%);
+  color: var(--cx-text-on-color, #ffffff);
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(99, 102, 241, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 105;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cx-floating-ai-btn:hover {
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.cx-floating-ai-btn:active {
+  transform: scale(0.95);
+}
+
+/* Open transition state class */
+.cx-floating-ai-btn--drawer-open {
+  right: 444px;
+  transform: rotate(180deg);
+}
+
+.cx-floating-ai-btn--drawer-open:hover {
+  transform: rotate(180deg) scale(1.1);
+}
+
+[data-theme="light"] .cx-floating-ai-btn {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+/* FLOATING ROLE SWITCHER CONTAINER - RESPONSIVE POSITIONING */
+.cx-role-switcher-container {
+  position: fixed;
+  bottom: 20px;
+  right: 92px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cx-role-switcher-container--ai-open {
+  right: 512px;
+}
+
+@media (max-width: 768px) {
+  .cx-role-switcher-container {
+    bottom: 80px;
+    left: 20px;
+    right: auto;
+    align-items: flex-start;
+  }
+  .cx-role-switcher-container--ai-open {
+    right: auto;
+    left: 20px;
+  }
+}
+
+/* TACTILE MICRO-INTERACTIONS FOR WIDGETS & SIDEBAR ITEM LINKS */
+.cx-todo-item__link, .cx-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--cx-space-3, 12px);
+  padding: var(--cx-space-3, 12px) var(--cx-space-2, 8px);
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.cx-todo-item__link:hover, .cx-sidebar-link:hover {
+  background: var(--cx-bg-hover, rgba(255, 255, 255, 0.04));
+  padding-left: var(--cx-space-3, 12px); /* Premium tactile shift */
+}
+
+/* Active indicator tab bar */
+.cx-todo-item__link::before, .cx-sidebar-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 60%;
+  background: var(--cx-color-primary, #6366f1);
+  border-radius: 0 4px 4px 0;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cx-todo-item__link:hover::before, .cx-sidebar-link:hover::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* High-contrast and premium switcher tabs for Analytics */
+.cx-analytics-tab {
+  background: transparent;
+  color: var(--cx-text-secondary);
+  border: 1px solid var(--cx-border-subtle);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--cx-duration-fast);
+}
+
+.cx-analytics-tab:hover {
+  background: var(--cx-color-primary-subtle, rgba(99, 102, 241, 0.08));
+  color: var(--cx-color-primary, #6366f1) !important;
+  border-color: var(--cx-color-primary, #6366f1);
+}
+
+.cx-analytics-tab--active {
+  background: var(--cx-color-primary, #6366f1) !important;
+  color: var(--cx-text-on-color, #FFFFFF) !important;
+  border-color: var(--cx-color-primary, #6366f1) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Scrollbar Styling
+   ───────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--surface-4); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Glass & Border Utilities
+   ───────────────────────────────────────────────────────────────────────────── */
+.glass-panel, .cx-glass-panel {
+  background: linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(8,12,20,0.9) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .cx-glass-panel {
+  background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,242,245,0.9) 100%);
+}
+
+.hairline-border, .cx-hairline-border {
+  border: 1px solid var(--border);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+[data-theme="light"] .hairline-border,
+[data-theme="light"] .cx-hairline-border {
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.layered-shadow, .cx-layered-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.4), 0 10px 20px -3px rgba(0,0,0,0.5);
+}
+[data-theme="light"] .layered-shadow,
+[data-theme="light"] .cx-layered-shadow {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08), 0 10px 20px -3px rgba(0,0,0,0.12);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Motion & Animation
+   ───────────────────────────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--primary); }
+  50%      { opacity: 0.6; box-shadow: 0 0 10px var(--primary); }
+}
+
+@keyframes mesh {
+  0%   { transform: translate(0,0) rotate(0deg); }
+  33%  { transform: translate(5%, 5%) rotate(5deg); }
+  66%  { transform: translate(-5%, 2%) rotate(-2deg); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--primary-glow); }
+  50%      { box-shadow: 0 0 10px var(--primary-glow-strong); }
+}
+
+.fade-in, .cx-fade-in   { animation: fadeIn 0.4s var(--ease) both; }
+.slide-up, .cx-slide-up { animation: slideUp 0.5s var(--ease-spring) both; }
+.spin, .cx-spin         { animation: spin 1s linear infinite; }
+
+.stagger-1, .cx-stagger-1 { animation-delay: 50ms; }
+.stagger-2, .cx-stagger-2 { animation-delay: 100ms; }
+.stagger-3, .cx-stagger-3 { animation-delay: 150ms; }
+.stagger-4, .cx-stagger-4 { animation-delay: 200ms; }
+.stagger-5, .cx-stagger-5 { animation-delay: 250ms; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Buttons
+   ───────────────────────────────────────────────────────────────────────────── */
+.btn-primary, .cx-btn-primary, .cx-btn--primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: 0.8rem; font-weight: 600;
+  background: var(--primary); border: 1px solid var(--primary);
+  color: white !important; cursor: pointer;
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  justify-content: center;
+  text-decoration: none;
+}
+.btn-primary:hover, .cx-btn-primary:hover, .cx-btn--primary:hover {
+  background: var(--primary-h); border-color: var(--primary-h);
+}
+.btn-primary:active, .cx-btn-primary:active, .cx-btn--primary:active {
+  transform: scale(0.97);
+}
+
+.btn-ghost, .cx-btn-ghost, .cx-btn--ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: 0.8rem; font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted) !important;
+  cursor: pointer;
+  transition: all 180ms var(--ease);
+  justify-content: center;
+  text-decoration: none;
+}
+.btn-ghost:hover, .cx-btn-ghost:hover, .cx-btn--ghost:hover {
+  background: var(--surface-2);
+  color: var(--text) !important;
+}
+
+.btn-danger, .cx-btn-danger, .cx-btn--danger {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: 0.8rem; font-weight: 600;
+  background: var(--red-d);
+  border: 1px solid rgba(239,68,68,0.3);
+  color: var(--red) !important;
+  cursor: pointer;
+  transition: all 180ms var(--ease);
+  justify-content: center;
+  text-decoration: none;
+}
+.btn-danger:hover, .cx-btn-danger:hover, .cx-btn--danger:hover {
+  background: var(--red); color: white !important;
+  border-color: var(--red);
+}
+
+.btn-icon, .cx-btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 180ms var(--ease);
+}
+.btn-icon:hover, .cx-btn-icon:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.toggle-chip, .cx-toggle-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius-full);
+  font-size: 0.7rem; font-weight: 700;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-dim);
+  transition: all 180ms var(--ease);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.toggle-chip.active, .cx-toggle-chip.active, .toggle-chip.cx-active, .cx-toggle-chip.cx-active {
+  background: var(--cyan-d);
+  border-color: rgba(6,182,212,0.3);
+  color: var(--cyan);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Cards
+   ───────────────────────────────────────────────────────────────────────────── */
+.card, .cx-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card:hover, .cx-card:hover {
+  border-color: var(--border-hover);
+}
+
+.stat-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.25s var(--ease-spring);
+}
+.stat-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.card-glass, .cx-card-glass, .cx-glass-card {
+  background: linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(8,12,20,0.9) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg);
+}
+[data-theme="light"] .card-glass,
+[data-theme="light"] .cx-card-glass,
+[data-theme="light"] .cx-glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(240,242,245,0.9) 100%);
+  border-color: rgba(0,0,0,0.06);
+  border-top: 1px solid rgba(0,0,0,0.03);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Inputs
+   ───────────────────────────────────────────────────────────────────────────── */
+.classapex-input-field,
+.cx-input,
+input[type="text"].cx-input,
+input[type="number"].cx-input,
+input[type="email"].cx-input,
+select.cx-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  transition: all 180ms var(--ease);
+}
+.cx-input:focus, select.cx-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-d);
+}
+
+.filter-select, .cx-filter-select {
+  padding: 7px 12px; font-size: 0.75rem; font-weight: 600;
+  background: var(--surface-1); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm);
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Badges & Pills
+   ───────────────────────────────────────────────────────────────────────────── */
+.badge, .cx-badge {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px; border-radius: var(--radius-full);
+  font-size: 0.75rem; white-space: nowrap;
+  font-weight: 600;
+}
+
+.badge-primary, .cx-badge-primary {
+  background: var(--primary-d);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: var(--primary-h);
+}
+
+.badge-success, .cx-badge-success {
+  background: var(--green-d);
+  border: 1px solid rgba(16,185,129,0.25);
+  color: var(--green);
+}
+
+.badge-warning, .cx-badge-warning {
+  background: var(--yellow-d);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: var(--yellow);
+}
+
+.badge-danger, .cx-badge-danger {
+  background: var(--red-d);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: var(--red);
+}
+
+.badge-info, .cx-badge-info {
+  background: var(--cyan-d);
+  border: 1px solid rgba(6,182,212,0.25);
+  color: var(--cyan);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Tables
+   ───────────────────────────────────────────────────────────────────────────── */
+.table-container, .cx-table-container {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  width: 100%;
+}
+
+.cx-table-container table {
+  width: 100%;
+  text-align: left; border-collapse: collapse;
+}
+
+.cx-table-container thead th {
+  padding: 12px 16px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.cx-table-container tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.cx-table-container tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+[data-theme="light"] .cx-table-container tbody tr:hover {
+  background: rgba(0, 0, 0, 0.01);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Tabs
+   ───────────────────────────────────────────────────────────────────────────── */
+.tab-bar, .cx-tab-bar {
+  display: flex; gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.tab, .cx-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: transparent;
+  border: none; border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+  flex: 1; justify-content: center;
+}
+
+.tab:hover, .cx-tab:hover {
+  color: var(--text-heading);
+  background: rgba(255, 255, 255, 0.03);
+}
+[data-theme="light"] .tab:hover, [data-theme="light"] .cx-tab:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.tab.active, .cx-tab.active, .tab.cx-active, .cx-tab.cx-active, .cx-tab--active {
+  color: var(--text-heading) !important;
+  background: var(--surface-1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Sidebar Navigation
+   ───────────────────────────────────────────────────────────────────────────── */
+.sidebar, .cx-sidebar {
+  width: 224px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: transparent;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: sticky; top: 0; height: 100vh;
+}
+
+.nav-section-label, .cx-nav-section-label {
+  font-size: 0.55rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-dim);
+  padding: 8px 12px 4px;
+}
+
+.nav-item, .cx-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  background: transparent; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.8rem; font-weight: 600;
+  transition: all 0.25s var(--ease-spring);
+  white-space: nowrap; width: 100%; text-align: left;
+  position: relative;
+  text-decoration: none;
+}
+
+.nav-item:hover, .cx-nav-item:hover {
+  background: var(--cx-bg-surface-hover, rgba(255,255,255,0.08));
+  color: var(--cx-text-primary);
+}
+[data-theme="light"] .nav-item:hover, [data-theme="light"] .cx-nav-item:hover {
+  background: var(--cx-bg-surface-hover, rgba(0,0,0,0.05));
+}
+
+.nav-item.active, .cx-nav-item.active, .nav-item.cx-active, .cx-nav-item.cx-active, .cx-sidebar-link--active {
+  background: var(--cx-color-primary-subtle) !important;
+  color: var(--cx-color-primary) !important;
+}
+
+.nav-item.active::before, .cx-nav-item.active::before, .cx-sidebar-link--active::before {
+  content: '';
+  position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--cx-color-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: LMS Course Progress Card & Components
+   ───────────────────────────────────────────────────────────────────────────── */
+.course-card, .cx-course-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.25s var(--ease-spring);
+}
+
+.course-card:hover, .cx-course-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.course-header, .cx-course-header {
+  display: flex; align-items: center; gap: 10px;
+}
+
+.course-dot, .cx-course-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%; flex-shrink: 0;
+}
+
+.course-name, .cx-course-name {
+  font-weight: 800; font-size: 0.8rem;
+  color: var(--text-heading);
+  flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.course-code, .cx-course-code {
+  font-size: 0.65rem; font-weight: 700;
+  color: var(--text-dim); font-family: var(--font-mono);
+}
+
+/* Progress Ring — replaces gauge rings */
+.progress-ring, .cx-progress-ring {
+  width: 36px; height: 36px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.progress-ring svg, .cx-progress-ring svg {
+  transform: rotate(-90deg);
+}
+
+.progress-ring-bg, .cx-progress-ring-bg {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 3;
+}
+
+.progress-ring-fill, .cx-progress-ring-fill {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s var(--ease);
+}
+
+.progress-ring-text, .cx-progress-ring-text {
+  position: absolute;
+  font-size: 0.55rem; font-weight: 900;
+  font-family: var(--font-mono);
+  color: var(--text-heading);
+}
+
+/* Status Dots — for lesson/module completion */
+.lesson-dot, .cx-lesson-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  transition: all 0.3s var(--ease);
+  cursor: pointer;
+}
+
+.lesson-dot:hover, .cx-lesson-dot:hover {
+  transform: scale(1.2);
+}
+
+.lesson-dot.completed, .cx-lesson-dot.completed { background: var(--green); }
+.lesson-dot.in-progress, .cx-lesson-dot.in-progress { background: var(--yellow); }
+.lesson-dot.not-started, .cx-lesson-dot.not-started { background: var(--surface-4); opacity: 0.35; }
+.lesson-dot.overdue, .cx-lesson-dot.overdue { background: var(--red); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Assignment Status Pills
+   ───────────────────────────────────────────────────────────────────────────── */
+.cx-assignment-status--submitted, .badge--submitted {
+  background: var(--green-d) !important;
+  border: 1px solid rgba(16,185,129,0.25) !important;
+  color: var(--green) !important;
+}
+.cx-assignment-status--late, .badge--late {
+  background: var(--red-d) !important;
+  border: 1px solid rgba(239,68,68,0.25) !important;
+  color: var(--red) !important;
+}
+.cx-assignment-status--pending, .badge--pending {
+  background: var(--yellow-d) !important;
+  border: 1px solid rgba(245,158,11,0.25) !important;
+  color: var(--yellow) !important;
+}
+.cx-assignment-status--graded, .badge--graded {
+  background: var(--purple-d) !important;
+  border: 1px solid rgba(168,85,247,0.25) !important;
+  color: var(--purple) !important;
+}
+.cx-assignment-status--draft, .badge--draft {
+  background: var(--cyan-d) !important;
+  border: 1px solid rgba(6,182,212,0.25) !important;
+  color: var(--cyan) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Grade Display
+   ───────────────────────────────────────────────────────────────────────────── */
+.grade-display, .cx-grade-display {
+  font-size: 1.1rem; font-weight: 900;
+  font-family: var(--font-mono);
+}
+.grade-a, .cx-grade-a { color: var(--green); }
+.grade-b, .cx-grade-b { color: var(--cyan); }
+.grade-c, .cx-grade-c { color: var(--yellow); }
+.grade-d, .cx-grade-d { color: var(--orange); }
+.grade-f, .cx-grade-f { color: var(--red); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Live Stats Bar (Dashboard Header)
+   ───────────────────────────────────────────────────────────────────────────── */
+.live-stats-bar, .cx-live-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 768px) {
+  .live-stats-bar, .cx-live-stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .live-stats-bar, .cx-live-stats-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.live-stat, .cx-live-stat {
+  display: flex; flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.live-stat-label, .cx-live-stat-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.58rem; font-weight: 800;
+  color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+
+.live-stat-value, .cx-live-stat-value {
+  font-size: 0.95rem; font-weight: 900;
+  color: var(--text-heading);
+  font-family: var(--font-mono);
+  line-height: 1.2;
+}
+
+.live-stat-sub, .cx-live-stat-sub {
+  font-size: 0.58rem; font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Section Headers
+   ───────────────────────────────────────────────────────────────────────────── */
+.section-header, .cx-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-title, .cx-section-title {
+  font-size: 1.125rem; font-weight: 800;
+  color: var(--text-heading);
+}
+
+.section-subtitle, .cx-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.badge-outline, .cx-badge-outline {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX STYLE SPEC: Grid Patterns
+   ───────────────────────────────────────────────────────────────────────────── */
+/* 5-column grid (courses, modules) */
+.grid-5, .cx-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 12px;
+}
+@media (min-width: 640px)  { .grid-5, .cx-grid-5 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .grid-5, .cx-grid-5 { grid-template-columns: repeat(5, 1fr); } }
+
+/* 4-column grid (stats, assignments) */
+.grid-4, .cx-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 16px;
+}
+@media (min-width: 640px)  { .grid-4, .cx-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .grid-4, .cx-grid-4 { grid-template-columns: repeat(4, 1fr); } }
+
+/* 2-column grid (chart + panel) */
+.grid-pair, .cx-grid-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+@media (min-width: 900px) { .grid-pair, .cx-grid-pair { grid-template-columns: 1fr 1fr; } }
+
+
+
+
+/* GLOBAL HOVER OVERRIDES */
+a:hover, 
+.text-link:hover,
+.cds--link:hover,
+.cds--side-nav__link:hover,
+.cds--side-nav-link:hover,
+.cds--side-nav-menu-item:hover {
+  text-decoration: none !important;
+  background-color: var(--cx-bg-hover, rgba(120, 169, 255, 0.15));
+  border-radius: 4px;
+}
+
+/* Ensure menus specifically get the highlight without breaking padding */
+.cds--side-nav__link:hover,
+.cds--side-nav-link:hover,
+.cds--side-nav-menu-item:hover {
+  background-color: var(--cx-bg-hover, rgba(120, 169, 255, 0.15)) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX CUSTOM SIDEBAR HIGHLIGHT OVERRIDES (Task 3)
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Sidebar hover state overlay */
+.navigation-sidebar .navigation-sidebar__link:hover,
+.navigation-sidebar .navigation-sidebar__menu-trigger:hover,
+.navigation-sidebar .navigation-sidebar__sublink:hover {
+  background-color: var(--cx-sidebar-hover-bg) !important;
+  color: var(--cx-text-primary, #ffffff) !important;
+}
+
+/* Sidebar active state overlay and typography coloring */
+.navigation-sidebar .navigation-sidebar__link--active,
+.navigation-sidebar .navigation-sidebar__sublink--active,
+.navigation-sidebar .navigation-sidebar__menu--active > .navigation-sidebar__menu-trigger {
+  background-color: color-mix(in srgb, var(--cx-sidebar-text-active, #4F46E5) 12%, transparent) !important;
+  color: var(--cx-sidebar-text-active) !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure children elements (icons, text, labels) inherit active colors */
+.navigation-sidebar .navigation-sidebar__link--active *,
+.navigation-sidebar .navigation-sidebar__sublink--active *,
+.navigation-sidebar .navigation-sidebar__menu--active > .navigation-sidebar__menu-trigger * {
+  color: var(--cx-sidebar-text-active) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX CUSTOM DROPDOWN SELECT OVERRIDES (Task 2 & Task 4)
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Force select inputs within ClassApex toolbars/custom styles to have clean dimensions */
+select.cx-select,
+.cx-toolbar select.cx-select,
+.cx-file-toolbar select.cx-select,
+.cx-file-toolbar__left select.cx-select {
+  width: auto !important;
+  max-width: 220px !important;
+  min-width: 140px !important;
+  flex-shrink: 1 !important;
+  flex-grow: 0 !important;
+  padding: 6px 32px 6px 12px !important;
+  height: 38px !important;
+  line-height: 1.4 !important;
+  box-sizing: border-box !important;
 }
 
 

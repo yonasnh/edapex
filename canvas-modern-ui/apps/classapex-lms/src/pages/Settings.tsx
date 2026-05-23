@@ -30,7 +30,7 @@ const LOCALES = [
 ]
 
 const SettingsPage: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, accentColor, setAccentColor } = useTheme();
   const { locale, setLocale, t } = useI18n();
 
   // ── Load real user from Canvas API ──
@@ -447,7 +447,7 @@ const SettingsPage: React.FC = () => {
       <div className="cx-settings-section">
         <h2 className="cx-settings-section__title"><PaletteSvg /> {t('settings.appearance')}</h2>
         <div className="cx-section">
-          <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+          <div className="cx-settings-row">
             <div>
               <div className="cx-settings-row__label">{t('settings.theme')}</div>
               <div className="cx-settings-row__desc">Light or dark mode</div>
@@ -465,6 +465,103 @@ const SettingsPage: React.FC = () => {
                 style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <MoonSvg /> Dark
               </button>
+            </div>
+          </div>
+
+          <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="cx-settings-row__label">Accent Color</div>
+              <div className="cx-settings-row__desc">Select a theme highlight color for your workspace</div>
+            </div>
+            <div className="cx-settings-row__control" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                {[
+                  { name: 'Purple', value: '#8a3ffc' },
+                  { name: 'Blue', value: '#0f62fe' },
+                  { name: 'Green', value: '#10b981' },
+                  { name: 'Orange', value: '#ff832b' },
+                  { name: 'Red', value: '#da1e28' },
+                  { name: 'Pink', value: '#ec4899' },
+                  { name: 'Indigo', value: '#6366f1' },
+                ].map(color => (
+                  <button
+                    key={color.value}
+                    onClick={() => setAccentColor(color.value)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: color.value,
+                      border: accentColor === color.value ? '2px solid var(--cx-text-primary)' : '2px solid transparent',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                      transition: 'transform 0.2s, border-color 0.2s',
+                      transform: accentColor === color.value ? 'scale(1.1)' : 'scale(1)',
+                    }}
+                    className="cx-accent-swatch"
+                    title={color.name}
+                  >
+                    {accentColor === color.value && (
+                      <span style={{ color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                ))}
+                
+                {/* Custom Color Selector Swatch */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    border: !['#8a3ffc', '#0f62fe', '#10b981', '#ff832b', '#da1e28', '#ec4899', '#6366f1'].includes(accentColor) ? '2px solid var(--cx-text-primary)' : '2px solid var(--cx-border-subtle)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.2s',
+                    transform: !['#8a3ffc', '#0f62fe', '#10b981', '#ff832b', '#da1e28', '#ec4899', '#6366f1'].includes(accentColor) ? 'scale(1.1)' : 'scale(1)',
+                    background: !['#8a3ffc', '#0f62fe', '#10b981', '#ff832b', '#da1e28', '#ec4899', '#6366f1'].includes(accentColor) ? accentColor : 'conic-gradient(from 0deg, red, yellow, green, cyan, blue, magenta, red)',
+                  }} title="Custom Color">
+                    <input
+                      type="color"
+                      value={accentColor}
+                      onChange={(e) => setAccentColor(e.target.value)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                      }}
+                    />
+                    {!['#8a3ffc', '#0f62fe', '#10b981', '#ff832b', '#da1e28', '#ec4899', '#6366f1'].includes(accentColor) && (
+                      <span style={{ color: '#ffffff', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                  {!['#8a3ffc', '#0f62fe', '#10b981', '#ff832b', '#da1e28', '#ec4899', '#6366f1'].includes(accentColor) && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--cx-text-secondary)', fontFamily: 'var(--cm-font-family-mono, monospace)' }}>
+                      {accentColor.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

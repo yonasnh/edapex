@@ -1,4 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Read from default ".env" file.
+dotenv.config({ path: path.resolve(__dirname, '.env') })
 
 /**
  * Playwright Configuration for SchoolApex Modern UI
@@ -105,9 +114,9 @@ export default defineConfig({
   ],
 
   // Run your local dev server before starting the tests
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3001',
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER ? undefined : {
+    command: 'pnpm --filter @classapex/lms-frontend dev',
+    url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3003',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

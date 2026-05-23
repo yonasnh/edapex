@@ -38,6 +38,7 @@ interface TopBarProps {
   onSettingsClick?: () => void
   onLogout?: () => void
   breadcrumb?: ReactNode
+  'data-testid'?: string
 }
 
 // Pre-defined System Commands / Actions
@@ -65,6 +66,7 @@ export function TopBar({
   onSettingsClick,
   onLogout,
   breadcrumb,
+  'data-testid': testId,
 }: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -225,7 +227,7 @@ export function TopBar({
   }
 
   return (
-    <div className="cm-topbar">
+    <div className="cm-topbar" data-testid={testId}>
       <div className="cm-topbar__left">
         {breadcrumb}
       </div>

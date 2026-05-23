@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import clsx from 'clsx';
 import ReplyEditor from '../widgets/ReplyEditor';
+import { MediaLibrary } from '../widgets/MediaLibrary';
 
 interface Discussion {
   id: string;
@@ -57,6 +58,56 @@ const DiscussionsPage: React.FC = () => {
   const [editDiscussion, setEditDiscussion] = useState<any | null>(null);
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', courseId: '', tags: '' });
   const [entriesRefetch, setEntriesRefetch] = useState(0)
+  const [showPicker, setShowPicker] = useState(false);
+
+  const activeCourseId = editDiscussion ? (editDiscussion.course?.id || filterCourse) : (discussionForm.courseId || filterCourse);
+
+  const insertMediaIntoContent = (tag: string) => {
+    const ta = document.getElementById('disc-content') as HTMLTextAreaElement;
+    if (!ta) {
+      setDiscussionForm(p => ({ ...p, content: p.content + tag }));
+      return;
+    }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const before = discussionForm.content.slice(0, start);
+    const after = discussionForm.content.slice(end);
+    setDiscussionForm(p => ({ ...p, content: `${before}${tag}${after}` }));
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = start + tag.length;
+    }, 0);
+  };
+
+  const handleSelectMedia = (url: string, type: 'video' | 'audio' | 'image', title: string) => {
+    let tag = '';
+    if (type === 'video') {
+      tag = `<p><video src="${url}" controls style="max-width: 100%; width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);"></video></p>`;
+    } else if (type === 'audio') {
+      tag = `<p><audio src="${url}" controls style="max-width: 100%; width: 100%;"></audio></p>`;
+    } else if (type === 'image') {
+      tag = `<p><img src="${url}" alt="${title}" style="max-width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);" /></p>`;
+    }
+    insertMediaIntoContent(tag);
+    setShowPicker(false);
+  };
+
+  const handleInsertMediaUrl = () => {
+    const url = prompt('Enter Media URL (video, audio, or image):', 'https://');
+    if (!url) return;
+    const lowerUrl = url.toLowerCase();
+    let tag = '';
+    if (lowerUrl.match(/\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/)) {
+      tag = `<p><video src="${url}" controls style="max-width: 100%; width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);"></video></p>`;
+    } else if (lowerUrl.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/)) {
+      tag = `<p><audio src="${url}" controls style="max-width: 100%; width: 100%;"></audio></p>`;
+    } else if (lowerUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)$/)) {
+      tag = `<p><img src="${url}" style="max-width: 100%; border-radius: 8px; box-shadow: var(--cx-shadow-sm);" /></p>`;
+    } else {
+      tag = `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    }
+    insertMediaIntoContent(tag);
+  };
   
   // Live Canvas API Queries
   const { data: coursesData } = useCanvasQuery<any[]>('/api/v1/users/self/courses', { enrollment_state: 'active' } as any)
@@ -353,6 +404,7 @@ const DiscussionsPage: React.FC = () => {
               {showReply && replyToEntryId === null && (
                 <div style={{ marginBottom: 20, padding: '14px', background: 'var(--cx-bg-surface-raised, #f8fafc)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
                   <ReplyEditor
+                    courseId={filterCourse}
                     onSubmit={async (text) => {
                       try {
                         const res = await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`, {
@@ -420,6 +472,7 @@ const DiscussionsPage: React.FC = () => {
                             {replyToEntryId === String(entry.id) && (
                               <div style={{ marginTop: 10, padding: '12px', background: 'var(--cx-bg-surface-raised, #f8fafc)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
                                 <ReplyEditor
+                                  courseId={filterCourse}
                                   onSubmit={async (text) => {
                                     try {
                                       const res = await fetch(
@@ -491,7 +544,32 @@ const DiscussionsPage: React.FC = () => {
                 <input id="disc-title" className="cx-input" type="text" required value={discussionForm.title} onChange={e => setDiscussionForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Week 4 Discussion Topic" />
               </div>
               <div>
-                <label className="cx-form-label" htmlFor="disc-content" style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: 4 }}>Content</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label className="cx-form-label" htmlFor="disc-content" style={{ fontSize: '0.8125rem', fontWeight: 500, margin: 0 }}>Content</label>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      type="button"
+                      className="cx-btn cx-btn--ghost cx-btn--xs"
+                      onClick={handleInsertMediaUrl}
+                      style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                      title="Insert Media URL"
+                    >
+                      🌐 Media URL
+                    </button>
+                    {activeCourseId && (
+                      <button
+                        type="button"
+                        className="cx-btn cx-btn--ghost cx-btn--xs"
+                        onClick={() => setShowPicker(true)}
+                        style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                        title="Insert Course Media"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginRight: 4 }}><rect x="1" y="4" width="12" height="12" rx="2"/><path d="M13 7l6-3v12l-6-3"/></svg>
+                        Course Media
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <textarea id="disc-content" className="cx-input cx-input--textarea" rows={6} value={discussionForm.content} onChange={e => setDiscussionForm(p => ({ ...p, content: e.target.value }))} placeholder="Write your discussion prompt here..." />
               </div>
               <div>
@@ -510,6 +588,56 @@ const DiscussionsPage: React.FC = () => {
               <button className="cx-btn cx-btn--secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
               <button className="cx-btn cx-btn--primary" onClick={handleCreateDiscussion} disabled={!discussionForm.title.trim()}>
                 {editDiscussion ? 'Save Changes' : 'Create Discussion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPicker && activeCourseId && (
+        <div 
+          className="cx-modal-overlay" 
+          onClick={() => setShowPicker(false)}
+          style={{ zIndex: 1200 }}
+        >
+          <div 
+            className="cx-modal cx-modal--lg" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'rgba(30, 41, 59, 0.75)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.3)',
+              borderRadius: 16,
+              width: '90%',
+              maxWidth: 800,
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '85vh',
+              overflow: 'hidden'
+            }}
+          >
+            <div className="cx-modal__header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', flexShrink: 0 }}>
+              <h2 className="cx-modal__title" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>
+                Select Course Instructional Media
+              </h2>
+              <button 
+                className="cx-btn cx-btn--ghost" 
+                onClick={() => setShowPicker(false)}
+                style={{ color: '#fff', opacity: 0.8 }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="cx-modal__body" style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+              <MediaLibrary courseId={activeCourseId} isSelectMode={true} onSelectMedia={handleSelectMedia} />
+            </div>
+            <div style={{ display: 'flex', padding: 12, borderTop: '1px solid rgba(255,255,255,0.05)', justifyContent: 'flex-end', gap: 8, flexShrink: 0 }}>
+              <button 
+                className="cx-btn cx-btn--secondary cx-btn--sm" 
+                onClick={() => setShowPicker(false)}
+                style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none' }}
+              >
+                Cancel
               </button>
             </div>
           </div>

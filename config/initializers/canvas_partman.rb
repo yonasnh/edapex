@@ -18,5 +18,11 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 CanvasPartman.timeout_seconds = -> { Setting.get("partman_timeout_seconds", "30").to_i }
 CanvasPartman.after_create_callback = ->(parent_class, table) { parent_class.connection.add_guard_excessive_updates(table) }
-CanvasPartman.partition_creation_wrapper = ->(&block) { GuardRail.activate(:deploy) { block.call } }
+CanvasPartman.partition_creation_wrapper = lambda do |&block|
+  if ActiveRecord::Base.configurations.configs_for(env_name: Rails.env).any? { |c| c.name == "deploy" }
+    GuardRail.activate(:deploy) { block.call }
+  else
+    GuardRail.activate(:primary) { block.call }
+  end
+end
 CanvasPartman.request_cache = RequestCache

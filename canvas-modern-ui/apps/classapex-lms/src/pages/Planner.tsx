@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import './planner.css'
 
@@ -46,15 +47,119 @@ interface PlannerItem {
   new_activity?: boolean
 }
 
+// Helper to extract or construct client-side route from html_url or items fields
+const SUPPORTED_CLIENT_PATTERNS = [
+  /^\/dashboard\/?$/,
+  /^\/planner\/?$/,
+  /^\/assignments\/?$/,
+  /^\/grades\/?$/,
+  /^\/calendar\/?$/,
+  /^\/inbox\/?$/,
+  /^\/grading\/?$/,
+  /^\/discussions\/?$/,
+  /^\/files\/?$/,
+  /^\/groups\/?$/,
+  /^\/notifications\/?$/,
+  /^\/settings\/?$/,
+  /^\/profile\/?$/,
+  /^\/analytics\/?$/,
+  /^\/reports\/?$/,
+  /^\/courses\/?$/,
+  /^\/courses\/catalog\/?$/,
+  /^\/courses\/favorites\/?$/,
+  /^\/courses\/recent\/?$/,
+  /^\/courses\/\d+\/?$/,
+  /^\/courses\/\d+\/assignments\/?$/,
+  /^\/courses\/\d+\/assignments\/\d+\/?$/,
+  /^\/courses\/\d+\/quizzes\/?$/,
+  /^\/courses\/\d+\/pages\/?$/,
+  /^\/courses\/\d+\/rubrics\/?$/,
+  /^\/courses\/\d+\/outcomes\/?$/,
+  /^\/courses\/\d+\/external-tools\/?$/,
+  /^\/courses\/\d+\/discussions\/?$/
+]
+
+const isSupportedClientRoute = (path: string): boolean => {
+  const cleanPath = path.split('?')[0].split('#')[0]
+  return SUPPORTED_CLIENT_PATTERNS.some(regex => regex.test(cleanPath))
+}
+
+// Helper to extract or construct client-side route from html_url or items fields
+const getClientRoute = (item: PlannerItem): string | null => {
+  let targetRoute: string | null = null
+  const courseId = item.course_id || item.plannable.course_id
+  const plannableType = item.plannable_type
+  const plannableId = item.plannable_id
+  
+  // Cast plannable to any since assignment_id is present on graded quizzes/discussions
+  const plannableData = item.plannable as any
+  const assignmentId = plannableType === 'assignment' ? plannableId : plannableData?.assignment_id
+
+  // If this item has a known assignment_id, route it natively to AssignmentDetail
+  // This allows Assignments, Quizzes, and Discussions to open in the same window (SPA mode)
+  if (courseId && assignmentId) {
+    targetRoute = `/courses/${courseId}/assignments/${assignmentId}`
+  } else if (item.html_url) {
+    try {
+      const url = new URL(item.html_url, window.location.origin)
+      targetRoute = url.pathname + url.search + url.hash
+    } catch (e) {
+      if (item.html_url.startsWith('/')) targetRoute = item.html_url
+    }
+  }
+
+  if (!targetRoute && courseId) {
+    if (plannableType === 'quiz') {
+      targetRoute = `/courses/${courseId}/quizzes`
+    } else if (plannableType === 'discussion_topic') {
+      targetRoute = `/courses/${courseId}/discussions`
+    } else {
+      targetRoute = `/courses/${courseId}`
+    }
+  }
+
+  if (targetRoute && isSupportedClientRoute(targetRoute)) {
+    return targetRoute
+  }
+
+  return null
+}
+
+const ItemLink = ({ item, children }: { item: PlannerItem; children: React.ReactNode }) => {
+  const route = getClientRoute(item)
+
+  if (route) {
+    return (
+      <Link to={route} className="cx-planner-item__main-link">
+        {children}
+      </Link>
+    )
+  }
+
+  if (item.html_url) {
+    return (
+      <a href={item.html_url} className="cx-planner-item__main-link" target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    )
+  }
+
+  return (
+    <div className="cx-planner-item__main-link">
+      {children}
+    </div>
+  )
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const TYPE_ICONS: Record<string, { icon: string; className: string }> = {
-  assignment: { icon: '📝', className: 'cx-planner-item__type-icon--assignment' },
-  quiz: { icon: '❓', className: 'cx-planner-item__type-icon--quiz' },
-  discussion_topic: { icon: '💬', className: 'cx-planner-item__type-icon--discussion' },
-  calendar_event: { icon: '📅', className: 'cx-planner-item__type-icon--event' },
-  announcement: { icon: '📢', className: 'cx-planner-item__type-icon--announcement' },
-  planner_note: { icon: '📌', className: 'cx-planner-item__type-icon--assignment' },
+const TYPE_ICONS: Record<string, { icon: React.ReactNode; className: string }> = {
+  assignment: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2h8l4 4v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v4h4"/><path d="M7 10h6M7 13h4"/></svg>, className: 'cx-planner-item__type-icon--assignment' },
+  quiz: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M7.5 7.5a2.5 2.5 0 014.5 1.5c0 1.5-2 2-2 3.5"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg>, className: 'cx-planner-item__type-icon--quiz' },
+  discussion_topic: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1h-4l-3 3v-3H3a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg>, className: 'cx-planner-item__type-icon--discussion' },
+  calendar_event: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="14" height="14" rx="2"/><path d="M3 8h14M7 2v4M13 2v4"/></svg>, className: 'cx-planner-item__type-icon--event' },
+  announcement: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 5l-5 3H5v4h5l5 3V5z"/><path d="M17 8a4 4 0 010 4"/></svg>, className: 'cx-planner-item__type-icon--announcement' },
+  planner_note: { icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 3v14l5-3 5 3V3H5z"/></svg>, className: 'cx-planner-item__type-icon--assignment' },
 }
 
 function getWeekStart(date: Date): Date {
@@ -113,7 +218,7 @@ export default function PlannerPage() {
   const weekEnd = addDays(weekStart, 7)
 
   // Canvas Planner API
-  const { data: apiItems } = useCanvasQuery<PlannerItem[]>(
+  const { data: apiItems, isLoading } = useCanvasQuery<PlannerItem[]>(
     '/api/v1/planner/items',
     {
       start_date: weekStart.toISOString(),
@@ -127,7 +232,11 @@ export default function PlannerPage() {
   // Build completion state from overrides + local toggles
   const isCompleted = useCallback((item: PlannerItem): boolean => {
     if (completedMap[item.plannable_id] !== undefined) return completedMap[item.plannable_id]
-    return item.planner_override?.marked_complete || item.submissions?.submitted || false
+    return item.planner_override?.marked_complete || 
+           item.submissions?.submitted || 
+           item.submissions?.graded || 
+           item.submissions?.excused || 
+           false
   }, [completedMap])
 
   const toggleComplete = useCallback(async (item: PlannerItem) => {
@@ -174,18 +283,19 @@ export default function PlannerPage() {
 
   // Group by day
   const dayGroups = useMemo(() => {
-    const groups: { date: Date; items: PlannerItem[] }[] = []
+    const groups: { date: Date; items: PlannerItem[]; isOverdueGroup: boolean }[] = []
     const now = new Date()
 
     // Add overdue items as "Overdue" group
     const overdueItems = filteredItems.filter(i => {
+      const isSubmittable = ['assignment', 'quiz', 'discussion_topic', 'planner_note'].includes(i.plannable_type)
       const due = i.plannable.due_at ? new Date(i.plannable.due_at) : null
-      return due && due < today && !isCompleted(i)
+      return isSubmittable && due && due < today && !isCompleted(i)
     })
 
     if (overdueItems.length > 0 && weekOffset <= 0) {
       const overdueDateMarker = addDays(today, -1)
-      groups.push({ date: overdueDateMarker, items: overdueItems })
+      groups.push({ date: overdueDateMarker, items: overdueItems, isOverdueGroup: true })
     }
 
     // Days of the week
@@ -200,7 +310,7 @@ export default function PlannerPage() {
           const aTime = a.plannable.due_at ? new Date(a.plannable.due_at).getTime() : 0
           const bTime = b.plannable.due_at ? new Date(b.plannable.due_at).getTime() : 0
           return aTime - bTime
-        })})
+        }), isOverdueGroup: false })
       }
     }
 
@@ -214,12 +324,23 @@ export default function PlannerPage() {
     const discussions = filteredItems.filter(i => i.plannable_type === 'discussion_topic').length
     const overdue = filteredItems.filter(i => {
       const due = i.plannable.due_at ? new Date(i.plannable.due_at) : null
-      return due && due < new Date() && !isCompleted(i)
+      return due && due < today && !isCompleted(i)
     }).length
     const completed = filteredItems.filter(i => isCompleted(i)).length
     const total = filteredItems.length
     return { assignments, quizzes, discussions, overdue, completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 }
-  }, [filteredItems, isCompleted])
+  }, [filteredItems, isCompleted, today])
+
+  if (isLoading) {
+    return (
+      <div className="cx-planner">
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'80px 0',gap:'16px'}}>
+          <div className="cx-spinner" />
+          <span style={{color:'var(--cx-text-muted)',fontSize:'0.85rem'}}>Loading your schedule...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="cx-planner">
@@ -273,21 +394,21 @@ export default function PlannerPage() {
       {/* ── Progress Cards ── */}
       <div className="cx-planner__progress">
         <div className="cx-planner__progress-card">
-          <div className="cx-planner__progress-icon cx-planner__progress-icon--assignments">📝</div>
+          <div className="cx-planner__progress-icon cx-planner__progress-icon--assignments"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2h8l4 4v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v4h4"/><path d="M7 10h6M7 13h4"/></svg></div>
           <div>
             <div className="cx-planner__progress-value">{stats.assignments}</div>
             <div className="cx-planner__progress-label">Assignments</div>
           </div>
         </div>
         <div className="cx-planner__progress-card">
-          <div className="cx-planner__progress-icon cx-planner__progress-icon--quizzes">❓</div>
+          <div className="cx-planner__progress-icon cx-planner__progress-icon--quizzes"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M7.5 7.5a2.5 2.5 0 014.5 1.5c0 1.5-2 2-2 3.5"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg></div>
           <div>
             <div className="cx-planner__progress-value">{stats.quizzes}</div>
             <div className="cx-planner__progress-label">Quizzes</div>
           </div>
         </div>
         <div className="cx-planner__progress-card">
-          <div className="cx-planner__progress-icon cx-planner__progress-icon--discussions">💬</div>
+          <div className="cx-planner__progress-icon cx-planner__progress-icon--discussions"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 4h14a1 1 0 011 1v8a1 1 0 01-1 1h-4l-3 3v-3H3a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg></div>
           <div>
             <div className="cx-planner__progress-value">{stats.discussions}</div>
             <div className="cx-planner__progress-label">Discussions</div>
@@ -295,7 +416,7 @@ export default function PlannerPage() {
         </div>
         {stats.overdue > 0 && (
           <div className="cx-planner__progress-card">
-            <div className="cx-planner__progress-icon cx-planner__progress-icon--overdue">⚠️</div>
+            <div className="cx-planner__progress-icon cx-planner__progress-icon--overdue"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L1 18h18L10 2z"/><path d="M10 8v4"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg></div>
             <div>
               <div className="cx-planner__progress-value">{stats.overdue}</div>
               <div className="cx-planner__progress-label">Overdue</div>
@@ -307,7 +428,7 @@ export default function PlannerPage() {
       {/* ── Day Groups ── */}
       <div className="cx-planner__days">
         {dayGroups.map((group, gi) => {
-          const isOverdueGroup = group.date < today && !isSameDay(group.date, today)
+          const isOverdueGroup = group.isOverdueGroup
           const header = isOverdueGroup
             ? { name: 'Overdue', date: '', isToday: false }
             : formatDayHeader(group.date, today)
@@ -325,12 +446,12 @@ export default function PlannerPage() {
               </div>
 
               {group.items.length === 0 ? (
-                <div className="cx-planner__day-empty">Nothing due — enjoy your day! 🎉</div>
+                <div className="cx-planner__day-empty">Nothing due — enjoy your day!</div>
               ) : (
                 <ul className="cx-planner__items">
                   {group.items.map(item => {
                     const completed = isCompleted(item)
-                    const overdue = isOverdueGroup || (item.plannable.due_at && new Date(item.plannable.due_at) < new Date() && !completed)
+                    const overdue = isOverdueGroup || (item.plannable.due_at && new Date(item.plannable.due_at) < today && !completed)
                     const typeInfo = TYPE_ICONS[item.plannable_type] || TYPE_ICONS.assignment
 
                     return (
@@ -340,29 +461,38 @@ export default function PlannerPage() {
                       >
                         <button
                           className="cx-planner-item__check"
-                          onClick={() => toggleComplete(item)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            toggleComplete(item)
+                          }}
                           aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
                         >
                           {completed && <span className="cx-planner-item__check-mark">✓</span>}
                         </button>
-                        <div className={`cx-planner-item__type-icon ${typeInfo.className}`}>
-                          {typeInfo.icon}
-                        </div>
-                        <div className="cx-planner-item__content">
-                          <div className="cx-planner-item__title">{item.plannable.title}</div>
-                          <div className="cx-planner-item__course">{item.context_name}</div>
-                        </div>
-                        <div className="cx-planner-item__right">
-                          {overdue && !completed && (
-                            <span className="cx-planner-item__overdue-badge">Overdue</span>
-                          )}
-                          {item.plannable.points_possible && (
-                            <span className="cx-planner-item__points">{item.plannable.points_possible} pts</span>
-                          )}
-                          {item.plannable.due_at && (
-                            <span className="cx-planner-item__time">{formatTime(item.plannable.due_at)}</span>
-                          )}
-                        </div>
+                        <ItemLink item={item}>
+                          <div className={`cx-planner-item__type-icon ${typeInfo.className}`}>
+                            {typeInfo.icon}
+                          </div>
+                          <div className="cx-planner-item__content">
+                            <div className="cx-planner-item__title">{item.plannable.title}</div>
+                            <div className="cx-planner-item__course">{item.context_name}</div>
+                          </div>
+                          <div className="cx-planner-item__right">
+                            {overdue && !completed && (
+                              <span className="cx-planner-item__overdue-badge">Overdue</span>
+                            )}
+                            {completed && (
+                              <span className="cx-planner-item__completed-badge">Completed</span>
+                            )}
+                            {item.plannable.points_possible && (
+                              <span className="cx-planner-item__points">{item.plannable.points_possible} pts</span>
+                            )}
+                            {item.plannable.due_at && (
+                              <span className="cx-planner-item__time">{formatTime(item.plannable.due_at)}</span>
+                            )}
+                          </div>
+                        </ItemLink>
                       </li>
                     )
                   })}

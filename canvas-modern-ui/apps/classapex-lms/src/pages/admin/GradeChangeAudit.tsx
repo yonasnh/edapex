@@ -35,6 +35,12 @@ export default function GradeChangeAuditPage() {
   );
 
   const events: GradeChange[] = eventsData?.events || [];
+  
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+  };
 
   return (
     <div className="cx-page">
@@ -83,7 +89,7 @@ export default function GradeChangeAuditPage() {
               {(event) => (
                 <div key={event.id} className="cx-table__row" style={{ display: 'flex', alignItems: 'center', padding: '0 16px', height: 60, borderBottom: '1px solid var(--cx-border-subtle)' }}>
                   <div className="cx-table__cell cx-table__cell--muted" style={{ flex: 1 }}>
-                    {new Date(event.created_at).toLocaleString()}
+                    {formatDate(event.created_at)}
                   </div>
                   <div className="cx-table__cell" style={{ flex: 1 }}>
                     <div style={{ fontWeight: 500 }}>{event.course_id}</div>

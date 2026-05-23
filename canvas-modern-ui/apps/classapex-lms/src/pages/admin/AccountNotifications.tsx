@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useCanvasQuery, useCanvasMutation } from '../../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
+import { useNotification } from '../../hooks/useNotification';
 
 function BellSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2a6 6 0 00-6 6v3.5l-2 2.5v1h16v-1l-2-2.5V8a6 6 0 00-6-6zM8.5 17a1.5 1.5 0 103 0h-3z"/></svg>; }
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
@@ -28,21 +29,8 @@ function formatDateTimeLocal(isoString: string): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
 }
 
-async function csrfFetch(path: string, method: string, body?: object): Promise<Response> {
-  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
-  return fetch(path, {
-    method,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-CSRF-Token': decodeURIComponent(token),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
 export default function AccountNotificationsPage() {
+  const { showConfirm, showToast } = useNotification();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [subject, setSubject] = useState('');
@@ -71,17 +59,32 @@ export default function AccountNotificationsPage() {
         }
       };
 
-      const res = editingId
-        ? await csrfFetch(`/api/v1/accounts/1/account_notifications/${editingId}`, 'PUT', payload)
-        : await csrfFetch(`/api/v1/accounts/1/account_notifications`, 'POST', payload);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (editingId) {
+        await canvasFetch(`/api/v1/accounts/1/account_notifications/${editingId}`, {
+          method: 'PUT',
+          body: payload
+        });
+      } else {
+        await canvasFetch(`/api/v1/accounts/1/account_notifications`, {
+          method: 'POST',
+          body: payload
+        });
+      }
 
       resetForm();
+      showToast({
+        title: 'Notification Saved',
+        message: 'The account notification was saved successfully.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save announcement.');
+      showToast({
+        title: 'Failed to save announcement',
+        message: err.message || 'An error occurred while saving the announcement.',
+        type: 'error'
+      });
     } finally {
       setIsSavingLocal(false);
     }
@@ -98,14 +101,31 @@ export default function AccountNotificationsPage() {
   };
 
   const handleDeleteClick = async (id: number) => {
-    if (!confirm('Are you sure you want to permanently delete this notification for all users?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Notification',
+      message: 'Are you sure you want to permanently delete this notification for all users?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
-      const res = await csrfFetch(`/api/v1/accounts/1/account_notifications/${id}?remove=true`, 'DELETE');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await canvasFetch(`/api/v1/accounts/1/account_notifications/${id}?remove=true`, {
+        method: 'DELETE'
+      });
+      showToast({
+        title: 'Notification Deleted',
+        message: 'The notification was permanently deleted.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to delete notification.');
+      showToast({
+        title: 'Failed to delete notification',
+        message: err.message || 'An error occurred while deleting the notification.',
+        type: 'error'
+      });
     }
   };
 

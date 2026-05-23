@@ -76,7 +76,7 @@ export function NotificationDropdown({
         )}
       </div>
 
-      <div className="cx-notification-dropdown__body">
+      <div className="cx-notification-dropdown__body" aria-live="polite">
         {isLoading ? (
           <div className="cx-notification-dropdown__loading">
             <div className="cx-skeleton cx-skeleton--list" />

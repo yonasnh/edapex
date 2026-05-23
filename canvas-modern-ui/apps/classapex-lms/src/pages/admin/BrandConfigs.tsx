@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useCanvasQuery, useCanvasMutation } from '../../hooks/useCanvasQuery';
+import { useTheme } from '../../contexts/ThemeContext';
 
 function PaintSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 18V12"/><path d="M12 8H12.01"/></svg>; }
 
@@ -8,6 +9,7 @@ interface BrandConfig {
 }
 
 export default function BrandConfigsPage() {
+  const { setBrandConfig } = useTheme();
   const { data: brandConfig, isLoading, refetch } = useCanvasQuery<BrandConfig>(
     '/api/v1/accounts/1/brand_configs/current',
     {} as any
@@ -39,6 +41,13 @@ export default function BrandConfigsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     await mutate({ brand_config: { variables } });
+    setBrandConfig({
+      primaryColor: variables.ic_brand_primary || '#0055AA',
+      buttonColor: variables.ic_brand_button || '#0055AA',
+      buttonTextColor: variables.ic_brand_button_text || '#ffffff',
+      logoUrl: variables.ic_brand_header_image || '',
+      faviconUrl: variables.ic_brand_favicon || '',
+    });
     refetch();
   };
 

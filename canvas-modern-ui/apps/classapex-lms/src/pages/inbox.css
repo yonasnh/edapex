@@ -92,15 +92,34 @@
   border-color: var(--cx-primary, #6366f1);
 }
 
+/* ── Search — standard .cx-search layout ── */
+
 .cx-inbox__search {
   padding: 8px 16px;
   border-bottom: 1px solid var(--cx-border, #e2e8f0);
   flex-shrink: 0;
 }
 
-.cx-inbox__search-input {
+.cx-inbox__search .cx-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cx-inbox__search .cx-search__icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cx-text-muted, #94a3b8);
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+}
+
+.cx-inbox__search .cx-search__input {
   width: 100%;
-  padding: 8px 12px 8px 36px;
+  padding: 8px 12px 8px 34px;
   font-size: 0.85rem;
   border: 1px solid var(--cx-border, #e2e8f0);
   border-radius: 8px;
@@ -108,32 +127,40 @@
   color: var(--cx-text-primary, #0f172a);
   outline: none;
   transition: border-color 0.15s;
+  font-family: inherit;
 }
 
-.cx-inbox__search-input:focus {
+.cx-inbox__search .cx-search__input:focus {
   border-color: var(--cx-primary, #6366f1);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-.cx-inbox__search-wrap {
-  position: relative;
-}
-
-.cx-inbox__search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--cx-text-muted, #94a3b8);
-  pointer-events: none;
-}
+/* ── Conversation List with always-visible scrollbar ── */
 
 .cx-inbox__conversations {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.cx-inbox__conversations::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cx-inbox__conversations::-webkit-scrollbar-track {
+  background: var(--cx-surface-raised, #f1f5f9);
+  border-radius: 3px;
+}
+
+.cx-inbox__conversations::-webkit-scrollbar-thumb {
+  background: var(--cx-border, #cbd5e1);
+  border-radius: 3px;
+}
+
+.cx-inbox__conversations::-webkit-scrollbar-thumb:hover {
+  background: var(--cx-text-muted, #94a3b8);
 }
 
 /* ── Conversation Item ── */
@@ -154,7 +181,7 @@
 
 .cx-convo-item--active {
   background: var(--cx-primary-light, #eef2ff);
-  border-left: 3px solid var(--cx-primary, #6366f1);
+  border-top: 3px solid var(--cx-primary, #6366f1);
 }
 
 .cx-convo-item--unread .cx-convo-item__subject {
@@ -269,8 +296,10 @@
 }
 
 .cx-inbox__detail-empty-icon {
-  font-size: 3rem;
-  opacity: 0.4;
+  width: 48px;
+  height: 48px;
+  opacity: 0.35;
+  color: var(--cx-text-muted, #94a3b8);
 }
 
 .cx-inbox__detail-empty p {
@@ -310,11 +339,29 @@
 
 .cx-inbox__messages {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.cx-inbox__messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cx-inbox__messages::-webkit-scrollbar-track {
+  background: var(--cx-surface-raised, #f1f5f9);
+  border-radius: 3px;
+}
+
+.cx-inbox__messages::-webkit-scrollbar-thumb {
+  background: var(--cx-border, #cbd5e1);
+  border-radius: 3px;
+}
+
+.cx-inbox__messages::-webkit-scrollbar-thumb:hover {
+  background: var(--cx-text-muted, #94a3b8);
 }
 
 .cx-message {

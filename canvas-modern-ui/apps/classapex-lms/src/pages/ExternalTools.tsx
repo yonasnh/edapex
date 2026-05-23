@@ -354,7 +354,7 @@ export default function ExternalToolsPage() {
                     }}>
                       <div style={{ background: 'var(--cx-bg-surface-raised)', padding: '6px 12px', fontSize: '0.72rem', display: 'flex', gap: 6, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>
                         <span style={{ color: '#ef4444' }}>●</span><span style={{ color: '#eab308' }}>●</span><span style={{ color: '#22c55e' }}>●</span>
-                        <span style={{ marginLeft: 6, fontFamily: 'monospace', color: 'var(--cx-text-tertiary)' }}>{launchingTool.url}</span>
+                        <span style={{ marginLeft: 6, fontFamily: 'var(--cm-font-family-mono, monospace)', color: 'var(--cx-text-tertiary)' }}>{launchingTool.url}</span>
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center' }}>
                         <span style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚡</span>
@@ -379,7 +379,7 @@ export default function ExternalToolsPage() {
                     <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold', borderBottom: '1px solid #1e293b', paddingBottom: 6, marginBottom: 10 }}>
                       LTI postMessage Handshake Console
                     </span>
-                    <div style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ flex: 1, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {ltiLogs.map((log, index) => <div key={index}>&gt; {log}</div>)}
                     </div>
                   </div>
@@ -441,11 +441,11 @@ export default function ExternalToolsPage() {
                   <tr key={key.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{key.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', fontFamily: 'monospace', marginTop: 2 }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', fontFamily: 'var(--cm-font-family-mono, monospace)', marginTop: 2 }}>
                         Client ID: {key.client_id}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--cx-text-primary)' }}>{key.secret}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.75rem', color: 'var(--cx-text-primary)' }}>{key.secret}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>{key.contact_email}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <span className={`cx-badge ${key.status === 'active' ? 'cx-badge--success' : 'cx-badge--neutral'}`}>
@@ -499,7 +499,7 @@ export default function ExternalToolsPage() {
           {/* SCORM API Monitor Console */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Simulated SCORM Runtime Stream</h3>
-            <div style={{ flex: 1, background: '#0f172a', color: '#10b981', padding: '16px', borderRadius: 8, fontFamily: 'monospace', fontSize: '0.72rem', minHeight: '220px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, background: '#0f172a', color: '#10b981', padding: '16px', borderRadius: 8, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', minHeight: '220px', overflowY: 'auto' }}>
               <div style={{ color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6, marginBottom: 10, fontWeight: 'bold' }}>
                 SCORM API_1484_11 bindings log
               </div>

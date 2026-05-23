@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import clsx from 'clsx';
+import { useAuth } from '@schoolapex/core';
+import { useNotification } from '../hooks/useNotification';
 
 interface CalendarEvent {
   id: string;
@@ -41,7 +43,24 @@ function getTypeColor(type: string) {
 
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 
+const parseEventDescription = (desc: string | undefined) => {
+  if (!desc) return { parsedType: 'other' as const, parsedDesc: '' }
+  if (desc.startsWith('Type: ')) {
+    const lines = desc.split('\n')
+    const typeLine = lines[0]
+    const val = typeLine.replace('Type: ', '').trim()
+    if (['assignment', 'exam', 'lecture', 'meeting', 'deadline', 'other'].includes(val)) {
+      return {
+        parsedType: val as CalendarEvent['type'],
+        parsedDesc: lines.slice(1).join('\n').trim(),
+      }
+    }
+  }
+  return { parsedType: 'other' as const, parsedDesc: desc }
+}
+
 const CalendarPage: React.FC = () => {
+  const { showConfirm, showToast } = useNotification();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'agenda'>('month');
   const [filterCourse, setFilterCourse] = useState('all');
@@ -55,31 +74,96 @@ const CalendarPage: React.FC = () => {
     location: '', type: 'other', isAllDay: false,
   });
 
+  const { user } = useAuth();
+
   // Live Canvas API — courses and calendar events
-  const { data: coursesData } = useCanvasQuery<any[]>(
+  const { data: coursesData, isLoading: isLoadingCourses } = useCanvasQuery<any[]>(
     '/api/v1/courses',
     { enrollment_state: 'active', per_page: 50 } as any
   )
   const courses = Array.isArray(coursesData) ? coursesData : []
 
-  const { data: eventsData, refetch } = useCanvasQuery<any[]>('/api/v1/calendar_events', { all_events: true, per_page: 100 } as any)
+  // Construct active context codes: user calendar + active course calendars
+  const contextCodes = useMemo(() => {
+    if (!user?.id || !coursesData) return []
+    const codes: string[] = [`user_${user.id}`]
+    courses.forEach(c => {
+      if (c.id) {
+        codes.push(`course_${c.id}`)
+      }
+    })
+    return codes
+  }, [user, courses, coursesData])
+
+  // Fetch standard calendar events
+  const { data: eventsData, refetch: refetchEvents } = useCanvasQuery<any[]>(
+    '/api/v1/calendar_events',
+    {
+      all_events: true,
+      per_page: 100,
+      type: 'event',
+      context_codes: contextCodes,
+    } as any,
+    { enabled: !isLoadingCourses && contextCodes.length > 0 }
+  )
+
+  // Fetch course assignments as events
+  const { data: assignmentsData, refetch: refetchAssignments } = useCanvasQuery<any[]>(
+    '/api/v1/calendar_events',
+    {
+      all_events: true,
+      per_page: 100,
+      type: 'assignment',
+      context_codes: contextCodes,
+    } as any,
+    { enabled: !isLoadingCourses && contextCodes.length > 0 }
+  )
+
+  const refetchAll = useCallback(async () => {
+    await Promise.all([refetchEvents(), refetchAssignments()])
+  }, [refetchEvents, refetchAssignments])
   
-  // Map Canvas API events to internal CalendarEvent shape
+  // Map Canvas API events and assignments to internal CalendarEvent shape
   const events = useMemo(() => {
-    if (!Array.isArray(eventsData)) return [];
-    return eventsData.map(e => ({
-      id: String(e.id),
-      title: e.title || e.name || 'Untitled Event',
-      description: e.description,
-      startDate: e.start_at || e.created_at,
-      endDate: e.end_at,
-      location: e.location_name,
-      type: (e.type === 'assignment' ? 'assignment' : 'other') as CalendarEvent['type'],
-      course: courses.find(c => String(c.id) === String(e.context_code?.replace('course_', ''))),
-      isAllDay: e.all_day,
-      status: 'upcoming' as const,
-    }))
-  }, [eventsData, courses])
+    const list: CalendarEvent[] = []
+
+    if (Array.isArray(eventsData)) {
+      eventsData.forEach(e => {
+        const { parsedType, parsedDesc } = parseEventDescription(e.description)
+        list.push({
+          id: String(e.id),
+          title: e.title || e.name || 'Untitled Event',
+          description: parsedDesc,
+          startDate: e.start_at || e.created_at,
+          endDate: e.end_at,
+          location: e.location_name,
+          type: parsedType,
+          course: courses.find(c => String(c.id) === String(e.context_code?.replace('course_', ''))),
+          isAllDay: e.all_day,
+          status: 'upcoming' as const,
+        })
+      })
+    }
+
+    if (Array.isArray(assignmentsData)) {
+      assignmentsData.forEach(e => {
+        list.push({
+          id: String(e.id),
+          title: e.title || e.name || 'Untitled Assignment',
+          description: e.description || '',
+          startDate: e.start_at || e.end_at || e.created_at,
+          endDate: e.end_at,
+          location: e.location_name || 'Online Submission',
+          type: 'assignment',
+          course: courses.find(c => String(c.id) === String(e.context_code?.replace('course_', ''))),
+          isAllDay: e.all_day,
+          status: 'upcoming' as const,
+        })
+      })
+    }
+
+    return list
+  }, [eventsData, assignmentsData, courses])
 
   const filteredEvents = useMemo(() => {
     let filtered = [...events];
@@ -165,13 +249,18 @@ const CalendarPage: React.FC = () => {
   const handleSaveEvent = async () => {
     if (!eventForm.title?.trim()) return;
     try {
+      const contextCode = eventForm.course?.id
+        ? `course_${eventForm.course.id}`
+        : (user?.id ? `user_${user.id}` : 'user_self')
+
+      // Encode custom event type into the description field
+      const serializedDescription = `Type: ${eventForm.type || 'other'}\n${eventForm.description || ''}`
+
       const body: Record<string, any> = {
-        'calendar_event[context_code]': eventForm.course?.id
-          ? `course_${eventForm.course.id}`
-          : 'user_self',
+        'calendar_event[context_code]': contextCode,
         'calendar_event[title]': eventForm.title,
+        'calendar_event[description]': serializedDescription,
       }
-      if (eventForm.description) body['calendar_event[description]'] = eventForm.description
       if (eventForm.startDate) body['calendar_event[start_at]'] = new Date(eventForm.startDate).toISOString()
       if (eventForm.endDate) body['calendar_event[end_at]'] = new Date(eventForm.endDate).toISOString()
       if (eventForm.location) body['calendar_event[location_name]'] = eventForm.location
@@ -193,16 +282,40 @@ const CalendarPage: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
       setShowEventModal(false)
-      refetch()
-    } catch (err) {
+      refetchAll()
+      showToast({
+        title: isEditing ? 'Event Updated' : 'Event Created',
+        message: isEditing ? 'The event was successfully updated.' : 'The event was successfully created.',
+        type: 'success'
+      })
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to save event. Check your permissions.')
+      showToast({
+        title: 'Save Failed',
+        message: 'Failed to save event. Check your permissions.',
+        type: 'error'
+      })
     }
   };
 
   const handleDeleteEvent = async () => {
     if (!editingEvent) return
-    if (!confirm('Delete this event?')) return
+    if (editingEvent.id.startsWith('assignment_')) {
+      showToast({
+        title: 'Delete Restricted',
+        message: 'Assignments cannot be deleted from the calendar page. Please manage them from the Course Assignments page.',
+        type: 'warning'
+      })
+      return
+    }
+    const isConfirmed = await showConfirm({
+      title: 'Delete Event',
+      message: 'Are you sure you want to delete this event? This cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    })
+    if (!isConfirmed) return
     try {
       const res = await fetch(`/api/v1/calendar_events/${editingEvent.id}`, {
         method: 'DELETE',
@@ -210,10 +323,19 @@ const CalendarPage: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setShowEventModal(false)
       setSelectedEvent(null)
-      refetch()
-    } catch (err) {
+      refetchAll()
+      showToast({
+        title: 'Event Deleted',
+        message: 'The event was successfully deleted.',
+        type: 'success'
+      })
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to delete event.')
+      showToast({
+        title: 'Delete Failed',
+        message: 'Failed to delete event.',
+        type: 'error'
+      })
     }
   };
 
@@ -286,10 +408,19 @@ const CalendarPage: React.FC = () => {
         body: new URLSearchParams(body).toString(),
       })
       if (!res.ok) throw new Error('Failed to reschedule')
-      refetch()
-    } catch (err) {
+      refetchAll()
+      showToast({
+        title: 'Event Moved',
+        message: 'The event was successfully rescheduled.',
+        type: 'success'
+      })
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to reschedule event.')
+      showToast({
+        title: 'Reschedule Failed',
+        message: 'Failed to reschedule event.',
+        type: 'error'
+      })
     }
   }
 
@@ -588,7 +719,16 @@ const CalendarPage: React.FC = () => {
             <div className="cx-modal__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 {editingEvent && (
-                  <button className="cx-btn cx-btn--danger cx-btn--sm" onClick={handleDeleteEvent}>Delete</button>
+                  editingEvent.id.startsWith('assignment_') ? (
+                    <span 
+                      style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}
+                      title="Assignments must be deleted from the course assignments list."
+                    >
+                      Delete Disabled
+                    </span>
+                  ) : (
+                    <button className="cx-btn cx-btn--danger cx-btn--sm" onClick={handleDeleteEvent}>Delete</button>
+                  )
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>

@@ -20,9 +20,11 @@ function XSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="n
 function CalendarSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2.5" y="3.5" width="15" height="14" rx="2"/><path d="M2.5 6.5h15"/><path d="M6 2v3M14 2v3"/></svg> }
 function CheckSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 7l3 3 5-6"/></svg> }
 
-import { useCanvasQuery } from '../../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery'
+import { useNotification } from '../../hooks/useNotification'
 
 export default function TermsPage() {
+  const { showConfirm, showToast } = useNotification()
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', startDate: '', endDate: '' })
@@ -54,39 +56,70 @@ export default function TermsPage() {
     if (!form.name.trim()) return
     
     try {
-      const formData = new URLSearchParams()
-      formData.append('enrollment_term[name]', form.name)
-      if (form.startDate) formData.append('enrollment_term[start_at]', new Date(form.startDate).toISOString())
-      if (form.endDate) formData.append('enrollment_term[end_at]', new Date(form.endDate).toISOString())
+      const payload: Record<string, any> = {
+        enrollment_term: {
+          name: form.name,
+          start_at: form.startDate ? new Date(form.startDate).toISOString() : null,
+          end_at: form.endDate ? new Date(form.endDate).toISOString() : null,
+        }
+      }
 
       const url = editingId ? `/api/v1/accounts/1/terms/${editingId}` : `/api/v1/accounts/1/terms`
       const method = editingId ? 'PUT' : 'POST'
 
-      const res = await fetch(url, {
+      await canvasFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        body: payload
       })
-      if (!res.ok) throw new Error('Failed to save term')
       
+      showToast({
+        title: editingId ? 'Term Updated' : 'Term Created',
+        message: `Successfully ${editingId ? 'updated' : 'created'} term details.`,
+        type: 'success'
+      })
       resetForm()
       refetch()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to save term.')
+      showToast({
+        title: 'Failed to save term',
+        message: err.message || 'An error occurred while saving the term.',
+        type: 'error'
+      })
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this term?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Term',
+      message: 'Are you sure you want to delete this term? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
-      const res = await fetch(`/api/v1/accounts/1/terms/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete term')
+      await canvasFetch(`/api/v1/accounts/1/terms/${id}`, { method: 'DELETE' })
+      showToast({
+        title: 'Term Deleted',
+        message: 'Successfully deleted the term.',
+        type: 'success'
+      })
       refetch()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to delete term.')
+      showToast({
+        title: 'Failed to delete term',
+        message: err.message || 'An error occurred while deleting the term.',
+        type: 'error'
+      })
     }
+  }
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '—'
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString()
   }
 
   const statusLabel = (s: Term['status']) => {
@@ -122,8 +155,8 @@ export default function TermsPage() {
           <div key={i} className="cx-stat-card">
             <div className="cx-stat-card__icon" style={{ color: s.color }}>{s.icon}</div>
             <div className="cx-stat-card__body">
-              <div className="cx-stat-card__value">{s.value}</div>
               <div className="cx-stat-card__label">{s.label}</div>
+              <div className="cx-stat-card__value">{s.value}</div>
             </div>
           </div>
         ))}
@@ -172,8 +205,8 @@ export default function TermsPage() {
             {mockTerms.map(term => (
               <tr key={term.id}>
                 <td className="cx-table__cell cx-table__cell--name">{term.name}</td>
-                <td className="cx-table__cell">{new Date(term.startDate).toLocaleDateString()}</td>
-                <td className="cx-table__cell">{new Date(term.endDate).toLocaleDateString()}</td>
+                <td className="cx-table__cell">{formatDate(term.startDate)}</td>
+                <td className="cx-table__cell">{formatDate(term.endDate)}</td>
                 <td className="cx-table__cell">{statusLabel(term.status)}</td>
                 <td className="cx-table__cell">{term.courseCount}</td>
                 <td className="cx-table__cell">{term.enrollmentCount}</td>

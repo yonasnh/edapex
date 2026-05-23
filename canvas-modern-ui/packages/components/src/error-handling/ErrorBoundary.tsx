@@ -199,7 +199,7 @@ User Agent: ${navigator.userAgent}
       }
 
       return (
-        <div className={clsx('error-boundary', `error-boundary--${level}`, className)}>
+        <div className={clsx('error-boundary', `error-boundary--${level}`, className)} data-testid="error-boundary">
           <div className="error-boundary__container">
             <div className="error-boundary__icon">
               <WarningFilledIcon size={level === 'page' ? 48 : 32} />

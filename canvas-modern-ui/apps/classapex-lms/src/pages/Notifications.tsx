@@ -322,7 +322,7 @@ const NotificationsPage: React.FC = () => {
                 <div className="cx-notification-item__message">{n.message}</div>
                 <div className="cx-notification-item__time">{formatTime(n.timestamp)}</div>
               </div>
-              <div>
+              <div className="cx-notification-item__category">
                 <span className="cx-badge cx-badge--neutral">{n.category}</span>
               </div>
             </div>

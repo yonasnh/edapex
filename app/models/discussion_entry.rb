@@ -58,6 +58,20 @@ class DiscussionEntry < ApplicationRecord
   has_one :external_feed_entry, as: :asset
   has_many :attachment_associations, as: :context, inverse_of: :context
 
+  # Safely fallback to virtual attribute if database column is missing in local environment
+  has_lti_id_col = begin
+    ActiveRecord::Base.connection.column_exists?(:discussion_entries, :lti_id)
+  rescue
+    false
+  end
+
+  unless has_lti_id_col
+    attr_accessor :lti_id
+
+    def lti_id_changed? = false
+    def lti_id_was = nil
+  end
+
   before_validation :set_depth, on: :create
   before_save :set_edited_at
   before_create :infer_root_entry_id

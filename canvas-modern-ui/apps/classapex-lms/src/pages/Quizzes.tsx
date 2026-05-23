@@ -10,9 +10,10 @@
  *  POST /api/v1/courses/:id/quizzes/:id/submissions/:id/complete  — submit
  */
 
-import React, { useState, useCallback, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import './assignment.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,22 +52,6 @@ interface QuizSubmission {
   time_spent?: number
 }
 
-// ─── CSRF helper ──────────────────────────────────────────────────────────────
-
-async function csrfFetch(path: string, method: string, body?: object): Promise<Response> {
-  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
-  return fetch(path, {
-    method,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-CSRF-Token': decodeURIComponent(token),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-}
-
 // ─── Quiz Taker ───────────────────────────────────────────────────────────────
 
 function QuizTaker({
@@ -97,19 +82,30 @@ function QuizTaker({
   )
   const questions = rawQuestions ?? []
 
+  // Check for existing user submission to prevent 409 and enable resuming
+  const { data: existingSubData } = useCanvasQuery<any>(
+    `/api/v1/courses/${courseId}/quizzes/${quizId}/submission`
+  )
+  const existingSubmission = existingSubData?.quiz_submissions?.[0]
+  const hasInProgress = existingSubmission && existingSubmission.workflow_state === 'untaken'
+
   const handleStart = useCallback(async () => {
+    if (existingSubmission && existingSubmission.workflow_state === 'untaken') {
+      setSubmission(existingSubmission)
+      return
+    }
     setStarting(true); setError(null)
     try {
-      const res = await csrfFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}/submissions`, 'POST')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
+      const json = await canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}/submissions`, {
+        method: 'POST'
+      })
       setSubmission(json.quiz_submissions?.[0] ?? null)
     } catch (e: any) {
       setError(e.message || 'Could not start quiz')
     } finally {
       setStarting(false)
     }
-  }, [courseId, quizId])
+  }, [courseId, quizId, existingSubmission])
 
   const handleAnswer = (qId: number, value: string | string[]) => {
     setAnswers(prev => ({ ...prev, [qId]: value }))
@@ -124,10 +120,12 @@ function QuizTaker({
         id: q.id,
         answer: answers[q.id] ?? '',
       }))
-      await csrfFetch(
+      await canvasFetch(
         `/api/v1/courses/${courseId}/quizzes/${quizId}/submissions/${submission.id}/complete`,
-        'POST',
-        { attempt: submission.attempt, quiz_questions }
+        {
+          method: 'POST',
+          body: { attempt: submission.attempt, quiz_questions }
+        }
       )
       setSubmitted(true)
     } catch (e: any) {
@@ -170,26 +168,34 @@ function QuizTaker({
 
   if (submitted) {
     return (
-      <div className="cx-page" style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center', paddingTop: 48 }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cx-text-primary)', marginBottom: 8 }}>
-          Quiz Submitted!
-        </h2>
-        <p style={{ color: 'var(--cx-text-secondary)', marginBottom: 24 }}>
-          Your answers have been recorded. Scores will be available after grading.
-        </p>
-        <button className="cx-btn cx-btn--primary" onClick={onExit}>Back to Quizzes</button>
+      <div className="cx-page cx-quiz-taker-detail">
+        <div className="cx-card" style={{ margin: '48px auto 0', padding: 32, textAlign: 'center', background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 12 }}>
+          <div style={{ marginBottom: 16, color: 'var(--cx-color-success, #10b981)' }}><svg width="64" height="64" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M6.5 10l2.5 2.5 5-5"/></svg></div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--cx-text-primary)', marginBottom: 8 }}>
+            Quiz Submitted!
+          </h2>
+          <p style={{ color: 'var(--cx-text-secondary)', marginBottom: 24 }}>
+            Your answers have been recorded. Scores will be available after grading.
+          </p>
+          <button className="cx-btn cx-btn--primary" onClick={onExit}>Back to Quizzes</button>
+        </div>
       </div>
     )
   }
 
   if (!submission) {
+    const attemptsLeft = quiz.allowed_attempts === -1 
+      ? true 
+      : existingSubmission 
+        ? existingSubmission.attempt < quiz.allowed_attempts 
+        : true
+
     return (
-      <div className="cx-page" style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div className="cx-page cx-quiz-taker-detail">
         <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={onExit} style={{ marginBottom: 16 }}>
-          ← Back
+          ← Back to Quizzes
         </button>
-        <div className="cx-card" style={{ padding: 32 }}>
+        <div className="cx-card" style={{ padding: 32, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 12 }}>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8, color: 'var(--cx-text-primary)' }}>
             {quiz.title}
           </h1>
@@ -199,14 +205,39 @@ function QuizTaker({
               dangerouslySetInnerHTML={{ __html: quiz.description }}
             />
           )}
+
+          {existingSubmission && (existingSubmission.workflow_state === 'complete' || existingSubmission.score !== undefined) && (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+              borderRadius: 12,
+              padding: '16px 20px',
+              marginBottom: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%'
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--cx-color-success, #10b981)' }}>Quiz Completed!</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--cx-text-secondary)', marginTop: 2 }}>
+                  Attempt #{existingSubmission.attempt}
+                </div>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--cx-text-primary)' }}>
+                {existingSubmission.score} / {quiz.points_possible} pts
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px 24px', marginBottom: 28 }}>
             {[
               { label: 'Questions', value: quiz.question_count },
               { label: 'Points', value: quiz.points_possible },
               { label: 'Time Limit', value: quiz.time_limit ? `${quiz.time_limit} min` : 'None' },
-              { label: 'Attempts', value: quiz.allowed_attempts === -1 ? 'Unlimited' : quiz.allowed_attempts },
+              { label: 'Attempts Allowed', value: quiz.allowed_attempts === -1 ? 'Unlimited' : quiz.allowed_attempts },
             ].map(({ label, value }) => (
-              <div key={label} style={{ background: 'var(--cx-bg-surface-raised, #f8fafc)', borderRadius: 8, padding: '10px 14px' }}>
+              <div key={label} style={{ background: 'var(--cx-bg-surface-sunken)', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--cx-border-subtle)' }}>
                 <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
                 <div style={{ fontWeight: 700, color: 'var(--cx-text-primary)', marginTop: 4 }}>{value}</div>
               </div>
@@ -214,10 +245,16 @@ function QuizTaker({
           </div>
           {error && <p style={{ color: '#ef4444', marginBottom: 12, fontSize: '0.875rem' }}>{error}</p>}
           {quiz.locked_for_user ? (
-            <p style={{ color: 'var(--cx-text-tertiary)', fontStyle: 'italic' }}>This quiz is locked.</p>
+            <p style={{ color: 'var(--cx-text-tertiary)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 8V6a4 4 0 018 0v2M5 8h10a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z"/></svg> This quiz is locked.
+            </p>
+          ) : !attemptsLeft ? (
+            <div style={{ textAlign: 'center', color: 'var(--cx-text-tertiary)', fontStyle: 'italic', padding: '12px', border: '1px dashed var(--cx-border-subtle)', borderRadius: 8, background: 'var(--cx-bg-surface-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+               <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M13 7L7 13M7 7l6 6"/></svg> Attempt limit reached ({quiz.allowed_attempts} attempts allowed)
+            </div>
           ) : (
             <button className="cx-btn cx-btn--primary" onClick={handleStart} disabled={starting}>
-              {starting ? 'Starting…' : 'Start Quiz'}
+              {starting ? 'Starting…' : hasInProgress ? 'Resume Quiz' : existingSubmission ? 'Take Quiz Again' : 'Start Quiz'}
             </button>
           )}
         </div>
@@ -229,7 +266,8 @@ function QuizTaker({
   const progress = Math.round(((currentQ + 1) / questions.length) * 100)
 
   return (
-    <div className="cx-page" style={{ maxWidth: 720, margin: '0 auto' }}>
+    <div className="cx-page cx-quiz-taker-detail">
+      <div style={{ margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ fontWeight: 700, color: 'var(--cx-text-primary)', margin: 0 }}>{quiz.title}</h2>
@@ -291,7 +329,7 @@ function QuizTaker({
                         display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
                         padding: '16px 20px', borderRadius: 12, border: '2px solid',
                         borderColor: isSelected ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
-                        background: isSelected ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-raised, #f8fafc)',
+                        background: isSelected ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-sunken)',
                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: isSelected ? 'scale(1.01)' : 'scale(1)',
                         boxShadow: isSelected ? '0 4px 12px rgba(99,102,241,0.12)' : 'none',
@@ -339,7 +377,7 @@ function QuizTaker({
                         display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
                         padding: '16px 20px', borderRadius: 12, border: '2px solid',
                         borderColor: checked ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
-                        background: checked ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-raised, #f8fafc)',
+                        background: checked ? 'rgba(99,102,241,0.08)' : 'var(--cx-bg-surface-sunken)',
                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: checked ? 'scale(1.01)' : 'scale(1)',
                         boxShadow: checked ? '0 4px 12px rgba(99,102,241,0.12)' : 'none',
@@ -390,7 +428,7 @@ function QuizTaker({
                   padding: 16,
                   borderRadius: 12,
                   borderColor: 'var(--cx-border-subtle)',
-                  background: 'var(--cx-bg-surface-raised, #f8fafc)',
+                  background: 'var(--cx-bg-surface-sunken)',
                   color: 'var(--cx-text-primary)',
                   boxShadow: 'none',
                   minHeight: q.question_type === 'essay_question' ? 180 : 80
@@ -473,6 +511,7 @@ function QuizTaker({
         )}
       </div>
     </div>
+  </div>
   )
 }
 
@@ -480,7 +519,30 @@ function QuizTaker({
 
 export default function QuizzesPage() {
   const { courseId } = useParams<{ courseId: string }>()
-  const [selectedQuizId, setSelectedQuizId] = useState<number | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const queryParams = new URLSearchParams(location.search)
+  const quizIdFromQuery = queryParams.get('quiz_id')
+
+  const [selectedQuizId, setSelectedQuizId] = useState<number | null>(() => {
+    return quizIdFromQuery ? parseInt(quizIdFromQuery, 10) : null
+  })
+
+  useEffect(() => {
+    if (quizIdFromQuery) {
+      const qid = parseInt(quizIdFromQuery, 10)
+      if (!isNaN(qid)) {
+        setSelectedQuizId(qid)
+      }
+    }
+  }, [quizIdFromQuery])
+
+  const handleExit = useCallback(() => {
+    setSelectedQuizId(null)
+    if (courseId) {
+      navigate(`/courses/${courseId}/quizzes`, { replace: true })
+    }
+  }, [courseId, navigate])
 
   const { data: quizzes, isLoading } = useCanvasQuery<Quiz[]>(
     courseId ? `/api/v1/courses/${courseId}/quizzes` : '',
@@ -492,37 +554,44 @@ export default function QuizzesPage() {
       <QuizTaker
         courseId={courseId}
         quizId={selectedQuizId}
-        onExit={() => setSelectedQuizId(null)}
+        onExit={handleExit}
       />
     )
   }
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header" style={{ paddingTop: 0 }}>
-        <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)' }}>Quizzes</h2>
+      <div className="cx-page__header" style={{ paddingTop: 0, marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Quizzes</h2>
+        <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Practice knowledge checks, graded quizzes, and surveys.</p>
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[1, 2, 3].map(i => <div key={i} className="cx-skeleton" style={{ height: 80, borderRadius: 10 }} />)}
         </div>
       ) : !quizzes || quizzes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--cx-text-tertiary)' }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📝</div>
+          <div style={{ marginBottom: 12 }}><svg width="48" height="48" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="1.5" width="14" height="17" rx="2"/><path d="M7 6h6M7 10h6M7 14h4"/></svg></div>
           <p>No quizzes available for this course.</p>
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {quizzes.map(quiz => (
             <li
               key={quiz.id}
-              className="cx-card"
-              style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: quiz.locked_for_user ? 'not-allowed' : 'pointer', opacity: quiz.locked_for_user ? 0.6 : 1 }}
+              className="cx-quiz-card"
+              style={{ cursor: quiz.locked_for_user ? 'not-allowed' : 'pointer', opacity: quiz.locked_for_user ? 0.6 : 1 }}
               onClick={() => !quiz.locked_for_user && setSelectedQuizId(quiz.id)}
             >
-              <div style={{ fontSize: 28, flexShrink: 0 }}>
-                {quiz.quiz_type === 'practice_quiz' ? '🧪' : quiz.quiz_type === 'survey' ? '📊' : '📝'}
+              <div style={{ flexShrink: 0, color: 'var(--cx-text-secondary)' }}>
+                {quiz.quiz_type === 'practice_quiz' ? (
+                  <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2z"/><path d="M7 10h6M10 7v6"/></svg>
+                ) : quiz.quiz_type === 'survey' ? (
+                  <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 18h16"/><rect x="4" y="10" width="3" height="8" rx="0.5"/><rect x="8.5" y="6" width="3" height="12" rx="0.5"/><rect x="13" y="3" width="3" height="15" rx="0.5"/></svg>
+                ) : (
+                  <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="1.5" width="14" height="17" rx="2"/><path d="M7 6h6M7 10h6M7 14h4"/></svg>
+                )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginBottom: 2 }}>{quiz.title}</div>
@@ -539,7 +608,7 @@ export default function QuizzesPage() {
                   <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 600 }}>Draft</span>
                 )}
                 {quiz.locked_for_user && (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)' }}>🔒 Locked</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="9" width="12" height="9" rx="2"/><path d="M7 9V6a3 3 0 016 0v3"/></svg> Locked</span>
                 )}
               </div>
             </li>

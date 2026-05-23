@@ -21,6 +21,17 @@
 class DiscussionTopicParticipant < ApplicationRecord
   include Workflow
 
+  # Safely fallback to virtual attribute if database column is missing in local environment
+  has_preferred_language = begin
+    ActiveRecord::Base.connection.column_exists?(:discussion_topic_participants, :preferred_language)
+  rescue
+    false
+  end
+
+  unless has_preferred_language
+    attr_accessor :preferred_language
+  end
+
   belongs_to :discussion_topic
   belongs_to :user
 

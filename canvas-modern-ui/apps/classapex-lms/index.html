@@ -4,14 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="/classapex_logo_transparent.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Standard & High-Res Theme-Aware Favicons for modern browsers -->
+    <link rel="icon" type="image/png" sizes="64x64" id="cx-favicon" href="/favicon-light.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#6366f1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ClassApex LMS - Revolutionary Learning Management System</title>
+    <title>ClassApex — Learning Management System</title>
     <meta name="description" content="Modern, intuitive LMS powered by Carbon Design System with real-time Canvas data integration" />
     <style>
       body {
@@ -19,6 +27,7 @@
         background-color: #090d16;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        transition: background-color 0.2s ease;
       }
       
       #root {
@@ -43,32 +52,45 @@
         width: 100%;
       }
       
-      .loading-logo-img {
+      .loading-logo-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         height: 48px;
-        width: auto;
+        width: 48px;
+        overflow: visible;
+        position: relative;
+      }
+      
+      .loading-logo-img {
+        height: 100%;
+        width: 100%;
         object-fit: contain;
         animation: breathe 2.5s ease-in-out infinite;
         filter: drop-shadow(0 0 16px rgba(99, 102, 241, 0.3));
       }
       
-      .loading-track {
-        width: 100px;
-        height: 2px;
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 4px;
-        overflow: hidden;
-        position: relative;
+      .loading-logo-dark {
+        background-color: transparent;
       }
       
-      .loading-bar {
+      .loading-logo-light-img {
+        display: none;
+      }
+      
+      .loading-logo-dark-img {
+        display: block;
+      }
+      
+      .loading-ring {
         position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        width: 40px;
-        background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
-        border-radius: 4px;
-        animation: slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        top: -4px; left: -4px;
+        width: calc(100% + 8px); height: calc(100% + 8px);
+        border-radius: 50%;
+        border: 3px solid rgba(99,102,241,0.15);
+        border-top-color: #6366f1;
+        border-right-color: #6366f1;
+        animation: spin 0.8s linear infinite;
       }
       
       @keyframes breathe {
@@ -76,9 +98,29 @@
         50%      { transform: scale(1.02); opacity: 1; }
       }
       
-      @keyframes slide {
-        0%   { left: -50px; }
-        100% { left: 110px; }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Light mode overrides for browsers that prefer light color scheme */
+      @media (prefers-color-scheme: light) {
+        body {
+          background-color: #f8fafc;
+        }
+        .loading-screen {
+          background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        .loading-logo-light-img {
+          display: block;
+        }
+        .loading-logo-dark-img {
+          display: none;
+        }
+        .loading-ring {
+          border-color: rgba(79,70,229,0.15);
+          border-top-color: #4f46e5;
+          border-right-color: #4f46e5;
+        }
       }
     </style>
   </head>
@@ -86,9 +128,13 @@
     <div id="root">
       <div class="loading-screen">
         <div class="loading-container">
-          <img src="/classapex_logo_transparent.png" alt="ClassApex" class="loading-logo-img" />
-          <div class="loading-track">
-            <div class="loading-bar"></div>
+          <div class="loading-logo-wrap loading-logo-light-img">
+            <img src="/classapex_logo_light.png" alt="ClassApex" class="loading-logo-img" />
+            <div class="loading-ring"></div>
+          </div>
+          <div class="loading-logo-wrap loading-logo-dark loading-logo-dark-img">
+            <img src="/classapex_logo_darkmode.png" alt="ClassApex" class="loading-logo-img" />
+            <div class="loading-ring"></div>
           </div>
         </div>
       </div>

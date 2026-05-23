@@ -110,10 +110,15 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
       if (hasChildren) {
         return (
           <li key={item.id} className={clsx('navigation-sidebar__menu', isActive && 'navigation-sidebar__menu--active')}>
-            <button
+            <a
+              href={item.href || '#'}
               className="navigation-sidebar__menu-trigger"
-              onClick={() => handleMenuToggle(item.id)}
+              onClick={(e) => {
+                e.preventDefault()
+                handleMenuToggle(item.id)
+              }}
               aria-expanded={isExpanded}
+              title={isCollapsed ? item.label : undefined}
             >
               <span className="navigation-sidebar__menu-icon"><Icon size={20} /></span>
               {!isCollapsed && (
@@ -124,7 +129,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
                   </span>
                 </>
               )}
-            </button>
+            </a>
             {(isExpanded || isCollapsed) && (
               <ul className="navigation-sidebar__submenu">
                 {item.children!.map(child => {
@@ -132,13 +137,14 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
                   const ChildIcon = child.icon
                   return (
                     <li key={child.id} className="navigation-sidebar__subitem">
-                      <button
+                      <a
+                        href={child.href || '#'}
                         className={clsx('navigation-sidebar__sublink', isChildActive && 'navigation-sidebar__sublink--active')}
                         onClick={(e) => handleItemClick(child, e)}
                       >
                         <span className="navigation-sidebar__sublink-icon"><ChildIcon size={16} /></span>
                         <span className="navigation-sidebar__sublink-label">{child.label}</span>
-                      </button>
+                      </a>
                     </li>
                   )
                 })}
@@ -150,9 +156,11 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
 
       return (
         <li key={item.id} className="navigation-sidebar__item">
-          <button
+          <a
+            href={item.href || '#'}
             className={clsx('navigation-sidebar__link', isActive && 'navigation-sidebar__link--active')}
             onClick={(e) => handleItemClick(item, e)}
+            title={isCollapsed ? item.label : undefined}
           >
             <span className="navigation-sidebar__link-icon">
               <Icon size={20} />
@@ -165,7 +173,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
                 )}
               </span>
             )}
-          </button>
+          </a>
         </li>
       )
     }
@@ -176,7 +184,13 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
         data-testid={testId}
       >
         <div className="navigation-sidebar__scroll">
-          {logo && <div className="navigation-sidebar__logo">{logo}</div>}
+          {logo && (
+            <div className="navigation-sidebar__logo">
+              {React.isValidElement(logo)
+                ? React.cloneElement(logo as React.ReactElement<any>, { isCollapsed })
+                : logo}
+            </div>
+          )}
 
           <nav aria-label="Main navigation" className="navigation-sidebar__content">
             <ul className="navigation-sidebar__list">
@@ -191,6 +205,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
                 className="navigation-sidebar__theme-toggle"
                 onClick={onThemeToggle}
                 aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                title={isCollapsed ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode` : undefined}
               >
                 <span className="navigation-sidebar__theme-icon">
                   {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
@@ -209,9 +224,11 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
 
           <div className="navigation-sidebar__help-section">
             <div className="navigation-sidebar__divider" />
-            <button
+            <a
+              href="/help"
               className={clsx('navigation-sidebar__help-button', activeItem === 'help' && 'navigation-sidebar__help-button--active')}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault()
                 const helpItem = navigationItems.find(item => item.id === 'help')
                 if (helpItem) {
                   handleItemClick(helpItem)
@@ -220,6 +237,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
                 }
               }}
               aria-label="Help & Support"
+              title={isCollapsed ? "Help & Support" : undefined}
             >
               <span className="navigation-sidebar__help-icon">
                 <HelpIcon size={20} />
@@ -227,7 +245,7 @@ export const NavigationSidebar = memo<NavigationSidebarProps>(
               {!isCollapsed && (
                 <span className="navigation-sidebar__help-label">Help & Support</span>
               )}
-            </button>
+            </a>
           </div>
 
           {onToggleCollapse && (

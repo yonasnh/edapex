@@ -147,10 +147,51 @@ function ProgressRow({ label, value, max, format }: { label: string; value: numb
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+const GRADE_DISTRIBUTIONS = {
+  midterm: {
+    average: '78.4%',
+    stdDev: '8.2%',
+    median: '81.0%',
+    bars: [
+      { label: '0–59% (F)', count: 2, pct: 15 },
+      { label: '60–69% (D)', count: 4, pct: 30 },
+      { label: '70–79% (C)', count: 12, pct: 90 },
+      { label: '80–89% (B)', count: 9, pct: 67 },
+      { label: '90–100% (A)', count: 5, pct: 37 }
+    ]
+  },
+  project1: {
+    average: '86.1%',
+    stdDev: '5.4%',
+    median: '88.5%',
+    bars: [
+      { label: '0–59% (F)', count: 0, pct: 0 },
+      { label: '60–69% (D)', count: 1, pct: 8 },
+      { label: '70–79% (C)', count: 4, pct: 30 },
+      { label: '80–89% (B)', count: 15, pct: 100 },
+      { label: '90–100% (A)', count: 12, pct: 80 }
+    ]
+  },
+  quiz3: {
+    average: '92.3%',
+    stdDev: '4.1%',
+    median: '94.0%',
+    bars: [
+      { label: '0–59% (F)', count: 0, pct: 0 },
+      { label: '60–69% (D)', count: 0, pct: 0 },
+      { label: '70–79% (C)', count: 2, pct: 13 },
+      { label: '80–89% (B)', count: 8, pct: 53 },
+      { label: '90–100% (A)', count: 15, pct: 100 }
+    ]
+  }
+}
+
 const Analytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | '90days' | '1year'>('30days')
   const [mode, setMode] = useState<'system' | 'student' | 'grades'>('system')
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<'midterm' | 'project1' | 'quiz3'>('midterm')
+  const currentDistribution = GRADE_DISTRIBUTIONS[selectedAssignment]
 
   // ── Live Canvas API queries ──────────────────────────────────────────────
   const { data: courses, isLoading: coursesLoading } = useCanvasQuery<Course[]>(
@@ -305,13 +346,13 @@ const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="cx-page">
+    <div className="cx-page" data-testid="analytics-dashboard">
       {/* Header controls & Mode Switcher */}
       <div className="cx-page__header" style={{ paddingTop: 0, borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 12, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className={`cx-btn cx-btn--sm ${mode === 'system' ? 'cx-btn--primary' : 'cx-btn--ghost'}`} onClick={() => { setMode('system'); setSelectedStudentId(null); }}>System Activity</button>
-          <button className={`cx-btn cx-btn--sm ${mode === 'student' ? 'cx-btn--primary' : 'cx-btn--ghost'}`} onClick={() => { setMode('student'); setSelectedStudentId(null); }}>Student Performance</button>
-          <button className={`cx-btn cx-btn--sm ${mode === 'grades' ? 'cx-btn--primary' : 'cx-btn--ghost'}`} onClick={() => { setMode('grades'); setSelectedStudentId(null); }}>Grade Distributions</button>
+          <button className={`cx-btn cx-btn--sm cx-analytics-tab ${mode === 'system' ? 'cx-analytics-tab--active' : ''}`} onClick={() => { setMode('system'); setSelectedStudentId(null); }}>System Activity</button>
+          <button className={`cx-btn cx-btn--sm cx-analytics-tab ${mode === 'student' ? 'cx-analytics-tab--active' : ''}`} onClick={() => { setMode('student'); setSelectedStudentId(null); }}>Student Performance</button>
+          <button className={`cx-btn cx-btn--sm cx-analytics-tab ${mode === 'grades' ? 'cx-analytics-tab--active' : ''}`} onClick={() => { setMode('grades'); setSelectedStudentId(null); }}>Grade Distributions</button>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select
@@ -604,7 +645,12 @@ const Analytics: React.FC = () => {
                   Visualize distribution curves across grading systems customized by institution tiers.
                 </p>
               </div>
-              <select className="cx-select" aria-label="Assignment selector">
+              <select
+                className="cx-select"
+                aria-label="Assignment selector"
+                value={selectedAssignment}
+                onChange={e => setSelectedAssignment(e.target.value as any)}
+              >
                 <option value="midterm">Midterm Examination (CS-101)</option>
                 <option value="project1">Programming Project 1</option>
                 <option value="quiz3">Quiz 3: Functional Paradigms</option>
@@ -612,13 +658,7 @@ const Analytics: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', height: 240, padding: '24px 0', borderBottom: '1px solid var(--cx-border-subtle)' }}>
-              {[
-                { label: '0–59% (F)', count: 2, pct: 15 },
-                { label: '60–69% (D)', count: 4, pct: 30 },
-                { label: '70–79% (C)', count: 12, pct: 90 },
-                { label: '80–89% (B)', count: 9, pct: 67 },
-                { label: '90–100% (A)', count: 5, pct: 37 }
-              ].map(bar => (
+              {currentDistribution.bars.map(bar => (
                 <div key={bar.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{bar.count} students</span>
                   <div style={{ width: '100%', height: `${bar.pct}%`, background: 'rgba(99,102,241,0.85)', borderRadius: '4px 4px 0 0', position: 'relative' }}>
@@ -630,9 +670,9 @@ const Analytics: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Class Average:</span> <strong style={{ fontSize: '0.875rem' }}>78.4%</strong></div>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Standard Deviation:</span> <strong style={{ fontSize: '0.875rem' }}>8.2%</strong></div>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Median Score:</span> <strong style={{ fontSize: '0.875rem' }}>81.0%</strong></div>
+              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Class Average:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.average}</strong></div>
+              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Standard Deviation:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.stdDev}</strong></div>
+              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Median Score:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.median}</strong></div>
             </div>
           </div>
         </div>

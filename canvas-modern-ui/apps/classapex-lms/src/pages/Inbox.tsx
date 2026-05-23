@@ -11,7 +11,41 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
+import { SearchIcon, InboxIcon } from '../navigation'
 import './inbox.css'
+
+// ─── Inline SVG Icons ────────────────────────────────────────────────────────
+
+const ComposeSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M14 2l4 4L7 17H3v-4L14 2z"/><path d="M11 5l4 4"/>
+  </svg>
+)
+
+const StarSvg = ({ filled }: { filled?: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+    <path d="M10 1l2.5 5L18 6.5l-4 3.5 1 5.5L10 13l-5 2.5 1-5.5-4-3.5L7.5 6 10 1z"/>
+  </svg>
+)
+
+const ArchiveSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="2" width="16" height="4" rx="1"/><path d="M3 6v10a2 2 0 002 2h10a2 2 0 002-2V6"/><path d="M8 10h4"/>
+  </svg>
+)
+
+const TrashSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M3 5h14"/><path d="M8 5V3a1 1 0 011-1h2a1 1 0 011 1v2"/><path d="M5 5l1 12a2 2 0 002 2h4a2 2 0 002-2l1-12"/>
+  </svg>
+)
+
+const ChatBubbleSvg = () => (
+  <svg width="48" height="48" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2">
+    <path d="M3 1h14a2 2 0 012 2v10a2 2 0 01-2 2H7l-4 4V3a2 2 0 012-2z"/><path d="M6 7h8M6 10h6"/>
+  </svg>
+)
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +118,7 @@ interface ComposeModalProps {
   isOpen: boolean
   onClose: () => void
   onSend: (recipients: string[], subject: string, body: string) => void
+  conversations?: Conversation[]
 }
 
 interface Recipient {
@@ -93,7 +128,7 @@ interface Recipient {
   type?: string;
 }
 
-function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
+function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeModalProps) {
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Recipient[]>([])
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
@@ -101,7 +136,23 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
   const [body, setBody] = useState('')
   const [isSearching, setIsSearching] = useState(false)
 
-  // Search Canvas recipients API
+  // Build unique participants fallback from loaded conversations
+  const localParticipants = useMemo(() => {
+    const seen = new Set<string>()
+    const result: Recipient[] = []
+    for (const conv of conversations) {
+      for (const p of conv.participants) {
+        const key = String(p.id)
+        if (!seen.has(key)) {
+          seen.add(key)
+          result.push({ id: key, name: p.name, avatar_url: p.avatar_url })
+        }
+      }
+    }
+    return result
+  }, [conversations])
+
+  // Search Canvas recipients API with local fallback
   useEffect(() => {
     if (!query.trim() || query.length < 2) {
       setSearchResults([])
@@ -113,16 +164,28 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
         const res = await fetch(`/api/v1/search/recipients?search=${encodeURIComponent(query)}`)
         if (res.ok) {
           const data = await res.json()
-          setSearchResults(data)
+          if (data && data.length > 0) {
+            setSearchResults(data)
+          } else {
+            // Fallback: filter local participants
+            const q = query.toLowerCase()
+            setSearchResults(localParticipants.filter(p => p.name.toLowerCase().includes(q)))
+          }
+        } else {
+          // API error — use local fallback
+          const q = query.toLowerCase()
+          setSearchResults(localParticipants.filter(p => p.name.toLowerCase().includes(q)))
         }
       } catch (err) {
-        console.error('Recipient search failed:', err)
+        console.error('Recipient search failed, using local fallback:', err)
+        const q = query.toLowerCase()
+        setSearchResults(localParticipants.filter(p => p.name.toLowerCase().includes(q)))
       } finally {
         setIsSearching(false)
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, localParticipants])
 
   if (!isOpen) return null
 
@@ -219,6 +282,7 @@ function ComposeModal({ isOpen, onClose, onSend }: ComposeModalProps) {
 type FilterScope = 'all' | 'unread' | 'starred' | 'archived'
 
 export default function InboxPage() {
+  const { showConfirm, showToast } = useNotification()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [filter, setFilter] = useState<FilterScope>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -297,7 +361,11 @@ export default function InboxPage() {
       refetchThread()
     } catch (err) {
       console.error('Reply failed:', err)
-      alert('Failed to send reply. Please try again.')
+      showToast({
+        title: 'Reply Failed',
+        message: 'Failed to send reply. Please try again.',
+        type: 'error'
+      })
     }
   }, [replyText, selected, refetchConversations, refetchThread])
 
@@ -309,11 +377,19 @@ export default function InboxPage() {
         body: JSON.stringify({ recipients, subject, body })
       })
       if (!res.ok) throw new Error('Failed to create conversation')
-      alert('Message sent successfully')
+      showToast({
+        title: 'Message Sent',
+        message: 'Message sent successfully',
+        type: 'success'
+      })
       refetchConversations()
     } catch (err) {
       console.error('Compose failed:', err)
-      alert('Failed to send message. Please try again.')
+      showToast({
+        title: 'Compose Failed',
+        message: 'Failed to send message. Please try again.',
+        type: 'error'
+      })
     }
   }, [refetchConversations])
 
@@ -347,15 +423,32 @@ export default function InboxPage() {
   }, [refetchConversations, selectedId])
 
   const handleDelete = useCallback(async (conv: Conversation) => {
-    if (!confirm('Are you sure you want to delete this conversation?')) return
+    const isConfirmed = await showConfirm({
+      title: 'Delete Conversation',
+      message: 'Are you sure you want to delete this conversation? This cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    })
+    if (!isConfirmed) return
     try {
       await fetch(`/api/v1/conversations/${conv.id}`, {
         method: 'DELETE'
+      })
+      showToast({
+        title: 'Conversation Deleted',
+        message: 'The conversation was deleted successfully.',
+        type: 'success'
       })
       refetchConversations()
       if (selectedId === conv.id) setSelectedId(null)
     } catch (err) {
       console.error('Delete failed:', err)
+      showToast({
+        title: 'Delete Failed',
+        message: 'Failed to delete conversation.',
+        type: 'error'
+      })
     }
   }, [refetchConversations, selectedId])
 
@@ -384,7 +477,7 @@ export default function InboxPage() {
             onClick={() => setComposeOpen(true)}
             aria-label="Compose new message"
           >
-            ✉ Compose
+            <ComposeSvg /> Compose
           </button>
         </div>
       </div>
@@ -408,15 +501,14 @@ export default function InboxPage() {
           </div>
 
           <div className="cx-inbox__search">
-            <div className="cx-inbox__search-wrap">
-              <span className="cx-inbox__search-icon">🔍</span>
+            <div className="cx-search">
+              <SearchIcon />
               <input
                 type="search"
-                className="cx-inbox__search-input"
+                className="cx-search__input"
                 placeholder="Search messages..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: 36 }}
               />
             </div>
           </div>
@@ -460,7 +552,7 @@ export default function InboxPage() {
                       {conv.context_name && (
                         <div className="cx-convo-item__meta">
                           <span className="cx-convo-item__course-tag">{conv.context_name}</span>
-                          {conv.starred && <span title="Starred">⭐</span>}
+                          {conv.starred && <span title="Starred" style={{color:'var(--cx-warning,#f59e0b)'}}><StarSvg filled /></span>}
                         </div>
                       )}
                     </div>
@@ -475,7 +567,7 @@ export default function InboxPage() {
         <div className="cx-inbox__detail-panel">
           {!selected ? (
             <div className="cx-inbox__detail-empty">
-              <span className="cx-inbox__detail-empty-icon">💬</span>
+              <span className="cx-inbox__detail-empty-icon"><ChatBubbleSvg /></span>
               <p>Select a conversation to read</p>
               <p style={{ fontSize: '0.78rem' }}>Or compose a new message</p>
             </div>
@@ -495,7 +587,7 @@ export default function InboxPage() {
                     aria-label="Archive conversation"
                     onClick={() => handleToggleArchive(selected)}
                   >
-                    📁
+                    <ArchiveSvg />
                   </button>
                   <button
                     className="cx-btn cx-btn--ghost cx-btn--sm"
@@ -503,7 +595,7 @@ export default function InboxPage() {
                     aria-label={selected.starred ? 'Remove star' : 'Star conversation'}
                     onClick={() => handleToggleStar(selected)}
                   >
-                    {selected.starred ? '⭐' : '☆'}
+                    <StarSvg filled={selected.starred} />
                   </button>
                   <button
                     className="cx-btn cx-btn--ghost cx-btn--sm"
@@ -511,7 +603,7 @@ export default function InboxPage() {
                     aria-label="Delete conversation"
                     onClick={() => handleDelete(selected)}
                   >
-                    🗑️
+                    <TrashSvg />
                   </button>
                 </div>
               </div>
@@ -568,6 +660,7 @@ export default function InboxPage() {
         isOpen={composeOpen}
         onClose={() => setComposeOpen(false)}
         onSend={handleCompose}
+        conversations={conversations}
       />
     </div>
   )

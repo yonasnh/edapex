@@ -1,6 +1,8 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 interface CourseSidebarProps {
+  courseId: string | number
   courseName: string
   courseCode: string
   peopleCount: number
@@ -11,6 +13,7 @@ interface CourseSidebarProps {
 }
 
 export function CourseSidebar({
+  courseId,
   courseName,
   courseCode,
   peopleCount,
@@ -60,11 +63,11 @@ export function CourseSidebar({
       <div className="cx-course-sidebar__section">
         <h3 className="cx-course-sidebar__heading">Quick Links</h3>
         <nav className="cx-course-sidebar__nav">
-          <a href={`/courses/${courseCode}`} className="cx-course-sidebar__link">Home</a>
-          <a href={`/courses/${courseCode}/assignments`} className="cx-course-sidebar__link">Assignments</a>
-          <a href={`/courses/${courseCode}/discussions`} className="cx-course-sidebar__link">Discussions</a>
-          <a href={`/courses/${courseCode}/files`} className="cx-course-sidebar__link">Files</a>
-          <a href={`/courses/${courseCode}/grades`} className="cx-course-sidebar__link">Grades</a>
+          <Link to={`/courses/${courseId}`} className="cx-course-sidebar__link">Home</Link>
+          <Link to={`/courses/${courseId}/assignments`} className="cx-course-sidebar__link">Assignments</Link>
+          <Link to="/discussions" className="cx-course-sidebar__link">Discussions</Link>
+          <Link to="/files" className="cx-course-sidebar__link">Files</Link>
+          <Link to={`/grades?courseId=${courseId}`} className="cx-course-sidebar__link">Grades</Link>
         </nav>
       </div>
     </div>

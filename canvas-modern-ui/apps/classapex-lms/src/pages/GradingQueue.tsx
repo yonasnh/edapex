@@ -258,28 +258,28 @@ export default function GradingQueuePage() {
       {/* ── Stats ── */}
       <div className="cx-grading__stats">
         <div className="cx-grading__stat">
-          <span className="cx-grading__stat-icon">📋</span>
+          <span className="cx-grading__stat-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="3" width="12" height="15" rx="1"/><path d="M8 1h4a1 1 0 011 1v1H7V2a1 1 0 011-1z"/><path d="M8 8h4M8 11h4M8 14h2"/></svg></span>
           <div>
             <div className="cx-grading__stat-value">{stats.total}</div>
             <div className="cx-grading__stat-label">Total</div>
           </div>
         </div>
         <div className="cx-grading__stat">
-          <span className="cx-grading__stat-icon">⏳</span>
+          <span className="cx-grading__stat-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5"/></svg></span>
           <div>
             <div className="cx-grading__stat-value">{stats.pending}</div>
             <div className="cx-grading__stat-label">Pending</div>
           </div>
         </div>
         <div className="cx-grading__stat">
-          <span className="cx-grading__stat-icon">⚠️</span>
+          <span className="cx-grading__stat-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L1 17h18L10 2z"/><path d="M10 9v4M10 14.5v.5"/></svg></span>
           <div>
             <div className="cx-grading__stat-value">{stats.late}</div>
             <div className="cx-grading__stat-label">Late</div>
           </div>
         </div>
         <div className="cx-grading__stat">
-          <span className="cx-grading__stat-icon">✅</span>
+          <span className="cx-grading__stat-icon"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M6 10l3 3 5-5"/></svg></span>
           <div>
             <div className="cx-grading__stat-value">{stats.graded}</div>
             <div className="cx-grading__stat-label">Graded</div>
@@ -367,7 +367,7 @@ export default function GradingQueuePage() {
         <div className="cx-grading__review-panel">
           {!selected ? (
             <div className="cx-grading__review-empty">
-              <span className="cx-grading__review-empty-icon">📝</span>
+              <span className="cx-grading__review-empty-icon"><svg width="40" height="40" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2" style={{opacity:0.3}}><rect x="3" y="1.5" width="14" height="17" rx="2"/><path d="M7 6h6M7 10h6M7 14h4"/></svg></span>
               <p>Select a submission to review</p>
             </div>
           ) : (
@@ -502,14 +502,14 @@ export default function GradingQueuePage() {
                         onClick={() => setAnnotationType('note')}
                         style={{ padding: '3px 8px', fontSize: '0.7rem' }}
                       >
-                        💬 Note
+                        <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:3}}><path d="M3 1h14a2 2 0 012 2v10a2 2 0 01-2 2H7l-4 4V3a2 2 0 012-2z"/></svg>Note
                       </button>
                       <button
                         className={`cx-btn cx-btn--sm ${annotationType === 'highlight' ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
                         onClick={() => setAnnotationType('highlight')}
                         style={{ padding: '3px 8px', fontSize: '0.7rem' }}
                       >
-                        🖍️ Highlight
+                        <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:3}}><path d="M13 2l5 5-9 9H4v-5L13 2z"/><path d="M12 3l5 5"/></svg>Highlight
                       </button>
                       <button
                         className="cx-btn cx-btn--secondary cx-btn--sm"
@@ -578,7 +578,7 @@ export default function GradingQueuePage() {
                         {ann.type === 'highlight' ? (
                           <div style={{ background: 'rgba(234, 179, 8, 0.4)', borderBottom: '2px solid rgb(234, 179, 8)', width: 60, height: 16, marginTop: 4 }} />
                         ) : (
-                          <span style={{ fontSize: '1.25rem', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}>📌</span>
+                          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" stroke="none" style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.25))',color:'var(--cx-color-primary)'}}><path d="M10 1a3 3 0 013 3c0 1.5-.7 2.8-1.8 3.6L12 16l-2 2-2-2 .8-8.4A4 4 0 017 4a3 3 0 013-3z"/></svg>
                         )}
                       </div>
                     ))}
@@ -697,7 +697,8 @@ export default function GradingQueuePage() {
                     }}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem' }}
                   >
-                    🎤 {isRecording ? `Recording... 0:0${recordTimer}` : 'Record Voice Feedback'}
+                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:4}}><rect x="7" y="1" width="6" height="10" rx="3"/><path d="M3 10a7 7 0 0014 0M10 17v3"/></svg>
+                     {isRecording ? `Recording... 0:0${recordTimer}` : 'Record Voice Feedback'}
                   </button>
 
                   {isRecording && (
@@ -710,7 +711,7 @@ export default function GradingQueuePage() {
 
                   {recordedComment && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.72rem', color: 'var(--cx-text-secondary)' }}>
-                      <span>🎧 Recorded: {recordedComment} (0:05)</span>
+                      <span style={{display:'flex',alignItems:'center',gap:4}}><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10a7 7 0 0014 0"/><path d="M6 10a1 1 0 00-1 1v2a1 1 0 002 0v-2a1 1 0 00-1-1z" fill="currentColor" stroke="none"/><path d="M14 10a1 1 0 00-1 1v2a1 1 0 002 0v-2a1 1 0 00-1-1z" fill="currentColor" stroke="none"/></svg>Recorded: {recordedComment} (0:05)</span>
                       <button className="cx-btn cx-btn--ghost" onClick={() => setRecordedComment(null)} style={{ padding: '2px 4px', fontSize: '0.7rem' }}>Delete</button>
                     </div>
                   )}

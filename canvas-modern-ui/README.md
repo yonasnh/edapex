@@ -1,9 +1,9 @@
-# 🎓 SchoolApex Modern UI
+# 🎓 ClassApex Modern UI
 
 <div align="center">
-  <img src="./schoolapex_logo.svg" alt="SchoolApex Logo" width="200" height="200">
+  <img src="./classapex.png" alt="ClassApex Logo" width="160" height="160" style="border-radius: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.15)">
 
-  **Revolutionary UI/UX system that transforms Canvas LMS with modern design and enhanced functionality**
+  **Revolutionary UI/UX system that transforms educational management with modern design and enhanced functionality**
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -13,25 +13,27 @@
   [![pnpm](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 </div>
 
+---
+
 ## 🌟 Overview
 
-SchoolApex Modern UI is a comprehensive transformation of the Canvas LMS experience, featuring multiple applications and services that provide a modern, intuitive, and accessible educational platform.
+ClassApex Modern UI is a comprehensive, high-performance transformation of the Learning Management System experience, featuring multiple applications and services that provide a modern, intuitive, and accessible educational platform.
 
 ### 🎯 Key Applications
 
-- **ClassApex LMS**: Primary modern interface with enhanced discussions, analytics, and user experience
-- **SchoolApex LMS**: Alternative interface with specialized educational workflows
-- **Demo Application**: Interactive showcase of all components and features
-- **GraphQL API**: Powerful backend service for real-time data management
-- **LTI Service**: Seamless Canvas LMS integration with LTI 1.3 support
+- **ClassApex LMS**: Primary modern interface with enhanced discussions, user administration, analytics, and rich user experience
+- **SchoolApex LMS**: Secondary interface with specialized educational workflows
+- **Demo Application**: Interactive showcase of all reusable Carbon components and features
+- **GraphQL API**: Powerful backend service for low-latency widget and notification management
+- **LTI Service**: Seamless integration with the underlying Rails API core and LTI 1.3 support
 
 ### ✨ Features
 
-- **🎨 Modern Design**: Beautiful, intuitive interface built with Carbon Design System
+- **🎨 Modern Design**: Beautiful, intuitive interface built with IBM Carbon Design System
 - **📱 Responsive**: Mobile-first design that works seamlessly across all devices
 - **⚡ Performance**: Optimized for speed with lazy loading and efficient rendering
 - **🔧 Component-Driven**: Reusable components for consistent user experience
-- **🔗 Canvas Integration**: Real-time data synchronization with Canvas LMS
+- **🔗 Deep API Integration**: Real-time data synchronization with the Rails core API
 - **♿ Accessible**: WCAG 2.1 AA compliant with comprehensive accessibility features
 - **🔒 Secure**: Enterprise-grade security with OAuth2 and LTI integration
 - **🧪 Tested**: Comprehensive testing with Playwright and Vitest
@@ -40,15 +42,15 @@ SchoolApex Modern UI is a comprehensive transformation of the Canvas LMS experie
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                SchoolApex Modern UI                     │
+│                 ClassApex Modern UI                     │
 ├─────────────────────────────────────────────────────────┤
 │  ClassApex LMS  │  SchoolApex LMS  │  Demo App         │
 ├─────────────────────────────────────────────────────────┤
 │  React 18 + TypeScript + Carbon Design System          │
 ├─────────────────────────────────────────────────────────┤
-│  GraphQL API    │  LTI Service     │  Canvas API       │
+│  GraphQL API    │  LTI Service     │  Rails REST API   │
 ├─────────────────────────────────────────────────────────┤
-│                   Canvas LMS Core                       │
+│                 ClassApex Core Engine                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -58,7 +60,7 @@ SchoolApex Modern UI is a comprehensive transformation of the Canvas LMS experie
 - **🎨 Design Excellence**: Beautiful, modern interface that sets new standards for educational UX
 - **⚡ Performance First**: Optimized bundle sizes, lazy loading, and efficient rendering
 - **♿ Accessibility**: WCAG 2.1 AA compliant with enhanced educational context features
-- **🔗 API Integration**: Seamless Canvas LMS integration without backend modifications
+- **🔗 API Integration**: Seamless backend API integration without modifications
 - **📱 Mobile-First**: Responsive design optimized for all educational devices
 
 ## 📁 Project Structure

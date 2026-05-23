@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
@@ -10,14 +10,46 @@ type FilterStatus = 'all' | 'open' | 'due_soon' | 'overdue' | 'submitted' | 'gra
 
 export default function AssignmentList() {
   const { courseId } = useParams<{ courseId: string }>()
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [sortBy, setSortBy] = useState<SortKey>('due_at')
 
-  const { data: assignments, isLoading } = useCanvasQuery<any[]>(
-    courseId ? `/api/v1/courses/${courseId}/assignments` : '',
-    { per_page: 50, include: ['submission', 'score_statistics'], enabled: !!courseId } as any
+  // Fetch active courses if we are on the global assignments page (no courseId in route)
+  const { data: coursesData, isLoading: coursesLoading } = useCanvasQuery<any[]>(
+    courseId ? '' : '/api/v1/users/self/courses',
+    { enrollment_state: 'active' } as any,
+    { enabled: !courseId }
   )
+
+  const courses = useMemo(() => Array.isArray(coursesData) ? coursesData : [], [coursesData])
+
+  // Automatically select the first course when courses load
+  useEffect(() => {
+    if (!courseId && courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(String(courses[0].id))
+    }
+  }, [courses, courseId, selectedCourseId])
+
+  const activeCourseId = courseId || selectedCourseId
+
+  const { data: assignments, isLoading: assignmentsLoading } = useCanvasQuery<any[]>(
+    activeCourseId ? `/api/v1/courses/${activeCourseId}/assignments` : '',
+    { per_page: 50, include: ['submission', 'score_statistics'] } as any,
+    { enabled: !!activeCourseId }
+  )
+
+  const courseMap = useMemo(() => {
+    const map = new Map<number, { name: string; course_code: string }>()
+    courses.forEach(c => {
+      map.set(c.id, { name: c.name, course_code: c.course_code })
+    })
+    return map
+  }, [courses])
+
+  const isLoading = courseId
+    ? (assignmentsLoading || !assignments)
+    : (coursesLoading || !selectedCourseId || assignmentsLoading || !assignments)
 
   const filtered = useMemo(() => {
     if (!assignments) return []
@@ -59,8 +91,12 @@ export default function AssignmentList() {
 
   if (isLoading) {
     return (
-      <div className="cx-assignment-list">
-        <div className="cx-skeleton cx-skeleton--list-banner" />
+      <div className="cx-assignment-list" data-testid="loading-container">
+        <div className="cx-loading" role="status" aria-label="Loading assignments">
+          <div className="cx-loading__spinner" data-testid="loading-spinner" />
+          <span className="cx-loading__text">Loading assignments...</span>
+        </div>
+        <div className="cx-skeleton cx-skeleton--list-banner" style={{ marginTop: '24px' }} />
         <div className="cx-assignment-list__grid">
           {[1, 2, 3, 4].map(i => <div key={i} className="cx-skeleton cx-skeleton--assignment-card" />)}
         </div>
@@ -73,6 +109,22 @@ export default function AssignmentList() {
 
 
       <div className="cx-assignment-list__controls">
+        {!courseId && courses.length > 0 && (
+          <select
+            className="cx-assignment-list__select"
+            value={selectedCourseId}
+            onChange={e => setSelectedCourseId(e.target.value)}
+            aria-label="Select course"
+          >
+            <option value="">All Courses</option>
+            {courses.map(c => (
+              <option key={c.id} value={String(c.id)}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <input
           type="search"
           className="cx-assignment-list__search"
@@ -115,20 +167,21 @@ export default function AssignmentList() {
       ) : (
         <>
           <p className="cx-assignment-list__count">{filtered.length} assignment{filtered.length !== 1 ? 's' : ''}</p>
-          <div className="cx-assignment-list__grid">
+          <div className="cx-assignment-list__grid" data-testid="assignments-list">
             {filtered.map(a => {
               const due = a.due_at ? new Date(a.due_at) : null
               const isPast = due && due < new Date()
               const daysDue = due ? Math.ceil((due.getTime() - Date.now()) / 86400000) : null
               const submitted = a.submission?.submitted
-              const statusBadge = !due ? 'default' : isPast ? 'danger' : daysDue !== null && daysDue <= 2 ? 'warning' : 'primary'
-              const statusLabel = !due ? 'No Due Date' : isPast ? 'Overdue' : daysDue !== null && daysDue <= 2 ? 'Due Soon' : 'Open'
+              const statusBadge = submitted ? 'success' : !due ? 'default' : isPast ? 'danger' : daysDue !== null && daysDue <= 2 ? 'warning' : 'primary'
+              const statusLabel = submitted ? 'Submitted' : !due ? 'No Due Date' : isPast ? 'Overdue' : daysDue !== null && daysDue <= 2 ? 'Due Soon' : 'Open'
 
               const subStatus = submitted
                 ? (a.submission?.score !== undefined ? 'graded' : 'submitted')
                 : isPast ? 'missing' : 'unsubmitted'
 
-              const courseCode = courseId ? '' : a.course_code || ''
+              const courseInfo = courseMap.get(Number(a.course_id))
+              const courseCode = courseId ? '' : (courseInfo?.course_code || a.course_code || '')
 
               return (
                 <Link

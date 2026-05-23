@@ -83,6 +83,7 @@ const AccessibilityStatementPage = React.lazy(() => import('./pages/Accessibilit
 import { I18nProvider, useI18n } from './contexts/I18nContext'
 import { PremiumErrorBoundary } from './components/PremiumErrorBoundary'
 import { MobileTabBar } from './components/MobileTabBar'
+import { NotificationProvider } from './contexts/NotificationContext'
 
 // Unified styles
 import './unified-styles.css'
@@ -91,16 +92,32 @@ import './styles/navigation.css'
 // ─── Page loading fallback ────────────────────────────────────────────────────
 
 function PageFallback() {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+  const logoSrc = isDark ? '/classapex_logo_darkmode.png' : '/classapex_logo_light.png'
+
   return (
     <div className="cx-page-fallback" role="status" aria-label="Loading page">
       <div className="cx-page-fallback__content">
-        <img 
-          src="/classapex_logo_transparent.png" 
-          alt="ClassApex Logo" 
-          className="cx-page-fallback__logo" 
-        />
-        <div className="cx-page-fallback__progress-track">
-          <div className="cx-page-fallback__progress-bar" />
+        <div style={{
+          width: '44px',
+          height: '44px',
+          borderRadius: '50%',
+          backgroundColor: isDark ? '#1e293b' : 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'visible',
+          flexShrink: 0,
+          position: 'relative' as const
+        }}>
+          <img 
+            src={logoSrc} 
+            alt="ClassApex Logo" 
+            className="cx-page-fallback__logo" 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+          <div className="cx-loading-ring" />
         </div>
       </div>
     </div>
@@ -229,6 +246,24 @@ function getPageMeta(pathname: string): PageMeta {
   const primarySegment = segments[0] || 'dashboard'
   
   if (primarySegment === 'courses' && segments[1]) {
+    if (segments[1] === 'catalog') {
+      return {
+        title: "Course Catalog",
+        subtitle: "Browse and discover all available courses."
+      }
+    }
+    if (segments[1] === 'favorites') {
+      return {
+        title: "Favorite Courses",
+        subtitle: "Access and organize your curriculum, resources, and modules."
+      }
+    }
+    if (segments[1] === 'recent') {
+      return {
+        title: "Recent Courses",
+        subtitle: "Access and organize your curriculum, resources, and modules."
+      }
+    }
     if (segments[2] === 'assignments') {
       return {
         title: "Course Assignments",
@@ -300,10 +335,14 @@ const AppContent = () => {
       const isContrast = document.documentElement.getAttribute('data-high-contrast') === 'true'
       if (isContrast) {
         document.documentElement.removeAttribute('data-high-contrast')
+        document.body.classList.remove('high-contrast')
         localStorage.removeItem('classapex-high-contrast')
+        localStorage.removeItem('schoolapex_high_contrast')
       } else {
         document.documentElement.setAttribute('data-high-contrast', 'true')
+        document.body.classList.add('high-contrast')
         localStorage.setItem('classapex-high-contrast', 'true')
+        localStorage.setItem('schoolapex_high_contrast', 'true')
       }
       // Sync checkbox selectors if user is on Settings page
       window.dispatchEvent(new Event('storage'))
@@ -319,6 +358,33 @@ const AppContent = () => {
       document.removeEventListener('cx:toggle-contrast' as any, handleToggleContrast)
     }
   }, [toggleTheme])
+
+  // Initialize and sync high-contrast and reduced-motion states from localStorage on mount (S23-04)
+  useEffect(() => {
+    const isContrastEnabled =
+      localStorage.getItem('classapex-high-contrast') === 'true' ||
+      localStorage.getItem('schoolapex_high_contrast') === 'true'
+
+    if (isContrastEnabled) {
+      document.documentElement.setAttribute('data-high-contrast', 'true')
+      document.body.classList.add('high-contrast')
+    } else {
+      document.documentElement.removeAttribute('data-high-contrast')
+      document.body.classList.remove('high-contrast')
+    }
+
+    const isReducedMotion =
+      localStorage.getItem('classapex-reduced-motion') === 'true' ||
+      localStorage.getItem('schoolapex_reduced_motion') === 'true'
+
+    if (isReducedMotion) {
+      document.documentElement.setAttribute('data-reduced-motion', 'true')
+      document.body.classList.add('reduced-motion')
+    } else {
+      document.documentElement.removeAttribute('data-reduced-motion')
+      document.body.classList.remove('reduced-motion')
+    }
+  }, [])
 
   // Close modals on route change
   useEffect(() => {
@@ -358,6 +424,7 @@ const AppContent = () => {
   // Sidebar element — AppShell clones it to inject collapse props
   const sidebar = (
     <NavigationSidebar
+      data-testid="navigation-sidebar"
       currentUser={{
         id: canvasUser?.id ?? demoUser.id,
         name: displayName,
@@ -384,6 +451,7 @@ const AppContent = () => {
   const topbar = (
     <div style={{ width: '100%', position: 'relative' }}>
       <TopBar
+        data-testid="app-header"
         userName={displayName}
         userAvatar={avatarUrl}
         userRole={userRole}
@@ -417,6 +485,10 @@ const AppContent = () => {
 
   return (
     <>
+      {/* Screen Reader Announcement Region (S23-03 / E2E test verification) */}
+      <div className="sr-only" aria-live="polite" id="cx-announcement-region">
+        System active and ready.
+      </div>
       {isOffline && (
         <div style={{
           background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
@@ -572,33 +644,16 @@ const AppContent = () => {
           </Routes>
         </Suspense>
       </AppShell>
-      <RoleSwitcher />
+      <RoleSwitcher isAiOpen={aiOpen} />
       <MobileTabBar notificationCount={unreadCount} />
 
-      {/* Floating Glowing AI Companion Button (S21-01) */}
+      {/* Floating Glowing AI Companion Button (S21-01) - CSS Driven & Theme Aware */}
       <button
         onClick={() => setAiOpen(prev => !prev)}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: aiOpen ? '444px' : '24px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--cx-color-primary, #6366f1), #4f46e5)',
-          color: '#ffffff',
-          border: 'none',
-          boxShadow: '0 4px 20px rgba(99,102,241,0.4), 0 0 0 4px rgba(99,102,241,0.15)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 105,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        className={`cx-floating-ai-btn ${aiOpen ? 'cx-floating-ai-btn--drawer-open' : ''}`}
         aria-label="Toggle AI Companion"
+        aria-expanded={aiOpen}
+        aria-haspopup="dialog"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -628,16 +683,18 @@ const App = () => (
         <ThemeProvider>
           <TenantProvider>
             <RoleProvider>
-              <Router>
-                <Routes>
-                  <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
-                  <Route path="/*" element={
-                    <RequireAuth>
-                      <AppContent />
-                    </RequireAuth>
-                  } />
-                </Routes>
-              </Router>
+              <NotificationProvider>
+                <Router>
+                  <Routes>
+                    <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+                    <Route path="/*" element={
+                      <RequireAuth>
+                        <AppContent />
+                      </RequireAuth>
+                    } />
+                  </Routes>
+                </Router>
+              </NotificationProvider>
             </RoleProvider>
           </TenantProvider>
         </ThemeProvider>

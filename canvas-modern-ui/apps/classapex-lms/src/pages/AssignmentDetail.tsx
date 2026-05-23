@@ -36,10 +36,24 @@ export default function AssignmentDetail() {
   const dueDate = assignment.due_at ? new Date(assignment.due_at) : null
   const isPast = dueDate && dueDate < new Date()
   const daysUntilDue = dueDate ? Math.ceil((dueDate.getTime() - Date.now()) / 86400000) : null
-  const hasSubmitted = assignment.submission?.submitted
+  const hasSubmitted = !!assignment.submission?.submitted ||
+                       ['submitted', 'graded', 'complete', 'pending_review'].includes(assignment.submission?.workflow_state) ||
+                       (assignment.submission?.score !== undefined && assignment.submission?.score !== null)
   const submissionStatus = hasSubmitted
     ? (assignment.submission?.late ? 'late' : assignment.submission?.score !== undefined ? 'graded' : 'submitted')
     : isPast ? 'missing' : 'unsubmitted'
+
+  const isQuiz = assignment.submission_types?.includes('online_quiz') ||
+                 !!assignment.quiz_id ||
+                 assignment.name?.toLowerCase().includes('quiz')
+  const targetQuizId = assignment.quiz_id || assignment.id
+
+  const isExternalTool = assignment.submission_types?.includes('external_tool')
+  const expectsSubmission = assignment.submission_types && 
+                            assignment.submission_types.length > 0 && 
+                            !assignment.submission_types.includes('none') && 
+                            !assignment.submission_types.includes('not_graded') &&
+                            !assignment.submission_types.includes('on_paper')
 
   return (
     <div className="cx-assignment-detail">
@@ -49,8 +63,8 @@ export default function AssignmentDetail() {
         </Link>
         <div className="cx-assignment-detail__title-row">
           <h1 className="cx-assignment-detail__title">{assignment.name}</h1>
-          <Badge variant={isPast ? 'danger' : daysUntilDue !== null && daysUntilDue <= 2 ? 'warning' : 'primary'} size="md">
-            {isPast ? 'Overdue' : daysUntilDue !== null && daysUntilDue <= 2 ? 'Due Soon' : dueDate ? 'Open' : 'No Due Date'}
+          <Badge variant={hasSubmitted ? 'success' : isPast ? 'danger' : daysUntilDue !== null && daysUntilDue <= 2 ? 'warning' : 'primary'} size="md">
+            {hasSubmitted ? 'Submitted' : isPast ? 'Overdue' : daysUntilDue !== null && daysUntilDue <= 2 ? 'Due Soon' : dueDate ? 'Open' : 'No Due Date'}
           </Badge>
         </div>
         <div className="cx-assignment-detail__meta">
@@ -106,11 +120,55 @@ export default function AssignmentDetail() {
       </div>
 
       <div className="cx-assignment-detail__submit-section">
-        {!hasSubmitted ? (
+        {isQuiz ? (
+          hasSubmitted ? (
+            <div className="cx-assignment-detail__already-submitted" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <p style={{ fontWeight: 600, color: 'var(--cx-color-success, #10b981)' }}>Quiz submitted successfully!</p>
+              <Link
+                to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
+                className="cx-btn cx-btn--ghost"
+                style={{ textDecoration: 'none' }}
+              >
+                View Quiz Details
+              </Link>
+            </div>
+          ) : (
+            <div className="cx-assignment-detail__quiz-take-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
+              <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+                This assignment is a quiz and must be completed using the Quizzes tool.
+              </p>
+              <Link
+                to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
+                className="cx-btn cx-btn--primary"
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                Take Quiz
+              </Link>
+            </div>
+          )
+        ) : !expectsSubmission ? (
+          <div className="cx-assignment-detail__already-submitted">
+            <p>No online submission is required for this assignment.</p>
+          </div>
+        ) : isExternalTool ? (
+          <div className="cx-assignment-detail__quiz-take-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
+            <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+              This assignment uses an external tool.
+            </p>
+            <Link
+              to={`/courses/${courseId}/external-tools`}
+              className="cx-btn cx-btn--primary"
+              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+            >
+              Launch External Tool
+            </Link>
+          </div>
+        ) : !hasSubmitted ? (
           showForm ? (
             <SubmissionForm
               assignmentId={assignment.id}
               submissionTypes={assignment.submission_types || ['online_text_entry', 'online_upload', 'online_url']}
+              courseId={courseId}
               onSubmit={async (data) => {
                 try {
                   const formData = new URLSearchParams()

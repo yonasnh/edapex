@@ -11,6 +11,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import clsx from 'clsx';
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useNotification } from '../hooks/useNotification';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -29,15 +30,31 @@ interface ReportInstance {
 
 // Canvas built-in report types
 const CANVAS_REPORTS = [
-  { key: 'student_activity_csv',   label: 'Student Activity',    icon: '👤' },
-  { key: 'grade_export_csv',       label: 'Grade Export',        icon: '📊' },
-  { key: 'mgp_and_grades_csv',     label: 'MGP & Grades',        icon: '🎓' },
-  { key: 'course_storage_csv',     label: 'Course Storage',      icon: '💾' },
-  { key: 'outcome_export_csv',     label: 'Outcomes',            icon: '🎯' },
-  { key: 'unused_courses_csv',     label: 'Unused Courses',      icon: '📁' },
-  { key: 'zero_activity_csv',      label: 'Zero Activity',       icon: '⚠️' },
-  { key: 'last_user_access_csv',   label: 'Last User Access',    icon: '🕐' },
+  { key: 'last_enrollment_activity_csv', label: 'Student Activity', iconKey: 'user' },
+  { key: 'grade_export_csv',             label: 'Grade Export',     iconKey: 'chart' },
+  { key: 'mgp_grade_export_csv',         label: 'MGP & Grades',     iconKey: 'education' },
+  { key: 'course_storage_csv',           label: 'Course Storage',   iconKey: 'storage' },
+  { key: 'outcome_export_csv',           label: 'Outcomes',         iconKey: 'target' },
+  { key: 'unused_courses_csv',           label: 'Unused Courses',   iconKey: 'folder' },
+  { key: 'zero_activity_csv',            label: 'Zero Activity',    iconKey: 'alert' },
+  { key: 'last_user_access_csv',         label: 'Last User Access', iconKey: 'clock' },
 ]
+
+// Render a clean SVG icon for each report type
+function renderReportIcon(iconKey: string) {
+  const props = { width: 16, height: 16, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 } as const
+  switch (iconKey) {
+    case 'user':      return <svg {...props}><path d="M16 17v-1a3 3 0 00-3-3H7a3 3 0 00-3 3v1"/><circle cx="10" cy="6" r="3"/></svg>
+    case 'chart':     return <svg {...props}><path d="M2 18h16"/><rect x="4" y="10" width="3" height="8" rx="0.5"/><rect x="8.5" y="6" width="3" height="12" rx="0.5"/><rect x="13" y="3" width="3" height="15" rx="0.5"/></svg>
+    case 'education': return <svg {...props}><path d="M10 1L1 6l9 5 9-5-9-5z"/><path d="M4 8.5v3.5l6 3 6-3V8.5"/></svg>
+    case 'storage':   return <svg {...props}><rect x="2" y="3" width="16" height="6" rx="2"/><rect x="2" y="11" width="16" height="6" rx="2"/><circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="5" cy="14" r="1" fill="currentColor"/></svg>
+    case 'target':    return <svg {...props}><circle cx="10" cy="10" r="8"/><circle cx="10" cy="10" r="5"/><circle cx="10" cy="10" r="2"/></svg>
+    case 'folder':    return <svg {...props}><path d="M1.5 4a1 1 0 011-1h5l2 2h7a1 1 0 011 1v10a1 1 0 01-1 1h-14a1 1 0 01-1-1V4z"/></svg>
+    case 'alert':     return <svg {...props}><path d="M10 2L1 18h18L10 2z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r="0.5" fill="currentColor"/></svg>
+    case 'clock':     return <svg {...props}><circle cx="10" cy="10" r="8"/><path d="M10 5v5l3 3"/></svg>
+    default:          return <svg {...props}><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><path d="M12 2v5h5"/></svg>
+  }
+}
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg> }
@@ -82,6 +99,7 @@ function statusBadge(status: ReportInstance['status']) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const ReportsPage: React.FC = () => {
+  const { showConfirm, showToast } = useNotification();
   const [searchTerm, setSearchTerm]       = useState('')
   const [filterType, setFilterType]       = useState('all')
   const [filterStatus, setFilterStatus]   = useState('all')
@@ -93,7 +111,7 @@ const ReportsPage: React.FC = () => {
   const [generateError, setGenerateError]     = useState('')
 
   const [newReport, setNewReport] = useState({
-    reportType: 'student_activity_csv',
+    reportType: 'last_enrollment_activity_csv',
     courseId: '',
   })
 
@@ -107,8 +125,8 @@ const ReportsPage: React.FC = () => {
   const { data: coursesData } = useCanvasQuery<any[]>('/api/v1/courses', { per_page: 50 } as any)
   const courses = Array.isArray(coursesData) ? coursesData : []
 
-  const fetchAllReports = useCallback(async () => {
-    setLoading(true)
+  const fetchAllReports = useCallback(async (silent: boolean = false) => {
+    if (!silent) setLoading(true)
     setFetchError('')
     try {
       // Fetch most-recent instances for each report type in parallel
@@ -141,7 +159,7 @@ const ReportsPage: React.FC = () => {
     } catch (e: any) {
       setFetchError(e.message || 'Failed to load reports')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -151,7 +169,7 @@ const ReportsPage: React.FC = () => {
   useEffect(() => {
     const hasRunning = allInstances.some(r => r.status === 'running' || r.status === 'created')
     if (!hasRunning) return
-    const t = setTimeout(fetchAllReports, 4000)
+    const t = setTimeout(() => { fetchAllReports(true) }, 4000)
     return () => clearTimeout(t)
   }, [allInstances, fetchAllReports])
 
@@ -173,7 +191,7 @@ const ReportsPage: React.FC = () => {
         throw new Error(err.message || `HTTP ${res.status}`)
       }
       setShowCreateModal(false)
-      setNewReport({ reportType: 'student_activity_csv', courseId: '' })
+      setNewReport({ reportType: 'last_enrollment_activity_csv', courseId: '' })
       await fetchAllReports()
     } catch (e: any) {
       setGenerateError(e.message || 'Failed to generate report')
@@ -184,16 +202,39 @@ const ReportsPage: React.FC = () => {
 
   // ── Delete a report instance ──
   const handleDelete = async (reportType: string, id: number) => {
-    if (!confirm('Delete this report instance?')) return
+    const isConfirmed = await showConfirm({
+      title: 'Delete Report',
+      message: 'Are you sure you want to delete this report instance? This cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!isConfirmed) return;
     try {
       const res = await fetch(`/api/v1/accounts/1/reports/${reportType}/${id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       })
-      if (res.ok) fetchAllReports()
-      else alert('Failed to delete report')
-    } catch (e) {
-      alert('Error deleting report')
+      if (res.ok) {
+        showToast({
+          title: 'Report Deleted',
+          message: 'The report was deleted successfully.',
+          type: 'success'
+        });
+        fetchAllReports()
+      } else {
+        showToast({
+          title: 'Delete Failed',
+          message: 'Failed to delete report.',
+          type: 'error'
+        });
+      }
+    } catch (e: any) {
+      showToast({
+        title: 'Delete Error',
+        message: e.message || 'Error deleting report.',
+        type: 'error'
+      });
     }
   }
 
@@ -229,13 +270,13 @@ const ReportsPage: React.FC = () => {
   const getLabelForKey = (key: string) =>
     CANVAS_REPORTS.find(r => r.key === key)?.label ?? key.replace(/_/g, ' ')
   const getIconForKey  = (key: string) =>
-    CANVAS_REPORTS.find(r => r.key === key)?.icon ?? '📄'
+    renderReportIcon(CANVAS_REPORTS.find(r => r.key === key)?.iconKey ?? 'default')
 
   return (
     <div className="cx-page">
       <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={fetchAllReports} title="Refresh">
+          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => fetchAllReports()} title="Refresh">
             <RefreshSvg /> Refresh
           </button>
           <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowCreateModal(true)}>
@@ -405,7 +446,7 @@ const ReportsPage: React.FC = () => {
                 <select id="rpt-type" className="cx-select" style={{ width: '100%' }}
                   value={newReport.reportType} onChange={e => setNewReport(p => ({ ...p, reportType: e.target.value }))}>
                   {CANVAS_REPORTS.map(r => (
-                    <option key={r.key} value={r.key}>{r.icon} {r.label}</option>
+                    <option key={r.key} value={r.key}>{r.label}</option>
                   ))}
                 </select>
               </div>

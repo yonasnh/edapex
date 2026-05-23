@@ -58,35 +58,12 @@ const roleBadgeClass = (role: string) => {
   }
 };
 
-import { useCanvasQuery } from '../../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useRole } from '../../contexts/RoleContext';
-
-async function csrfFetch(path: string, method: string, body?: object | string): Promise<Response> {
-  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'X-CSRF-Token': decodeURIComponent(token),
-  };
-  if (body) {
-    if (typeof body === 'string') {
-      headers['Content-Type'] = 'application/x-www-form-urlencoded';
-    } else {
-      headers['Content-Type'] = 'application/json';
-    }
-  }
-  const apiToken = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
-  if (apiToken) {
-    headers['Authorization'] = `Bearer ${apiToken}`;
-  }
-  return fetch(path, {
-    method,
-    credentials: 'include',
-    headers,
-    body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
-  });
-}
+import { useNotification } from '../../hooks/useNotification';
 
 const AdminUsersPage: React.FC = () => {
+  const { showConfirm, showToast } = useNotification();
   const { masqueradeAs } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -196,15 +173,8 @@ const AdminUsersPage: React.FC = () => {
   const fetchCommChannels = async (userId: string) => {
     setLoadingChannels(true);
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
-      const headers: Record<string, string> = { Accept: 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      
-      const res = await fetch(`/api/v1/users/${userId}/communication_channels`, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        setCommChannels(data);
-      }
+      const data = await canvasFetch(`/api/v1/users/${userId}/communication_channels`);
+      setCommChannels(data);
     } catch (err) {
       console.error('Error fetching communication channels:', err);
     } finally {
@@ -216,19 +186,12 @@ const AdminUsersPage: React.FC = () => {
   const fetchObserverLinks = async (user: UserData) => {
     setLoadingLinks(true);
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
-      const headers: Record<string, string> = { Accept: 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
       const endpoint = user.role === 'student' 
         ? `/api/v1/users/${user.id}/observers` 
         : `/api/v1/users/${user.id}/observees`;
 
-      const res = await fetch(endpoint, { headers });
-      if (res.ok) {
-        const data = await res.json();
-        setLinkedUsers(data);
-      }
+      const data = await canvasFetch(endpoint);
+      setLinkedUsers(data);
     } catch (err) {
       console.error('Error fetching observer links:', err);
     } finally {
@@ -259,34 +222,57 @@ const AdminUsersPage: React.FC = () => {
         },
         skip_confirmation: true
       };
-      const res = await csrfFetch(`/api/v1/users/${selectedUser.id}/communication_channels`, 'POST', payload);
-      if (res.ok) {
-        setNewChannelAddress('');
-        setShowAddChannelForm(false);
-        await fetchCommChannels(selectedUser.id);
-      } else {
-        const errData = await res.json();
-        alert('Failed to add channel: ' + (errData.errors?.path?.[0]?.message || 'Unknown error'));
-      }
-    } catch (err) {
+      await canvasFetch(`/api/v1/users/${selectedUser.id}/communication_channels`, {
+        method: 'POST',
+        body: payload
+      });
+      showToast({
+        title: 'Channel Added',
+        message: `Successfully added communication channel "${newChannelAddress}"`,
+        type: 'success'
+      });
+      setNewChannelAddress('');
+      setShowAddChannelForm(false);
+      await fetchCommChannels(selectedUser.id);
+    } catch (err: any) {
       console.error(err);
-      alert('Error adding communication channel');
+      showToast({
+        title: 'Failed to add channel',
+        message: err.message || 'An error occurred while adding the communication channel.',
+        type: 'error'
+      });
     } finally {
       setIsAddingChannel(false);
     }
   };
 
   const handleDeleteChannel = async (channelId: number) => {
-    if (!selectedUser || !confirm('Are you sure you want to delete this communication channel?')) return;
+    if (!selectedUser) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Channel',
+      message: 'Are you sure you want to delete this communication channel?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
-      const res = await csrfFetch(`/api/v1/users/${selectedUser.id}/communication_channels/${channelId}`, 'DELETE');
-      if (res.ok) {
-        await fetchCommChannels(selectedUser.id);
-      } else {
-        alert('Failed to delete communication channel');
-      }
-    } catch (err) {
+      await canvasFetch(`/api/v1/users/${selectedUser.id}/communication_channels/${channelId}`, {
+        method: 'DELETE'
+      });
+      showToast({
+        title: 'Channel Deleted',
+        message: 'Successfully deleted communication channel.',
+        type: 'success'
+      });
+      await fetchCommChannels(selectedUser.id);
+    } catch (err: any) {
       console.error(err);
+      showToast({
+        title: 'Failed to delete channel',
+        message: err.message || 'An error occurred while deleting the communication channel.',
+        type: 'error'
+      });
     }
   };
 
@@ -298,36 +284,59 @@ const AdminUsersPage: React.FC = () => {
       const observerId = selectedUser.role === 'student' ? selectedLinkUserId : selectedUser.id;
       const studentId = selectedUser.role === 'student' ? selectedUser.id : selectedLinkUserId;
 
-      const res = await csrfFetch(`/api/v1/users/${observerId}/observees/${studentId}`, 'PUT');
-      if (res.ok) {
-        setSelectedLinkUserId('');
-        setShowAddObserverForm(false);
-        await fetchObserverLinks(selectedUser);
-      } else {
-        alert('Failed to link users.');
-      }
-    } catch (err) {
+      await canvasFetch(`/api/v1/users/${observerId}/observees/${studentId}`, {
+        method: 'PUT'
+      });
+      showToast({
+        title: 'Link Added',
+        message: 'Successfully created observer link.',
+        type: 'success'
+      });
+      setSelectedLinkUserId('');
+      setShowAddObserverForm(false);
+      await fetchObserverLinks(selectedUser);
+    } catch (err: any) {
       console.error(err);
-      alert('Error creating link.');
+      showToast({
+        title: 'Failed to create link',
+        message: err.message || 'An error occurred while creating the observer link.',
+        type: 'error'
+      });
     } finally {
       setIsAddingLink(false);
     }
   };
 
   const handleDeleteObserverLink = async (linkedUserId: string) => {
-    if (!selectedUser || !confirm('Are you sure you want to remove this link?')) return;
+    if (!selectedUser) return;
+    const confirmed = await showConfirm({
+      title: 'Remove Observer Link',
+      message: 'Are you sure you want to remove this observer link?',
+      confirmLabel: 'Remove Link',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
       const observerId = selectedUser.role === 'student' ? linkedUserId : selectedUser.id;
       const studentId = selectedUser.role === 'student' ? selectedUser.id : linkedUserId;
 
-      const res = await csrfFetch(`/api/v1/users/${observerId}/observees/${studentId}`, 'DELETE');
-      if (res.ok) {
-        await fetchObserverLinks(selectedUser);
-      } else {
-        alert('Failed to remove link');
-      }
-    } catch (err) {
+      await canvasFetch(`/api/v1/users/${observerId}/observees/${studentId}`, {
+        method: 'DELETE'
+      });
+      showToast({
+        title: 'Link Removed',
+        message: 'Successfully removed observer link.',
+        type: 'success'
+      });
+      await fetchObserverLinks(selectedUser);
+    } catch (err: any) {
       console.error(err);
+      showToast({
+        title: 'Failed to remove link',
+        message: err.message || 'An error occurred while removing the link.',
+        type: 'error'
+      });
     }
   };
 
@@ -342,18 +351,25 @@ const AdminUsersPage: React.FC = () => {
         body: messageBody,
         force_new: true
       };
-      const res = await csrfFetch('/api/v1/conversations', 'POST', payload);
-      if (res.ok) {
-        alert('Message sent successfully!');
-        setMessageSubject('');
-        setMessageBody('');
-        setSendMessageUser(null);
-      } else {
-        alert('Failed to send message.');
-      }
-    } catch (err) {
+      await canvasFetch('/api/v1/conversations', {
+        method: 'POST',
+        body: payload
+      });
+      showToast({
+        title: 'Message Sent',
+        message: 'Message sent successfully!',
+        type: 'success'
+      });
+      setMessageSubject('');
+      setMessageBody('');
+      setSendMessageUser(null);
+    } catch (err: any) {
       console.error(err);
-      alert('Error sending message');
+      showToast({
+        title: 'Failed to send message',
+        message: err.message || 'An error occurred while sending the message.',
+        type: 'error'
+      });
     } finally {
       setIsSendingMessage(false);
     }
@@ -420,94 +436,106 @@ const AdminUsersPage: React.FC = () => {
 
   const handleCreateUser = async () => {
     try {
-      const formData = new URLSearchParams()
-      formData.append('user[name]', newUser.name)
-      formData.append('pseudonym[unique_id]', newUser.email)
-      formData.append('pseudonym[password]', newUser.temporaryPassword || 'Canvas123!')
-      formData.append('pseudonym[send_confirmation]', newUser.sendWelcomeEmail ? '1' : '0')
-      formData.append('communication_channel[type]', 'email')
-      formData.append('communication_channel[address]', newUser.email)
+      const payload = {
+        user: {
+          name: newUser.name
+        },
+        pseudonym: {
+          unique_id: newUser.email,
+          password: newUser.temporaryPassword || 'Canvas123!',
+          send_confirmation: newUser.sendWelcomeEmail ? '1' : '0'
+        },
+        communication_channel: {
+          type: 'email',
+          address: newUser.email
+        }
+      };
 
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch('/api/v1/accounts/1/users', {
+      await canvasFetch('/api/v1/accounts/1/users', {
         method: 'POST',
-        credentials: 'include',
-        headers,
-        body: formData.toString()
-      })
-      if (!res.ok) throw new Error('Failed to create user')
+        body: payload
+      });
       
       setNewUser({ name: '', email: '', role: 'student', isActive: true, sendWelcomeEmail: true, temporaryPassword: '', timezone: 'America/New_York', locale: 'en' });
       setShowCreateModal(false);
-      refetch()
-    } catch (err) {
-      console.error(err)
-      alert('Failed to create user.')
+      showToast({
+        title: 'User Created',
+        message: 'Successfully created a new user.',
+        type: 'success'
+      });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      showToast({
+        title: 'Failed to create user',
+        message: err.message || 'An error occurred while creating the user.',
+        type: 'error'
+      });
     }
   };
 
   const handleEditUser = async () => {
-    if (!editUser.id) return
+    if (!editUser.id) return;
     try {
-      const token = (import.meta as any).env?.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
+      const payload: Record<string, any> = {};
+      if (editUser.name) {
+        payload.user = { name: editUser.name };
       }
-      if (token) headers['Authorization'] = `Bearer ${token}`
+      if (editUser.email) {
+        if (!payload.user) payload.user = {};
+        payload.user.email = editUser.email;
+      }
 
-      const formData = new URLSearchParams()
-      if (editUser.name)  formData.append('user[name]', editUser.name)
-      if (editUser.email) formData.append('user[email]', editUser.email)
-
-      const res = await fetch(`/api/v1/users/${editUser.id}`, {
+      await canvasFetch(`/api/v1/users/${editUser.id}`, {
         method: 'PUT',
-        credentials: 'include',
-        headers,
-        body: formData.toString(),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        body: payload
+      });
 
-      setEditUser({})
-      setShowEditModal(false)
-      refetch()
-    } catch (err) {
-      console.error(err)
-      alert('Failed to update user.')
+      setEditUser({});
+      setShowEditModal(false);
+      showToast({
+        title: 'User Updated',
+        message: 'Successfully updated user details.',
+        type: 'success'
+      });
+      refetch();
+    } catch (err: any) {
+      console.error(err);
+      showToast({
+        title: 'Failed to update user',
+        message: err.message || 'An error occurred while updating the user.',
+        type: 'error'
+      });
     }
   };
   const handleUserClick = (user: UserData) => { setSelectedUser(user); setShowUserModal(true); };
   const handleEditClick = (user: UserData) => { setEditUser(user); setShowEditModal(true); };
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
-      const token = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token')
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
-      const res = await fetch(`/api/v1/accounts/1/users/${userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers
+      await canvasFetch(`/api/v1/accounts/1/users/${userId}`, {
+        method: 'DELETE'
       });
-      if (!res.ok) throw new Error('Failed to delete user');
+      showToast({
+        title: 'User Deleted',
+        message: 'Successfully deleted the user.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to delete user.');
+      showToast({
+        title: 'Failed to delete user',
+        message: err.message || 'An error occurred while deleting the user.',
+        type: 'error'
+      });
     }
   };
 

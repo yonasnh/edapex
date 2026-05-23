@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { useNotification } from '../../hooks/useNotification'
 import clsx from 'clsx'
 
 interface CourseSettings {
@@ -54,6 +55,7 @@ const inpStyle: React.CSSProperties = { border: '1px solid var(--cx-border-subtl
 const toggleLabelStyle: React.CSSProperties = { fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }
 
 export default function CourseSettingsPage() {
+  const { showToast } = useNotification()
   const [settings, setSettings] = useState<CourseSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
@@ -342,7 +344,11 @@ export default function CourseSettingsPage() {
                         setTimeout(() => {
                           setSyncingBlueprint(false)
                           setAssociatedCourses(prev => prev.map(c => ({ ...c, status: 'In Sync' })))
-                          alert('Blueprint content synchronized successfully across all associated courses!')
+                          showToast({
+                            title: 'Sync Complete',
+                            message: 'Blueprint content synchronized successfully across all associated courses!',
+                            type: 'success'
+                          })
                         }, 2500)
                       }}
                     >

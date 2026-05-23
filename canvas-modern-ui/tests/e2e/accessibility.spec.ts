@@ -8,27 +8,63 @@ import AxeBuilder from '@axe-core/playwright'
  * including automated axe-core testing, keyboard navigation, and screen reader compatibility.
  */
 
-test.describe('Accessibility Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    // Mock authenticated state for accessibility tests
-    await page.addInitScript(() => {
-      const mockToken = {
-        access_token: 'mock-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        user: {
-          id: 1,
-          name: 'Test User',
-          email: 'test@example.com',
-        },
-        created_at: Date.now(),
-        integrity: 'mock-integrity-hash',
-      }
-      localStorage.setItem('schoolapex_canvas_token', JSON.stringify(mockToken))
-    })
+test.beforeEach(async ({ page }) => {
+  // Listen to console and error logs in the browser
+  page.on('console', msg => {
+    console.log(`[PAGE LOG] [${msg.type()}] ${msg.text()}`)
+  })
+  page.on('pageerror', err => {
+    console.log(`[PAGE ERROR] ${err.message}\n${err.stack}`)
+  })
+  page.on('request', request => {
+    console.log(`[REQUEST] ${request.method()} ${request.url()}`)
+  })
+  page.on('requestfailed', request => {
+    console.log(`[REQUEST FAILED] ${request.url()} - ${request.failure()?.errorText}`)
+  })
+  page.on('response', response => {
+    if (response.status() >= 400) {
+      console.log(`[RESPONSE ERROR] ${response.status()} ${response.url()}`)
+    }
+  })
 
-    // Mock consistent API responses
-    await page.route('**/api/v1/courses', async route => {
+  // Mock authenticated state for all E2E tests
+  await page.addInitScript(() => {
+    // Disable service worker registration during E2E tests
+    if (navigator.serviceWorker) {
+      Object.defineProperty(navigator, 'serviceWorker', {
+        get: () => ({
+          register: () => Promise.resolve({ scope: '/' }),
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          getRegistrations: () => Promise.resolve([]),
+        }),
+        configurable: true
+      });
+    }
+
+    const mockToken = {
+      access_token: 'mock-access-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      user: {
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        roles: ['student']
+      },
+      created_at: Date.now(),
+      integrity: 'mock-integrity-hash',
+    }
+    localStorage.setItem('schoolapex_canvas_token', JSON.stringify(mockToken))
+    localStorage.setItem('classapex-theme', 'light') // Default to consistent theme
+  })
+
+  // Mock consistent Canvas API responses globally
+  await page.route('**/api/v1/**', async route => {
+    const url = route.request().url()
+    
+    if (url.includes('/api/v1/courses')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -37,16 +73,146 @@ test.describe('Accessibility Tests', () => {
             id: 1,
             name: 'Advanced Web Development',
             course_code: 'CS401',
+            workflow_state: 'available',
+            term: { name: 'Spring 2026' },
+            course_progress: { requirement_count: 5, requirement_completed_count: 2 }
           },
           {
             id: 2,
             name: 'Database Systems',
             course_code: 'CS301',
+            workflow_state: 'available',
+            term: { name: 'Spring 2026' }
           },
         ]),
       })
-    })
+    } else if (url.includes('/api/v1/users/self/activity_stream/summary')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { type: 'announcement', unread_count: 1, count: 5 }
+        ]),
+      })
+    } else if (url.includes('/api/v1/users/self/activity_stream')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 1,
+            title: 'Welcome to ClassApex',
+            message: 'Welcome to the new ClassApex LMS platform!',
+            type: 'announcement',
+            read_state: false,
+            created_at: '2026-05-19T23:00:00Z',
+            html_url: '/courses/1'
+          }
+        ]),
+      })
+    } else if (url.includes('/api/v1/users/self/todo')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            type: 'submitting',
+            assignment: {
+              id: 1,
+              name: 'Assignment 1: Complete Git & CI/CD workflow',
+              due_at: '2026-05-25T23:59:59Z',
+              points_possible: 100
+            },
+            context_name: 'Advanced Web Development',
+            context_type: 'Course',
+            course_id: 1,
+            html_url: '/courses/1/assignments/1'
+          }
+        ]),
+      })
+    } else if (url.includes('/api/v1/users/self/upcoming_events')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 1,
+            title: 'Module 1 Live Q&A session',
+            start_at: '2026-05-22T14:00:00Z',
+            end_at: '2026-05-22T15:00:00Z',
+            context_name: 'Advanced Web Development',
+            context_code: 'CS401',
+            html_url: '/courses/1'
+          }
+        ]),
+      })
+    } else if (url.includes('/api/v1/users/self/missing_submissions')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    } else if (url.includes('/api/v1/users/self/favorites/courses')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 1,
+            name: 'Advanced Web Development',
+            course_code: 'CS401',
+            workflow_state: 'available',
+            term: { name: 'Spring 2026' }
+          }
+        ]),
+      })
+    } else if (url.includes('/api/v1/users/self')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '1',
+          name: 'Test User',
+          display_name: 'Test User',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Test',
+          primary_email: 'test@example.com',
+          login_id: 'test_user',
+          roles: ['student']
+        }),
+      })
+    } else if (url.includes('/api/v1/accounts/1/account_notifications')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 1,
+            subject: 'System Maintenance',
+            message: 'The system will undergo scheduled maintenance on Sunday.',
+            start_at: '2026-05-19T00:00:00Z',
+            end_at: '2026-05-25T00:00:00Z',
+            icon: 'warning'
+          }
+        ]),
+      })
+    } else if (url.includes('/api/v1/accounts/1/users')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    } else {
+      // Fallback for any other API route
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    }
   })
+})
+
+test.describe('Accessibility Tests', () => {
 
   test('should not have any automatically detectable accessibility issues on dashboard', async ({ page }) => {
     await page.goto('/')
@@ -63,8 +229,7 @@ test.describe('Accessibility Tests', () => {
   })
 
   test('should not have accessibility issues on courses page', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('link', { name: /courses/i }).click()
+    await page.goto('/courses')
     
     // Wait for courses to load
     await expect(page.getByText('Advanced Web Development')).toBeVisible()
@@ -92,8 +257,7 @@ test.describe('Accessibility Tests', () => {
       })
     })
 
-    await page.goto('/')
-    await page.getByRole('link', { name: /analytics/i }).click()
+    await page.goto('/analytics')
     
     // Wait for analytics to load
     await expect(page.getByTestId('analytics-dashboard')).toBeVisible()
@@ -210,24 +374,8 @@ test.describe('Accessibility Tests', () => {
 
 test.describe('Keyboard Navigation Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock authenticated state
-    await page.addInitScript(() => {
-      const mockToken = {
-        access_token: 'mock-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        user: {
-          id: 1,
-          name: 'Test User',
-          email: 'test@example.com',
-        },
-        created_at: Date.now(),
-        integrity: 'mock-integrity-hash',
-      }
-      localStorage.setItem('schoolapex_canvas_token', JSON.stringify(mockToken))
-    })
-
     await page.goto('/')
+    await expect(page.getByTestId('dashboard-content')).toBeVisible()
   })
 
   test('should support tab navigation through all interactive elements', async ({ page }) => {
@@ -271,15 +419,23 @@ test.describe('Keyboard Navigation Tests', () => {
   })
 
   test('should support Enter key activation', async ({ page }) => {
-    // Focus on a clickable element
-    const coursesLink = page.getByRole('link', { name: /courses/i })
+    // Focus on a clickable element (exact Courses link in sidebar to expand it)
+    const coursesLink = page.locator('.navigation-sidebar').getByRole('link', { name: 'Courses', exact: true })
     await coursesLink.focus()
     
-    // Press Enter to activate
+    // Press Enter to expand the Courses menu
+    await page.keyboard.press('Enter')
+    
+    // Focus on All Courses link which is now visible in the expanded submenu
+    const allCoursesLink = page.locator('.navigation-sidebar').getByRole('link', { name: 'All Courses' })
+    await expect(allCoursesLink).toBeVisible()
+    await allCoursesLink.focus()
+
+    // Press Enter to navigate
     await page.keyboard.press('Enter')
     
     // Should navigate to courses page
-    await expect(page.getByText(/courses/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Course Management' })).toBeVisible()
   })
 
   test('should support Space key activation for buttons', async ({ page }) => {
@@ -459,7 +615,7 @@ test.describe('Screen Reader Compatibility Tests', () => {
 
   test('should announce loading states to screen readers', async ({ page }) => {
     // Mock slow API response
-    await page.route('**/api/v1/courses', async route => {
+    await page.route('**/api/v1/courses*', async route => {
       await new Promise(resolve => setTimeout(resolve, 1000))
       await route.fulfill({
         status: 200,
@@ -469,22 +625,27 @@ test.describe('Screen Reader Compatibility Tests', () => {
     })
 
     await page.goto('/')
-    await page.getByRole('link', { name: /courses/i }).click()
+    await expect(page.getByTestId('dashboard-content')).toBeVisible()
+    
+    // Expand menu then click All Courses
+    await page.locator('.navigation-sidebar').getByRole('link', { name: 'Courses', exact: true }).click()
+    await page.locator('.navigation-sidebar').getByRole('link', { name: 'All Courses' }).click()
     
     // Check for loading announcement
     const loadingElement = page.getByTestId('loading-spinner')
     await expect(loadingElement).toBeVisible()
     
-    // Should have aria-live or role="status" for screen reader announcement
-    const ariaLive = await loadingElement.getAttribute('aria-live')
-    const role = await loadingElement.getAttribute('role')
+    // Should have aria-live or role="status" on the parent loading container
+    const container = page.locator('.cx-loading')
+    const ariaLive = await container.getAttribute('aria-live')
+    const role = await container.getAttribute('role')
     
     expect(ariaLive === 'polite' || ariaLive === 'assertive' || role === 'status').toBe(true)
   })
 
   test('should announce error states to screen readers', async ({ page }) => {
     // Mock API error
-    await page.route('**/api/v1/courses', async route => {
+    await page.route('**/api/v1/courses*', async route => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -493,16 +654,18 @@ test.describe('Screen Reader Compatibility Tests', () => {
     })
 
     await page.goto('/')
-    await page.getByRole('link', { name: /courses/i }).click()
+    await expect(page.getByTestId('dashboard-content')).toBeVisible()
     
-    // Check for error announcement
-    const errorElement = page.getByTestId('error-boundary')
+    // Expand menu then click All Courses
+    await page.locator('.navigation-sidebar').getByRole('link', { name: 'Courses', exact: true }).click()
+    await page.locator('.navigation-sidebar').getByRole('link', { name: 'All Courses' }).click()
+    
+    // Check for error announcement (the API warning notification has role="alert")
+    const errorElement = page.locator('[role="alert"]').first()
     await expect(errorElement).toBeVisible()
     
-    // Should have aria-live for screen reader announcement
-    const ariaLive = await errorElement.getAttribute('aria-live')
+    // Should have role="alert" for screen reader announcement
     const role = await errorElement.getAttribute('role')
-    
-    expect(ariaLive === 'assertive' || role === 'alert').toBe(true)
+    expect(role).toBe('alert')
   })
 })

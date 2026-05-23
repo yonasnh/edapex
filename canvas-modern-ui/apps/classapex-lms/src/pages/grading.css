@@ -189,7 +189,7 @@
 
 .cx-grade-item--active {
   background: var(--cx-primary-light, #eef2ff);
-  border-left: 3px solid var(--cx-primary, #6366f1);
+  border-top: 3px solid var(--cx-primary, #6366f1);
 }
 
 .cx-grade-item--graded {

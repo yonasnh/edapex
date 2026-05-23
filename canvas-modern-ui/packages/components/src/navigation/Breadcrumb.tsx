@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import './Breadcrumb.css'
 
 // ─── Types ───
@@ -128,10 +129,10 @@ export function Breadcrumb({
                   {item.label}
                 </span>
               ) : (
-                <a href={item.href} className="cx-breadcrumb__link">
+                <Link to={item.href} className="cx-breadcrumb__link">
                   {item.icon && <span className="cx-breadcrumb__icon">{item.icon}</span>}
                   {item.label}
-                </a>
+                </Link>
               )}
             </li>
           )

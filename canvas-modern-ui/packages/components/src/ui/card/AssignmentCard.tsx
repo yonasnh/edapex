@@ -63,6 +63,11 @@ export const AssignmentCard = memo(
         }
       }
 
+      const handleTitleClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        handleCardClick()
+      }
+
       const handleSubmitClick = async (e: React.MouseEvent) => {
         e.stopPropagation()
         try {
@@ -177,19 +182,18 @@ export const AssignmentCard = memo(
           data-testid={testId}
           role="article"
           aria-label={`Assignment: ${assignment.name}`}
-          tabIndex={0}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleCardClick()
-            }
-          }}
           {...props}
         >
           <div className="assignment-card__header">
             <div className="assignment-card__title-section">
               <h3 className="assignment-card__name" title={assignment.name}>
-                {assignment.name}
+                <button
+                  type="button"
+                  className="assignment-card__name-link"
+                  onClick={handleTitleClick}
+                >
+                  {assignment.name}
+                </button>
               </h3>
               {assignment.points_possible && (
                 <span className="assignment-card__points">

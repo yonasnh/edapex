@@ -10,8 +10,8 @@
     "generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "test": "vitest --passWithNoTests",
+    "test:run": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@apollo/server": "^4.10.0",

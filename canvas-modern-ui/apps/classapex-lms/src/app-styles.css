@@ -1,8 +1,28 @@
 /* ClassApex - Enhanced Carbon Design System */
 
 /* CSS Custom Properties for ClassApex Theme */
-:root {
-  --classapex-primary: #0f62fe;
+:root, [data-theme="dark"] {
+  /* Semantic variables context - Dark theme defaults */
+  --cx-bg-app: #080c14;
+  --cx-bg-surface: #111827;
+  --cx-bg-surface-raised: #1a2234;
+  --cx-bg-surface-sunken: #0c1018;
+  --cx-border-subtle: #243048;
+  --cx-border-default: #374151;
+  --cx-text-primary: #f4f4f4;
+  --cx-text-secondary: #c6c6c6;
+  --cx-text-tertiary: #cbd5e1;
+  --cx-color-primary: #0f62fe;
+  --cx-color-primary-hover: #0b4fc2;
+  --cx-color-primary-subtle: rgba(15, 98, 254, 0.1);
+  --cx-shadow-primary-glow: 0 4px 12px rgba(0, 0, 0, 0.25);
+
+  /* Theme-aware Sidebar variables */
+  --cx-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --cx-sidebar-active-bg: rgba(15, 98, 254, 0.16);
+  --cx-sidebar-text-active: #4589ff;
+  
+  --classapex-primary: var(--cx-color-primary);
   --classapex-secondary: #8a3ffc;
   --classapex-accent: #ff832b;
   --classapex-success: #24a148;
@@ -14,16 +34,16 @@
   --classapex-gradient-primary: linear-gradient(135deg, var(--classapex-primary) 0%, var(--classapex-secondary) 100%);
   --classapex-gradient-accent: linear-gradient(135deg, var(--classapex-accent) 0%, var(--classapex-error) 100%);
 
-  /* Surface colors */
-  --classapex-surface-01: #161616;
-  --classapex-surface-02: #262626;
-  --classapex-surface-03: #393939;
-  --classapex-surface-04: #525252;
+  /* Surface colors mapped to semantic variables */
+  --classapex-surface-01: var(--cx-bg-app);
+  --classapex-surface-02: var(--cx-bg-surface);
+  --classapex-surface-03: var(--cx-border-subtle);
+  --classapex-surface-04: var(--cx-border-default);
   
-  /* Text colors */
-  --classapex-text-primary: #f4f4f4;
-  --classapex-text-secondary: #c6c6c6;
-  --classapex-text-helper: #a8a8a8;
+  /* Text colors mapped to semantic variables */
+  --classapex-text-primary: var(--cx-text-primary);
+  --classapex-text-secondary: var(--cx-text-secondary);
+  --classapex-text-helper: var(--cx-text-tertiary);
   --classapex-text-on-color: #ffffff;
   
   /* Optimized Spacing System - Minimal & Consistent */
@@ -63,12 +83,36 @@
   --shadow-05: 0 19px 38px rgba(0, 0, 0, 0.30), 0 15px 12px rgba(0, 0, 0, 0.22);
 }
 
+[data-theme="light"] {
+  /* Semantic variables context - Light theme defaults */
+  --cx-bg-app: #F7F8FA;
+  --cx-bg-surface: #FFFFFF;
+  --cx-bg-surface-raised: #F8FAFC;
+  --cx-bg-surface-sunken: #F1F3F6;
+  --cx-border-subtle: #E5E7EB;
+  --cx-border-default: #CBD5E1;
+  --cx-text-primary: #111827;
+  --cx-text-secondary: #374151;
+  --cx-text-tertiary: #4B5563;
+  --cx-color-primary: #2563EB;
+  --cx-color-primary-hover: #1D4ED8;
+  --cx-color-primary-subtle: rgba(37, 99, 235, 0.08);
+  --cx-shadow-primary-glow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  /* Theme-aware Sidebar variables */
+  --cx-sidebar-hover-bg: rgba(17, 24, 39, 0.04);
+  --cx-sidebar-active-bg: rgba(37, 99, 235, 0.08);
+  --cx-sidebar-text-active: #2563EB;
+  
+  --classapex-primary: var(--cx-color-primary);
+}
+
 .classapex-app {
   min-height: 100vh;
   display: flex;
-  background-color: #161616;
+  background-color: var(--classapex-surface-01);
   color: var(--classapex-text-primary);
-  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--classapex-font-family);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -85,7 +129,7 @@
 }
 
 .classapex-header {
-  background-color: #161616;
+  background-color: var(--classapex-surface-01);
   border-bottom: 1px solid var(--classapex-surface-03);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -99,12 +143,12 @@
 /* Override Carbon Design System Header default backgrounds */
 .classapex-header.cds--header,
 .classapex-header.bx--header {
-  background-color: #161616 !important;
+  background-color: var(--classapex-surface-01) !important;
 }
 
 .classapex-header .cds--header,
 .classapex-header .bx--header {
-  background-color: #161616 !important;
+  background-color: var(--classapex-surface-01) !important;
 }
 
 .classapex-header .cds--header-global-bar,
@@ -189,10 +233,10 @@ textarea,
 select {
   width: 100% !important;
   padding: 0.75rem !important;
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 4px !important;
-  color: #f4f4f4 !important;
+  color: var(--classapex-text-primary) !important;
   font-size: 0.875rem !important;
   transition: all 0.2s ease !important;
 }
@@ -214,10 +258,10 @@ input[type="number"]:focus,
 input[type="search"]:focus,
 textarea:focus,
 select:focus {
-  border-color: #0f62fe !important;
-  box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.2) !important;
+  border-color: var(--classapex-primary) !important;
+  box-shadow: 0 0 0 2px var(--cx-color-primary-subtle, rgba(15, 98, 254, 0.2)) !important;
   outline: none !important;
-  background: #262626 !important;
+  background: var(--classapex-surface-02) !important;
 }
 
 /* Textarea specific styling */
@@ -236,8 +280,8 @@ textarea {
 .bx--multi-select,
 .cds--select,
 .bx--select {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 4px !important;
 }
 
@@ -247,8 +291,8 @@ textarea {
 .bx--multi-select__menu,
 .cds--select-optgroup,
 .bx--select-optgroup {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   padding: 0.5rem 0 !important;
@@ -261,9 +305,9 @@ textarea {
 .cds--select-option,
 .bx--select-option {
   background: transparent !important;
-  color: #c6c6c6 !important;
+  color: var(--classapex-text-secondary) !important;
   padding: 0.75rem 1rem !important;
-  border-bottom: 1px solid #393939 !important;
+  border-bottom: 1px solid var(--classapex-surface-03) !important;
   transition: all 0.2s ease !important;
 }
 
@@ -273,9 +317,9 @@ textarea {
 .bx--multi-select__option:hover,
 .cds--select-option:hover,
 .bx--select-option:hover {
-  background: rgba(15, 98, 254, 0.1) !important;
-  color: #f4f4f4 !important;
-  border-color: #0f62fe !important;
+  background: var(--cx-color-primary-subtle, rgba(15, 98, 254, 0.1)) !important;
+  color: var(--classapex-text-primary) !important;
+  border-color: var(--classapex-primary) !important;
 }
 
 .cds--dropdown-item:last-child,
@@ -467,7 +511,7 @@ textarea {
 .cds--form-item label,
 .bx--form-item label,
 label {
-  color: #f4f4f4 !important;
+  color: var(--cx-text-primary, #f4f4f4) !important;
   font-weight: 500 !important;
   font-size: 0.875rem !important;
   margin-bottom: 0.5rem !important;
@@ -476,7 +520,7 @@ label {
 
 .cds--helper-text,
 .bx--helper-text {
-  color: #a8a8a8 !important;
+  color: var(--cx-text-tertiary, #a8a8a8) !important;
   font-size: 0.75rem !important;
   margin-top: 0.25rem !important;
 }
@@ -491,8 +535,8 @@ label {
 .cds--fieldset,
 .bx--fieldset,
 fieldset {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 8px !important;
   padding: 1.5rem !important;
   margin-bottom: 1.5rem !important;
@@ -501,11 +545,11 @@ fieldset {
 .cds--fieldset legend,
 .bx--fieldset legend,
 fieldset legend {
-  color: #f4f4f4 !important;
+  color: var(--classapex-text-primary) !important;
   font-weight: 600 !important;
   font-size: 1rem !important;
   padding: 0 0.5rem !important;
-  background: #161616 !important;
+  background: var(--classapex-surface-01) !important;
 }
 
 /* Form Grid Layout */
@@ -530,8 +574,8 @@ fieldset legend {
 .bx--checkbox,
 .cds--radio-button,
 .bx--radio-button {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 4px !important;
 }
 
@@ -539,15 +583,15 @@ fieldset legend {
 .bx--checkbox:checked,
 .cds--radio-button:checked,
 .bx--radio-button:checked {
-  background: #0f62fe !important;
-  border-color: #0f62fe !important;
+  background: var(--classapex-primary) !important;
+  border-color: var(--classapex-primary) !important;
 }
 
 .cds--checkbox-label,
 .bx--checkbox-label,
 .cds--radio-button-label,
 .bx--radio-button-label {
-  color: #f4f4f4 !important;
+  color: var(--classapex-text-primary) !important;
   font-size: 0.875rem !important;
 }
 
@@ -555,42 +599,42 @@ fieldset legend {
 .cds--file,
 .bx--file,
 input[type="file"] {
-  background: #262626 !important;
-  border: 2px dashed #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 2px dashed var(--classapex-surface-03) !important;
   border-radius: 8px !important;
   padding: 2rem !important;
   text-align: center !important;
-  color: #c6c6c6 !important;
+  color: var(--classapex-text-secondary) !important;
   transition: all 0.3s ease !important;
 }
 
 .cds--file:hover,
 .bx--file:hover,
 input[type="file"]:hover {
-  border-color: #0f62fe !important;
-  background: rgba(15, 98, 254, 0.05) !important;
+  border-color: var(--classapex-primary) !important;
+  background: var(--cx-color-primary-subtle, rgba(15, 98, 254, 0.05)) !important;
 }
 
 /* Date and Time Inputs */
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"] {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 4px !important;
-  color: #f4f4f4 !important;
+  color: var(--classapex-text-primary) !important;
   padding: 0.75rem !important;
 }
 
 /* Range Sliders */
 input[type="range"] {
-  background: #393939 !important;
+  background: var(--cx-bg-surface-raised, #1a2234) !important;
   border-radius: 4px !important;
   height: 6px !important;
 }
 
 input[type="range"]::-webkit-slider-thumb {
-  background: #0f62fe !important;
+  background: var(--cx-color-primary, #0f62fe) !important;
   border: none !important;
   border-radius: 50% !important;
   width: 18px !important;
@@ -598,7 +642,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 input[type="range"]::-moz-range-thumb {
-  background: #0f62fe !important;
+  background: var(--cx-color-primary, #0f62fe) !important;
   border: none !important;
   border-radius: 50% !important;
   width: 18px !important;
@@ -612,7 +656,7 @@ input[type="range"]::-moz-range-thumb {
 .bx--text-area::placeholder,
 input::placeholder,
 textarea::placeholder {
-  color: #8d8d8d !important;
+  color: var(--cx-text-disabled, #8d8d8d) !important;
   opacity: 1 !important;
 }
 
@@ -627,14 +671,14 @@ textarea::placeholder {
 input.error,
 textarea.error,
 select.error {
-  border-color: #da1e28 !important;
+  border-color: var(--classapex-error, #da1e28) !important;
   background: rgba(218, 30, 40, 0.05) !important;
 }
 
 .cds--form-requirement,
 .bx--form-requirement,
 .error-message {
-  color: #fa4d56 !important;
+  color: var(--classapex-error, #fa4d56) !important;
   font-size: 0.75rem !important;
   margin-top: 0.25rem !important;
 }
@@ -648,12 +692,12 @@ select.error {
 input.success,
 textarea.success,
 select.success {
-  border-color: #24a148 !important;
+  border-color: var(--classapex-success, #24a148) !important;
   background: rgba(36, 161, 72, 0.05) !important;
 }
 
 .success-message {
-  color: #42be65 !important;
+  color: var(--classapex-success, #42be65) !important;
   font-size: 0.75rem !important;
   margin-top: 0.25rem !important;
 }
@@ -668,9 +712,9 @@ select.success {
 input:disabled,
 textarea:disabled,
 select:disabled {
-  background: #161616 !important;
-  border-color: #525252 !important;
-  color: #8d8d8d !important;
+  background: var(--classapex-surface-01) !important;
+  border-color: var(--classapex-surface-04) !important;
+  color: var(--cx-text-disabled, #8d8d8d) !important;
   cursor: not-allowed !important;
   opacity: 0.5 !important;
 }
@@ -685,51 +729,51 @@ select:disabled {
 
 .cds--select-input-wrapper,
 .bx--select-input-wrapper {
-  background: #262626 !important;
-  border: 1px solid #393939 !important;
+  background: var(--classapex-surface-02) !important;
+  border: 1px solid var(--classapex-surface-03) !important;
   border-radius: 4px !important;
 }
 
 .cds--select__arrow,
 .bx--select__arrow {
-  fill: #c6c6c6 !important;
+  fill: var(--classapex-text-secondary) !important;
 }
 
 .cds--number-input__controls,
 .bx--number-input__controls {
-  background: #393939 !important;
-  border-left: 1px solid #525252 !important;
+  background: var(--classapex-surface-03) !important;
+  border-left: 1px solid var(--classapex-surface-04) !important;
 }
 
 .cds--number-input__control-btn,
 .bx--number-input__control-btn {
   background: transparent !important;
-  color: #c6c6c6 !important;
+  color: var(--cx-text-secondary, #c6c6c6) !important;
   border: none !important;
 }
 
 .cds--number-input__control-btn:hover,
 .bx--number-input__control-btn:hover {
-  background: #525252 !important;
-  color: #f4f4f4 !important;
+  background: var(--cx-border-default, #525252) !important;
+  color: var(--cx-text-primary, #f4f4f4) !important;
 }
 
 /* Search specific styling */
 .cds--search-magnifier,
 .bx--search-magnifier {
-  fill: #c6c6c6 !important;
+  fill: var(--cx-text-secondary, #c6c6c6) !important;
 }
 
 .cds--search-close,
 .bx--search-close {
-  fill: #c6c6c6 !important;
+  fill: var(--cx-text-secondary, #c6c6c6) !important;
   background: transparent !important;
 }
 
 .cds--search-close:hover,
 .bx--search-close:hover {
-  background: #393939 !important;
-  fill: #f4f4f4 !important;
+  background: var(--cx-bg-surface-raised, #1a2234) !important;
+  fill: var(--cx-text-primary, #f4f4f4) !important;
 }
 
 /* Global text color overrides */
@@ -828,7 +872,7 @@ select:disabled {
 .classapex-main {
   flex: 1;
   padding: var(--classapex-spacing-xl) 0;
-  background: linear-gradient(180deg, #161616 0%, rgba(22, 22, 22, 0.95) 100%);
+  background: linear-gradient(180deg, var(--cx-bg-app, #161616) 0%, var(--cx-bg-app-fade, rgba(22, 22, 22, 0.95)) 100%);
   min-height: calc(100vh - 48px);
   position: relative;
   overflow-x: hidden;
@@ -870,8 +914,8 @@ select:disabled {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  background: #262626;
-  border: 1px solid #393939;
+  background: var(--cx-bg-surface, #111827);
+  border: 1px solid var(--cx-border-subtle, #243048);
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 0.75rem;

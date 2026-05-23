@@ -80,8 +80,7 @@ const FileCard: React.FC<FileCardProps> = ({
   }
 
   return (
-    <div className={clsx('cx-file-card', className)} onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}>
+    <div className={clsx('cx-file-card', className)} onClick={onClick}>
       <div className="cx-file-card__header">
         <div className={clsx('cx-file-card__icon', getIconClass())}>
           {getFileIcon()}
@@ -91,8 +90,22 @@ const FileCard: React.FC<FileCardProps> = ({
             <MoreSvg />
           </button>
           {menuOpen && (
-            <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 10, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-03)', minWidth: 120, padding: '4px 0' }}
-              onMouseLeave={() => setMenuOpen(false)}>
+            <div 
+              style={{ 
+                position: 'absolute', 
+                right: 0, 
+                top: '100%', 
+                zIndex: 10, 
+                background: 'var(--cx-bg-surface)', 
+                border: '1px solid var(--cx-border-subtle)', 
+                borderRadius: 'var(--radius-md)', 
+                boxShadow: 'var(--shadow-03)', 
+                minWidth: 120, 
+                padding: '4px 0' 
+              }}
+              onClick={e => e.stopPropagation()} // Prevent card activation
+              onMouseLeave={() => setMenuOpen(false)}
+            >
               {onDownload && type !== 'folder' && <MenuItem icon={<DownloadSvg />} label="Download" onClick={() => { setMenuOpen(false); onDownload(); }} />}
               {onShare && <MenuItem icon={<ShareSvg />} label="Share" onClick={() => { setMenuOpen(false); onShare(); }} />}
               {onEdit && <MenuItem icon={<EditSvg />} label="Rename" onClick={() => { setMenuOpen(false); onEdit(); }} />}
@@ -102,7 +115,22 @@ const FileCard: React.FC<FileCardProps> = ({
         </div>
       </div>
 
-      <h3 className="cx-file-card__name" title={name}>{name}</h3>
+      <h3 className="cx-file-card__name" title={name}>
+        {onClick ? (
+          <button
+            type="button"
+            className="cx-file-card__name-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+          >
+            {name}
+          </button>
+        ) : (
+          name
+        )}
+      </h3>
 
       {isShared && <span className="cx-badge cx-badge--info" style={{ marginBottom: 8, alignSelf: 'flex-start' }}>Shared</span>}
 

@@ -259,15 +259,7 @@ export const FileCard = memo(
           onClick={handleCardClick}
           onDoubleClick={handleDoubleClick}
           data-testid={testId}
-          role="button"
           aria-label={`${isFolder ? 'Folder' : 'File'}: ${itemInfo.name}`}
-          tabIndex={0}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleCardClick()
-            }
-          }}
           {...props}
         >
           {variant === 'grid' && showPreview && file?.thumbnail_url && (
@@ -292,7 +284,20 @@ export const FileCard = memo(
 
               <div className="file-card__title-section">
                 <h3 className="file-card__title" title={itemInfo.name}>
-                  {itemInfo.name}
+                  <button
+                    type="button"
+                    className="file-card__title-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCardClick()
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      handleDoubleClick()
+                    }}
+                  >
+                    {itemInfo.name}
+                  </button>
                 </h3>
                 <span className="file-card__subtitle">
                   {itemInfo.subtitle}

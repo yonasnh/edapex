@@ -50,9 +50,13 @@ async function validateEnvironment() {
   const canvasBaseUrl = process.env.VITE_CANVAS_BASE_URL
   if (canvasBaseUrl) {
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 2000)
       const response = await fetch(`${canvasBaseUrl}/api/v1/courses`, {
         method: 'HEAD',
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
       console.log(`📡 Canvas instance accessible: ${response.status}`)
     } catch (error) {
       console.warn('⚠️  Canvas instance not accessible, using mock mode')
@@ -154,7 +158,7 @@ async function establishPerformanceBaselines() {
   
   try {
     // Navigate to the application
-    await page.goto('http://localhost:3001')
+    await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3003')
     
     // Measure initial load performance
     const performanceMetrics = await page.evaluate(() => {

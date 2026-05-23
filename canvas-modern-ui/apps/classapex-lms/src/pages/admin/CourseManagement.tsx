@@ -76,32 +76,11 @@ const mockDepartments = ['Computer Science', 'Mathematics', 'English', 'Physics'
 
 const statusBadgeClass = (s: string) => s === 'available' ? 'cx-badge--success' : s === 'unpublished' ? 'cx-badge--warning' : s === 'completed' ? 'cx-badge--info' : 'cx-badge--danger';
 
-import { useCanvasQuery } from '../../hooks/useCanvasQuery';
-
-async function csrfFetch(path: string, method: string, body?: object | string): Promise<Response> {
-  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
-  const isUrlEncoded = typeof body === 'string';
-  const apiToken = import.meta.env.VITE_CANVAS_API_TOKEN || localStorage.getItem('cx_access_token');
-  
-  const headers: Record<string, string> = {
-    'Content-Type': isUrlEncoded ? 'application/x-www-form-urlencoded' : 'application/json',
-    'Accept': 'application/json',
-    'X-CSRF-Token': decodeURIComponent(token),
-  };
-
-  if (apiToken) {
-    headers['Authorization'] = `Bearer ${apiToken}`;
-  }
-
-  return fetch(path, {
-    method,
-    credentials: 'include',
-    headers,
-    body: body ? (isUrlEncoded ? body : JSON.stringify(body)) : undefined,
-  });
-}
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
+import { useNotification } from '../../hooks/useNotification';
 
 const AdminCourseManagementPage: React.FC = () => {
+  const { showConfirm, showToast } = useNotification();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -213,15 +192,26 @@ const AdminCourseManagementPage: React.FC = () => {
         offer: newCourse.isPublished
       };
 
-      const res = await csrfFetch('/api/v1/accounts/1/courses', 'POST', payload);
-      if (!res.ok) throw new Error('Failed to create course');
+      await canvasFetch('/api/v1/accounts/1/courses', {
+        method: 'POST',
+        body: payload
+      });
       
       setNewCourse({ name: '', courseCode: '', department: '', term: '', credits: 3, startDate: '', endDate: '', syllabusBody: '', enrollmentType: 'open', visibility: 'course_members', isPublished: false, allowSelfEnrollment: true });
       setShowCreateModal(false);
+      showToast({
+        title: 'Course Created',
+        message: 'Successfully created new course.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to create course.');
+      showToast({
+        title: 'Failed to create course',
+        message: err.message || 'An error occurred while creating the course.',
+        type: 'error'
+      });
     }
   };
   const handleUseTemplate = (templateName: string) => {
@@ -291,52 +281,106 @@ const AdminCourseManagementPage: React.FC = () => {
         }
       };
 
-      const res = await csrfFetch(`/api/v1/courses/${editCourse.id}`, 'PUT', payload);
-      if (!res.ok) throw new Error('Failed to update course');
+      await canvasFetch(`/api/v1/courses/${editCourse.id}`, {
+        method: 'PUT',
+        body: payload
+      });
 
       setEditCourse({});
       setShowEditModal(false);
+      showToast({
+        title: 'Course Updated',
+        message: 'Successfully updated course details.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to update course.');
+      showToast({
+        title: 'Failed to update course',
+        message: err.message || 'An error occurred while updating the course.',
+        type: 'error'
+      });
     }
   };
   const handleCourseClick = (c: CourseData) => { setSelectedCourse(c); setShowCourseModal(true); };
   const handleEditClick = (c: CourseData) => { setEditCourse(c); setShowEditModal(true); };
   const handleDeleteCourse = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this course?')) return;
+    const confirmed = await showConfirm({
+      title: 'Delete Course',
+      message: 'Are you sure you want to delete this course? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
-      const res = await csrfFetch(`/api/v1/courses/${id}`, 'DELETE', 'event=delete');
-      if (!res.ok) throw new Error('Failed to delete course');
+      await canvasFetch(`/api/v1/courses/${id}?event=delete`, {
+        method: 'DELETE'
+      });
+      showToast({
+        title: 'Course Deleted',
+        message: 'Successfully deleted the course.',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to delete course.');
+      showToast({
+        title: 'Failed to delete course',
+        message: err.message || 'An error occurred while deleting the course.',
+        type: 'error'
+      });
     }
   };
   const handleCopyCourse = async (id: string) => {
-    if (!confirm('Are you sure you want to create a copy of this course?')) return;
+    const confirmed = await showConfirm({
+      title: 'Copy Course',
+      message: 'Are you sure you want to create a copy of this course?',
+      confirmLabel: 'Copy Course',
+      cancelLabel: 'Cancel',
+      type: 'info'
+    });
+    if (!confirmed) return;
     try {
-      const res = await csrfFetch(`/api/v1/courses/${id}/copy`, 'POST');
-      if (!res.ok) throw new Error('Failed to copy course');
-      alert('Course copy initiated successfully!');
+      await canvasFetch(`/api/v1/courses/${id}/copy`, {
+        method: 'POST'
+      });
+      showToast({
+        title: 'Copy Course',
+        message: 'Course copy initiated successfully!',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to copy course.');
+      showToast({
+        title: 'Failed to copy course',
+        message: err.message || 'An error occurred while copying the course.',
+        type: 'error'
+      });
     }
   };
 
   const handlePublishCourse = async (id: string) => {
     try {
-      const res = await csrfFetch(`/api/v1/courses/${id}`, 'PUT', 'course[event]=offer');
-      if (!res.ok) throw new Error('Failed to publish course');
-      alert('Course published successfully!');
+      await canvasFetch(`/api/v1/courses/${id}`, {
+        method: 'PUT',
+        body: { course: { event: 'offer' } }
+      });
+      showToast({
+        title: 'Course Published',
+        message: 'Course published successfully!',
+        type: 'success'
+      });
       refetch();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to publish course.');
+      showToast({
+        title: 'Failed to publish course',
+        message: err.message || 'An error occurred while publishing the course.',
+        type: 'error'
+      });
     }
   };
   const handleExport = () => console.log('Exporting course data...');
@@ -656,7 +700,11 @@ const AdminCourseManagementPage: React.FC = () => {
                                 ...logs
                               ]);
                               setSelectedFile(null);
-                              alert('Common Cartridge content migration finished successfully! All aligned quizzes, assignments, and outcomes have been built.');
+                              showToast({
+                                title: 'Migration Complete',
+                                message: 'Common Cartridge content migration finished successfully! All aligned quizzes, assignments, and outcomes have been built.',
+                                type: 'success'
+                              });
                               return null;
                             }
                             return prev + 20;
@@ -725,7 +773,7 @@ const AdminCourseManagementPage: React.FC = () => {
               <div className="cx-card" style={{ padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>Audited Enrollment Actions</h4>
-                  <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => alert('CSV download of complete audit trace initiated.')}>
+                  <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => showToast({ title: 'Export Trace', message: 'CSV download of complete audit trace initiated.', type: 'info' })}>
                     Export Logs to CSV
                   </button>
                 </div>

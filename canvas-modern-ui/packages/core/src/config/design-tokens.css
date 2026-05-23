@@ -32,6 +32,23 @@
   --cm-blue-600: #2563EB;
   --cm-blue-700: #1D4ED8;
 
+  /* ClassApex Amber and Indigo Primitives */
+  --cm-amber-50: #FEF3C7;
+  --cm-amber-100: rgba(245, 158, 11, 0.1);
+  --cm-amber-200: rgba(245, 158, 11, 0.2);
+  --cm-amber-300: rgba(245, 158, 11, 0.3);
+  --cm-amber-400: rgba(245, 158, 11, 0.4);
+  --cm-amber-500: #f59e0b;
+  --cm-amber-600: #fbbf24;
+  --cm-amber-700: #B45309;
+
+  --cm-indigo-50: rgba(99, 102, 241, 0.05);
+  --cm-indigo-100: rgba(99, 102, 241, 0.1);
+  --cm-indigo-200: rgba(99, 102, 241, 0.2);
+  --cm-indigo-300: rgba(99, 102, 241, 0.3);
+  --cm-indigo-500: #6366f1;
+  --cm-indigo-600: #818cf8;
+
   --cm-green-50: #ECFDF5;
   --cm-green-700: #15803D;
   --cm-amber-50: #FEF3C7;
@@ -62,9 +79,9 @@
   --cm-sky-dark-400: #38BDF8;
 
   /* ─── Typography ─── */
-  --cm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --cm-font-family-display: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --cm-font-family-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --cm-font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --cm-font-family-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --cm-font-family-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
   --cm-font-weight-regular: 400;
   --cm-font-weight-medium: 500;
@@ -100,10 +117,10 @@
 
   /* ─── Border Radius ─── */
   --cm-radius-xs: 6px;
-  --cm-radius-sm: 8px;
-  --cm-radius-md: 12px;
-  --cm-radius-lg: 16px;
-  --cm-radius-xl: 20px;
+  --cm-radius-sm: 10px;
+  --cm-radius-md: 14px;
+  --cm-radius-lg: 20px;
+  --cm-radius-xl: 24px;
   --cm-radius-full: 9999px;
 
   /* ─── Border Widths ─── */
@@ -157,7 +174,7 @@
   --cm-bg-surface: #FFFFFF;
   --cm-bg-surface-alt: #E2E8F0;
   --cm-bg-surface-raised: #FFFFFF;
-  --cm-bg-selected: #EEF2FF;
+  --cm-bg-selected: rgba(245, 158, 11, 0.08);
 
   /* ─── Borders ─── */
   --cm-border-subtle: #E2E8F0;
@@ -165,14 +182,14 @@
 
   /* ─── Text ─── */
   --cm-text-primary: #0F172A;
-  --cm-text-secondary: #475569;
-  --cm-text-tertiary: #64748B;
+  --cm-text-secondary: #334155;
+  --cm-text-tertiary: #475569;
   --cm-text-inverse: #FFFFFF;
   --cm-text-disabled: var(--cm-gray-500);
 
   /* ─── Interactive ─── */
-  --cm-link-default: #4F46E5;
-  --cm-focus-ring: #6366F1;
+  --cm-link-default: #f59e0b;
+  --cm-focus-ring: #fbbf24;
   --cm-focus-ring-width: 2px;
   --cm-focus-ring-offset: 2px;
 
@@ -209,68 +226,68 @@
   --cm-sidebar-bg: #EFF3F8;
   --cm-sidebar-text: #475569;
   --cm-sidebar-bg-hover: rgba(15,23,42,.04);
-  --cm-sidebar-bg-active: rgba(79,70,229,.08);
-  --cm-sidebar-text-active: #4F46E5;
+  --cm-sidebar-bg-active: rgba(245, 158, 11, 0.08);
+  --cm-sidebar-text-active: #f59e0b;
 }
 
 [data-theme="dark"] {
   /* ─── Backgrounds ─── */
-  --cm-bg-canvas: #0F172A;
-  --cm-bg-surface: #1E293B;
-  --cm-bg-surface-alt: #334155;
-  --cm-bg-surface-raised: #1E293B;
-  --cm-bg-selected: rgba(99, 102, 241, 0.15);
+  --cm-bg-canvas: #080c14;
+  --cm-bg-surface: #111827;
+  --cm-bg-surface-alt: #0c1018;
+  --cm-bg-surface-raised: #1a2234;
+  --cm-bg-selected: rgba(245, 158, 11, 0.12);
 
   /* ─── Borders ─── */
-  --cm-border-subtle: #334155;
-  --cm-border-strong: #475569;
+  --cm-border-subtle: rgba(255, 255, 255, 0.06);
+  --cm-border-strong: #243048;
 
   /* ─── Text ─── */
   --cm-text-primary: #F8FAFC;
   --cm-text-secondary: #CBD5E1;
   --cm-text-tertiary: #94A3B8;
-  --cm-text-inverse: #0F172A;
-  --cm-text-disabled: var(--cm-gray-400);
+  --cm-text-inverse: #080c14;
+  --cm-text-disabled: var(--cm-gray-600);
 
   /* ─── Interactive ─── */
-  --cm-link-default: #6366F1;
-  --cm-focus-ring: #818CF8;
+  --cm-link-default: #f59e0b;
+  --cm-focus-ring: #fbbf24;
 
   /* ─── Overlay ─── */
-  --cm-overlay-scrim: rgba(15,23,42,0.75);
+  --cm-overlay-scrim: rgba(8,12,20,0.8);
 
   /* ─── Status ─── */
-  --cm-status-success-bg: rgba(74,222,128,.15);
-  --cm-status-success-border: #4ADE80;
-  --cm-status-success-text: #4ADE80;
-  --cm-status-success-icon: #4ADE80;
+  --cm-status-success-bg: rgba(16, 185, 129, 0.1);
+  --cm-status-success-border: #10b981;
+  --cm-status-success-text: #10b981;
+  --cm-status-success-icon: #10b981;
 
-  --cm-status-warning-bg: rgba(251,191,36,.15);
-  --cm-status-warning-border: #FBBF24;
-  --cm-status-warning-text: #FBBF24;
-  --cm-status-warning-icon: #FBBF24;
+  --cm-status-warning-bg: rgba(245, 158, 11, 0.1);
+  --cm-status-warning-border: #f59e0b;
+  --cm-status-warning-text: #f59e0b;
+  --cm-status-warning-icon: #f59e0b;
 
-  --cm-status-danger-bg: rgba(248,113,113,.15);
-  --cm-status-danger-border: #F87171;
-  --cm-status-danger-text: #F87171;
-  --cm-status-danger-icon: #F87171;
+  --cm-status-danger-bg: rgba(239, 68, 68, 0.1);
+  --cm-status-danger-border: #ef4444;
+  --cm-status-danger-text: #ef4444;
+  --cm-status-danger-icon: #ef4444;
 
-  --cm-status-info-bg: rgba(56,189,248,.15);
-  --cm-status-info-border: #38BDF8;
-  --cm-status-info-text: #38BDF8;
-  --cm-status-info-icon: #38BDF8;
+  --cm-status-info-bg: rgba(6, 182, 212, 0.1);
+  --cm-status-info-border: #06b6d4;
+  --cm-status-info-text: #06b6d4;
+  --cm-status-info-icon: #06b6d4;
 
   /* ─── Elevation Dark Mode ─── */
-  --cm-elevation-1: 0 1px 2px rgba(0,0,0,.22);
-  --cm-elevation-2: 0 8px 24px rgba(0,0,0,.30);
-  --cm-elevation-3: 0 20px 48px rgba(0,0,0,.36);
+  --cm-elevation-1: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --cm-elevation-2: 0 4px 16px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+  --cm-elevation-3: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
 
   /* ─── Sidebar ─── */
-  --cm-sidebar-bg: #111315;
-  --cm-sidebar-text: #C7CED8;
-  --cm-sidebar-bg-hover: rgba(255,255,255,.05);
-  --cm-sidebar-bg-active: rgba(255,255,255,.09);
-  --cm-sidebar-text-active: #FFFFFF;
+  --cm-sidebar-bg: #0c1018;
+  --cm-sidebar-text: #94a3b8;
+  --cm-sidebar-bg-hover: rgba(255,255,255,.04);
+  --cm-sidebar-bg-active: rgba(245, 158, 11, 0.12);
+  --cm-sidebar-text-active: #fbbf24;
 }
 
 /* ═══════════════════════════════════════════
@@ -284,6 +301,17 @@
     --cm-duration-slow: 0ms;
     --cm-duration-slower: 0ms;
   }
+}
+
+/* Also support via class & attribute (for E2E test control) */
+:root.reduced-motion,
+[data-reduced-motion="true"],
+.reduced-motion {
+  --cm-duration-instant: 0ms !important;
+  --cm-duration-fast: 0ms !important;
+  --cm-duration-base: 0ms !important;
+  --cm-duration-slow: 0ms !important;
+  --cm-duration-slower: 0ms !important;
 }
 
 /* ═══════════════════════════════════════════

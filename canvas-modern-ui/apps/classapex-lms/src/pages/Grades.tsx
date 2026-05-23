@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
 import VirtualList from '../widgets/VirtualList';
 
@@ -12,7 +13,7 @@ interface Grade {
     dueDate?: string;
   };
   course: { id: string; name: string; color?: string };
-  score?: number;
+  score?: number | null;
   grade?: string;
   percentage?: number;
   submittedAt?: string;
@@ -101,6 +102,9 @@ function exportGradesCSV(grades: Grade[]) {
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 
 const GradesPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const queryCourseId = searchParams.get('courseId');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -118,14 +122,17 @@ const GradesPage: React.FC = () => {
   const courses = Array.isArray(coursesData) ? coursesData : []
 
   React.useEffect(() => {
-    if (!filterCourse && courses.length > 0) {
+    if (queryCourseId) {
+      setFilterCourse(queryCourseId);
+    } else if (!filterCourse && courses.length > 0) {
       setFilterCourse(String(courses[0].id))
     }
-  }, [courses, filterCourse])
+  }, [courses, filterCourse, queryCourseId])
 
   const { data: submissionsData } = useCanvasQuery<any[]>(
     filterCourse ? `/api/v1/courses/${filterCourse}/students/submissions` : '',
-    { 'student_ids[]': ['self'], 'include[]': ['assignment'], per_page: 50, enabled: !!filterCourse } as any
+    { student_ids: ['self'], include: ['assignment'], per_page: 50 },
+    { enabled: !!filterCourse }
   )
 
   const mockGrades = useMemo<Grade[]>(() => {
@@ -168,7 +175,7 @@ const GradesPage: React.FC = () => {
           : undefined,
       }
     })
-  }, [whatIfMode, whatIfScores])
+  }, [whatIfMode, whatIfScores, mockGrades])
 
   const displayGrades = effectiveScores || mockGrades
 
@@ -186,10 +193,10 @@ const GradesPage: React.FC = () => {
       totalPossible: graded.reduce((s, g) => s + g.assignment.pointsPossible, 0),
       whatIfGpa: whatIfMode ? avg : undefined,
     };
-  }, [effectiveScores, whatIfMode]);
+  }, [effectiveScores, mockGrades, whatIfMode]);
 
   const filteredGrades = useMemo(() => {
-    let filtered = [...mockGrades];
+    let filtered = [...displayGrades];
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(g => g.assignment.name.toLowerCase().includes(q));
@@ -206,7 +213,7 @@ const GradesPage: React.FC = () => {
       }
     });
     return filtered;
-  }, [searchTerm, filterCourse, filterType, filterStatus, sortBy]);
+  }, [searchTerm, filterCourse, filterType, filterStatus, sortBy, displayGrades]);
 
   const getStatusBadge = (status: string, opts?: { late?: boolean; missing?: boolean }) => {
     const map: Record<string, string> = { graded: 'cx-badge--success', submitted: 'cx-badge--info', missing: 'cx-badge--danger', late: 'cx-badge--warning', excused: 'cx-badge--neutral' };

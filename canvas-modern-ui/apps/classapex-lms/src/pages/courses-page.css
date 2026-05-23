@@ -153,17 +153,60 @@
 .cx-courses-card:active {
   transform: translateY(-1px);
 }
-
 .cx-courses-card__banner {
-  height: 100px;
+  height: 130px;
   width: 100%;
   position: relative;
+  overflow: hidden;
 }
 
-.cx-courses-card__status {
+.cx-courses-card__banner-overlay {
   position: absolute;
-  top: var(--cx-space-2);
-  right: var(--cx-space-2);
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.4) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cx-courses-card__banner-deco {
+  position: absolute;
+  right: -24px;
+  bottom: -24px;
+  color: rgba(255, 255, 255, 0.15);
+  transform: rotate(-15deg);
+  pointer-events: none;
+  z-index: 1;
+  transition: transform 0.4s var(--cx-ease-premium, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.cx-courses-card:hover .cx-courses-card__banner-deco {
+  transform: rotate(-5deg) scale(1.05);
+}
+
+.cx-courses-card__banner-meta {
+  position: absolute;
+  top: var(--cx-space-3);
+  left: var(--cx-space-3);
+  right: var(--cx-space-3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 2;
+}
+
+.cx-courses-card__code-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 3px 8px;
+  border-radius: var(--cx-radius-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .cx-courses-card__body {

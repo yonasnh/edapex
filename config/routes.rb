@@ -581,8 +581,8 @@ CanvasRails::Application.routes.draw do
 
     resources :ai_experiences, only: %i[index create new show edit update destroy]
     resources :ai_experiences, only: %i[index show new edit]
-
-    get "notebook" => "notebook#index", :as => :notebook  end
+    get "notebook" => "notebook#index", :as => :notebook
+  end
   get "quiz_statistics/:quiz_statistics_id/files/:file_id/download" => "files#show", :as => :quiz_statistics_download, :download => "1"
 
   resources :page_views, only: :update
@@ -2505,7 +2505,8 @@ CanvasRails::Application.routes.draw do
       post "group_categories/:group_category_id/assign_unassigned_members", action: "assign_unassigned_members", as: "group_category_assign_unassigned_members"
       post "courses/:course_id/group_categories/bulk_manage_differentiation_tag", action: :bulk_manage_differentiation_tag
       post "courses/:course_id/group_categories/import_tags", action: :import_tags
-      get "courses/:course_id/group_categories/export_tags", action: :export_tags, as: "differentiation_tags_export", defaults: { format: :csv }    end
+      get "courses/:course_id/group_categories/export_tags", action: :export_tags, as: "differentiation_tags_export", defaults: { format: :csv }
+    end
 
     scope(controller: :progress) do
       get "progress/:id", action: :show, as: "progress"
@@ -2948,7 +2949,8 @@ CanvasRails::Application.routes.draw do
     scope(controller: "canvas_career/user_experiences") do
       post "career/user_experiences", action: :create
       delete "career/user_experiences", action: :destroy
-    end  end
+    end
+  end
 
   # this is not a "normal" api endpoint in the sense that it is not documented or
   # generally available to hosted customers. it also does not respect the normal
@@ -3121,7 +3123,8 @@ CanvasRails::Application.routes.draw do
     # Asset Service & Asset Report Service (LTI Asset Processor Specs)
     scope(controller: "lti/ims/asset_processor") do
       post "asset_processor/:asset_processor_id/report", action: :create_report, as: :lti_asset_processor_create_report
-      get "asset_processor/:asset_processor_id/asset/:asset_id", action: :lti_asset_show, as: :lti_asset_processor_asset_show    end
+      get "asset_processor/:asset_processor_id/asset/:asset_id", action: :lti_asset_show, as: :lti_asset_processor_asset_show
+    end
 
     # Dynamic Registration Service
     scope(controller: "lti/ims/dynamic_registration") do
@@ -3206,6 +3209,11 @@ CanvasRails::Application.routes.draw do
     end
   end
 
-  delete 'login/destroy', to: 'login#destroy', as: :destroy_user_session
-  get 'logout', to: 'login#logout_landing'
+  # ClassApex Demo Data API routes
+  post "api/v1/classapex/cleanup_test_records", to: "classapex_api#cleanup_test_records"
+  post "api/v1/classapex/import_demo_data", to: "classapex_api#import_demo_data"
+  post "api/v1/classapex/factory_reset", to: "classapex_api#factory_reset"
+
+  delete "login/destroy", to: "login#destroy", as: :destroy_user_session
+  get "logout", to: "login#logout_landing"
 end

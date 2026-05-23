@@ -36,7 +36,11 @@ interface Course {
   };
 }
 
-const CoursesOverview: React.FC = () => {
+interface CoursesOverviewProps {
+  filterType?: 'all' | 'favorites' | 'recent';
+}
+
+const CoursesOverview: React.FC<CoursesOverviewProps> = ({ filterType = 'all' }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterState, setFilterState] = useState('all');
@@ -46,8 +50,9 @@ const CoursesOverview: React.FC = () => {
   const pageSize = 12;
 
   // ── Live Canvas API via TanStack-style useCanvasQuery ──
+  const endpoint = filterType === 'favorites' ? '/api/v1/users/self/favorites/courses' : '/api/v1/courses';
   const { data: rawCourses, isLoading, isError } = useCanvasQuery<Course[]>(
-    '/api/v1/courses',
+    endpoint,
     {
       per_page: 100,
       include: ['term', 'total_students', 'teachers', 'course_image', 'course_progress'],
@@ -62,7 +67,32 @@ const CoursesOverview: React.FC = () => {
     if (!courses.length) return [];
     let filtered = [...courses];
 
-    if (filterState !== 'all') {
+    if (filterType === 'recent') {
+      try {
+        const recentStr = localStorage.getItem('classapex_recent_courses');
+        const recentIds: string[] = recentStr ? JSON.parse(recentStr) : [];
+        if (recentIds.length > 0) {
+          filtered = filtered.filter(course => recentIds.includes(String(course.id)));
+          if (sortBy === 'name') {
+            filtered.sort((a, b) => {
+              const idxA = recentIds.indexOf(String(a.id));
+              const idxB = recentIds.indexOf(String(b.id));
+              return idxA - idxB;
+            });
+          }
+        } else {
+          // If no recent items tracked yet, fallback to sorting by created_at (newest first)
+          if (sortBy === 'name') {
+            filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+          }
+        }
+      } catch (e) {
+        // Fallback
+        if (sortBy === 'name') {
+          filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        }
+      }
+    } else if (filterState !== 'all') {
       filtered = filtered.filter(course => {
         switch (filterState) {
           case 'active': return course.workflow_state === 'available' || course.workflow_state === 'unpublished';
@@ -81,19 +111,21 @@ const CoursesOverview: React.FC = () => {
       );
     }
 
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name': return (a.name || '').localeCompare(b.name || '');
-        case 'code': return (a.course_code || '').localeCompare(b.course_code || '');
-        case 'students': return (b.total_students || 0) - (a.total_students || 0);
-        case 'created':
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        default: return 0;
-      }
-    });
+    if (sortBy !== 'name' || filterType !== 'recent') {
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'name': return (a.name || '').localeCompare(b.name || '');
+          case 'code': return (a.course_code || '').localeCompare(b.course_code || '');
+          case 'students': return (b.total_students || 0) - (a.total_students || 0);
+          case 'created':
+            return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          default: return 0;
+        }
+      });
+    }
 
     return filtered;
-  }, [courses, searchTerm, filterState, sortBy]);
+  }, [courses, searchTerm, filterState, sortBy, filterType]);
 
   const totalPages = Math.ceil(filteredCourses.length / pageSize);
   const paginatedCourses = filteredCourses.slice((page - 1) * pageSize, page * pageSize);
@@ -136,9 +168,9 @@ const CoursesOverview: React.FC = () => {
 
   if (showLoading) {
     return (
-      <div className="cx-page">
+      <div className="cx-page" data-testid="loading-container">
         <div className="cx-loading" role="status" aria-label="Loading courses">
-          <div className="cx-loading__spinner" />
+          <div className="cx-loading__spinner" data-testid="loading-spinner" />
           <span className="cx-loading__text">Loading courses...</span>
         </div>
       </div>
@@ -224,7 +256,7 @@ const CoursesOverview: React.FC = () => {
           onChange={e => setSortBy(e.target.value)}
           aria-label="Sort by"
         >
-          <option value="name">Name</option>
+          <option value="name">{filterType === 'recent' ? 'Recently Accessed' : 'Name'}</option>
           <option value="code">Course Code</option>
           <option value="students">Student Count</option>
           <option value="created">Date Created</option>
@@ -237,14 +269,14 @@ const CoursesOverview: React.FC = () => {
 
       {viewMode === 'cards' ? (
         displayCourses.length === 0 ? (
-          <div className="cx-courses-empty">
+          <div className="cx-courses-empty" data-testid="empty-courses-state">
             <span className="cx-courses-empty__icon"><BookIcon size={24} /></span>
             <p className="cx-courses-empty__message">No courses found</p>
             <p className="cx-courses-empty__hint">Try adjusting your search or filters.</p>
           </div>
         ) : (
           <>
-            <div className="cx-courses-card-grid">
+            <div className="cx-courses-card-grid" data-testid="courses-grid">
               {displayCourses.map(course => {
                 const statusVariant = getStatusBadgeVariant(course.workflow_state);
                 const statusLabel = getStatusLabel(course.workflow_state);
@@ -256,6 +288,7 @@ const CoursesOverview: React.FC = () => {
                   <div
                     key={course.id}
                     className="cx-courses-card"
+                    data-testid="course-card"
                     onClick={() => navigate(`/courses/${course.id}`)}
                     role="button"
                     tabIndex={0}
@@ -268,13 +301,24 @@ const CoursesOverview: React.FC = () => {
                         background: `url(${bannerImage}) center/cover`,
                       } : undefined}
                     >
-                      <div className="cx-courses-card__status">
+                      <div className="cx-courses-card__banner-overlay" />
+                      
+                      {!bannerImage && (
+                        <div className="cx-courses-card__banner-deco">
+                          <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                          </svg>
+                        </div>
+                      )}
+
+                      <div className="cx-courses-card__banner-meta">
+                        <span className="cx-courses-card__code-badge">{course.course_code}</span>
                         <Badge variant={statusVariant} size="sm">{statusLabel}</Badge>
                       </div>
                     </div>
                     <div className="cx-courses-card__body">
-                      <span className="cx-courses-card__code">{course.course_code}</span>
-                      <h3 className="cx-courses-card__name">{course.name}</h3>
+                      <h3 className="cx-courses-card__name" style={{ marginTop: 0 }}>{course.name}</h3>
                       <div className="cx-courses-card__footer">
                         <span className="cx-courses-card__meta">
                           <UserIcon size={16} /> {course.total_students || 0}
@@ -318,7 +362,7 @@ const CoursesOverview: React.FC = () => {
         )
       ) : (
         displayCourses.length === 0 ? (
-          <div className="cx-courses-empty">
+          <div className="cx-courses-empty" data-testid="empty-courses-state">
             <span className="cx-courses-empty__icon"><BookIcon size={24} /></span>
             <p className="cx-courses-empty__message">No courses found</p>
             <p className="cx-courses-empty__hint">Try adjusting your search or filters.</p>
@@ -407,8 +451,10 @@ const CourseDetail: React.FC = () => {
 const Courses: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<CoursesOverview />} />
+      <Route path="/" element={<CoursesOverview filterType="all" />} />
       <Route path="/catalog" element={<CourseCatalog />} />
+      <Route path="/favorites" element={<CoursesOverview filterType="favorites" />} />
+      <Route path="/recent" element={<CoursesOverview filterType="recent" />} />
       <Route path="/:courseId" element={<CourseDetail />} />
       <Route path="/:courseId/assignments" element={<AssignmentList />} />
       <Route path="/:courseId/assignments/:assignmentId" element={<AssignmentDetail />} />

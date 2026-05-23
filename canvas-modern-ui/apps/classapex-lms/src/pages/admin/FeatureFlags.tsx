@@ -21,9 +21,11 @@ function CheckSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fil
 function XSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l6 6M10 4l-6 6"/></svg>; }
 function InfoSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7v3.5"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor"/></svg>; }
 
-import { useCanvasQuery } from '../../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery'
+import { useNotification } from '../../hooks/useNotification'
 
 export default function FeatureFlagsPage() {
+  const { showToast } = useNotification()
   const [search, setSearch] = useState('')
   const [filterState, setFilterState] = useState('all')
   const [filterApplies, setFilterApplies] = useState('all')
@@ -47,16 +49,22 @@ export default function FeatureFlagsPage() {
   const toggleFlag = async (key: string, currentState: string) => {
     const nextState = currentState === 'on' ? 'off' : currentState === 'off' ? 'allowed' : 'on'
     try {
-      const res = await fetch(`/api/v1/accounts/1/features/flags/${key}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `state=${nextState}`
+      await canvasFetch(`/api/v1/accounts/1/features/flags/${key}?state=${nextState}`, {
+        method: 'PUT'
       })
-      if (!res.ok) throw new Error('Failed to update feature flag')
+      showToast({
+        title: 'Feature Flag Updated',
+        message: `Successfully set state to '${nextState}'`,
+        type: 'success'
+      })
       refetch()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to update feature flag.')
+      showToast({
+        title: 'Failed to update feature flag',
+        message: err.message || 'An error occurred while updating the feature flag.',
+        type: 'error'
+      })
     }
   }
 

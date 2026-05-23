@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import './course-catalog.css'
@@ -22,7 +23,7 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'grid'
 
   if (viewMode === 'list') {
     return (
-      <a href={`/courses/${course.id}`} className="cx-catalog-row">
+      <Link to={`/courses/${course.id}`} className="cx-catalog-row">
         <div className="cx-catalog-row__color" style={{ background: color }} />
         <div className="cx-catalog-row__info">
           <span className="cx-catalog-row__name">{course.name}</span>
@@ -30,12 +31,12 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'grid'
         </div>
         {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
         <span className="cx-catalog-row__students">{course.total_students ?? 0} students</span>
-      </a>
+      </Link>
     )
   }
 
   return (
-    <a href={`/courses/${course.id}`} className="cx-catalog-card">
+    <Link to={`/courses/${course.id}`} className="cx-catalog-card">
       <div
         className="cx-catalog-card__banner"
         style={{
@@ -52,7 +53,7 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'grid'
           <span className="cx-catalog-card__students">{course.total_students ?? 0} enrolled</span>
         </div>
       </div>
-    </a>
+    </Link>
   )
 }
 
@@ -106,12 +107,6 @@ export default function CourseCatalog() {
 
   return (
     <div className="cx-catalog">
-      <div className="cx-catalog__header">
-        <div>
-          <h1 className="cx-catalog__title">Course Catalog</h1>
-          <p className="cx-catalog__subtitle">Browse and discover all available courses.</p>
-        </div>
-      </div>
 
       {/* Search + filters */}
       <div className="cx-catalog__controls">
