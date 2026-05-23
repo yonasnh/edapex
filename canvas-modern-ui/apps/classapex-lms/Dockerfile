@@ -30,15 +30,17 @@ FROM nginx:alpine AS production
 # Copy built static files
 COPY --from=base /app/apps/classapex-lms/dist /usr/share/nginx/html
 
-# Copy nginx config
-COPY apps/classapex-lms/nginx-container.conf /etc/nginx/nginx.conf
+# Copy nginx config as a template
+COPY apps/classapex-lms/nginx-container.conf /etc/nginx/nginx.conf.template
 
-# Create nginx user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001 && \
+# Pre-create empty nginx.conf and adjust permissions for non-root user nginx
+RUN touch /etc/nginx/nginx.conf && \
+    (addgroup -g 1001 -S nginx || true) && \
+    (adduser -S nginx -u 1001 -G nginx || true) && \
     chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx
 
 USER nginx
 
@@ -47,4 +49,4 @@ EXPOSE 3003
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3003 || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/sh", "-c", "envsubst '$CANVAS_API_URL' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]

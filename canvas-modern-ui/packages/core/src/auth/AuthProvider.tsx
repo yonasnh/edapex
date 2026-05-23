@@ -5,7 +5,7 @@
  * Handles login redirect, token exchange, refresh, and session management.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 
 // ─── Types ───
 
