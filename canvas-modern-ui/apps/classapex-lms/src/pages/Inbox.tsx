@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { SearchIcon } from '../navigation'
 import './inbox.css'
@@ -124,12 +124,46 @@ function formatMessageTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
+async function uploadCanvasFile(file: File): Promise<{ id: number; name: string }> {
+  const preflight = await canvasFetch('/api/v1/users/self/files', {
+    method: 'POST',
+    body: {
+      name: file.name,
+      size: file.size,
+      content_type: file.type || 'application/octet-stream',
+      parent_folder_path: 'conversations'
+    }
+  })
+
+  const formData = new FormData()
+  for (const [key, value] of Object.entries(preflight.upload_params)) {
+    formData.append(key, String(value))
+  }
+  formData.append('file', file)
+
+  const uploadRes = await fetch(preflight.upload_url, {
+    method: 'POST',
+    body: formData
+  })
+
+  if (!uploadRes.ok) {
+    throw new Error(`Upload failed: ${uploadRes.status}`)
+  }
+
+  const uploadData = await uploadRes.json()
+  if (!uploadData.id) {
+    throw new Error('Upload succeeded but no file ID returned')
+  }
+
+  return { id: uploadData.id, name: file.name }
+}
+
 // ─── Compose Modal ──────────────────────────────────────────────────────────
 
 interface ComposeModalProps {
   isOpen: boolean
   onClose: () => void
-  onSend: (recipients: string[], subject: string, body: string) => void
+  onSend: (recipients: string[], subject: string, body: string, attachmentIds: number[]) => void
   conversations?: Conversation[]
 }
 
@@ -141,6 +175,7 @@ interface Recipient {
 }
 
 function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeModalProps) {
+  const { showToast } = useNotification()
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Recipient[]>([])
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
@@ -148,6 +183,9 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
   const [body, setBody] = useState('')
   const [, setIsSearching] = useState(false)
   const [sendAsBcc, setSendAsBcc] = useState(false)
+  const [attachments, setAttachments] = useState<{ id: number; name: string }[]>([])
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Build unique participants fallback from loaded conversations
   const localParticipants = useMemo(() => {
@@ -202,13 +240,30 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
 
   if (!isOpen) return null
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAttachment(true)
+    try {
+      const uploaded = await uploadCanvasFile(file)
+      setAttachments(prev => [...prev, uploaded])
+      showToast({ title: 'Uploaded', message: `${file.name} attached`, type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Upload Failed', message: err.message || 'Failed to attach file', type: 'error' })
+    } finally {
+      setUploadingAttachment(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const handleSend = () => {
     if (selectedRecipients.length > 0 && body.trim()) {
-      onSend(selectedRecipients.map(r => r.id), subject, body)
+      onSend(selectedRecipients.map(r => r.id), subject, body, attachments.map(a => a.id))
       setSelectedRecipients([])
       setQuery('')
       setSubject('')
       setBody('')
+      setAttachments([])
       onClose()
     }
   }
@@ -278,6 +333,16 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
           </div>
           <div className="cx-compose__field">
             <label className="cx-compose__label">Message</label>
+            {attachments.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {attachments.map(att => (
+                  <span key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', padding: '2px 8px', background: 'var(--cx-bg-surface-sunken)', borderRadius: 4, border: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)' }}>
+                    {att.name}
+                    <button onClick={() => setAttachments(prev => prev.filter(a => a.id !== att.id))} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>&times;</button>
+                  </span>
+                ))}
+              </div>
+            )}
             <textarea
               className="cx-compose__textarea"
               placeholder="Type your message..."
@@ -288,7 +353,10 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
         </div>
         <div className="cx-compose__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment"><PaperclipSvg /></button>
+            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} />
+            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment" onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}>
+              <PaperclipSvg />
+            </button>
             <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -315,6 +383,9 @@ export default function InboxPage() {
   const [composeOpen, setComposeOpen] = useState(false)
   const [replyText, setReplyText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [replyAttachments, setReplyAttachments] = useState<{ id: number; name: string }[]>([])
+  const [uploadingReplyAttachment, setUploadingReplyAttachment] = useState(false)
+  const replyFileInputRef = useRef<HTMLInputElement>(null)
 
   // Canvas API — live conversations list
   const { data: apiConversations, refetch: refetchConversations } = useCanvasQuery<Conversation[]>(
@@ -376,13 +447,18 @@ export default function InboxPage() {
   const handleReply = useCallback(async () => {
     if (!replyText.trim() || !selected) return
     try {
+      const body: any = { body: replyText }
+      if (replyAttachments.length > 0) {
+        body.attachment_ids = replyAttachments.map(a => a.id)
+      }
       const res = await fetch(`/api/v1/conversations/${selected.id}/add_message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: replyText })
+        body: JSON.stringify(body)
       })
       if (!res.ok) throw new Error('Failed to send reply')
       setReplyText('')
+      setReplyAttachments([])
       refetchConversations()
       refetchThread()
     } catch (err) {
@@ -393,14 +469,34 @@ export default function InboxPage() {
         type: 'error'
       })
     }
-  }, [replyText, selected, refetchConversations, refetchThread])
+  }, [replyText, selected, refetchConversations, refetchThread, replyAttachments, showToast])
 
-  const handleCompose = useCallback(async (recipients: string[], subject: string, body: string) => {
+  const handleReplyFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingReplyAttachment(true)
     try {
+      const uploaded = await uploadCanvasFile(file)
+      setReplyAttachments(prev => [...prev, uploaded])
+      showToast({ title: 'Uploaded', message: `${file.name} attached`, type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Upload Failed', message: err.message || 'Failed to attach file', type: 'error' })
+    } finally {
+      setUploadingReplyAttachment(false)
+      if (replyFileInputRef.current) replyFileInputRef.current.value = ''
+    }
+  }
+
+  const handleCompose = useCallback(async (recipients: string[], subject: string, body: string, attachmentIds: number[]) => {
+    try {
+      const payload: any = { recipients, subject, body }
+      if (attachmentIds.length > 0) {
+        payload.attachment_ids = attachmentIds
+      }
       const res = await fetch('/api/v1/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipients, subject, body })
+        body: JSON.stringify(payload)
       })
       if (!res.ok) throw new Error('Failed to create conversation')
       showToast({
@@ -417,7 +513,7 @@ export default function InboxPage() {
         type: 'error'
       })
     }
-  }, [refetchConversations])
+  }, [refetchConversations, showToast])
 
   const handleToggleStar = useCallback(async (conv: Conversation) => {
     try {
@@ -660,6 +756,16 @@ export default function InboxPage() {
               </div>
 
               <div className="cx-inbox__reply">
+                {replyAttachments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {replyAttachments.map(att => (
+                      <span key={att.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', padding: '2px 8px', background: 'var(--cx-bg-surface-sunken)', borderRadius: 4, border: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)' }}>
+                        {att.name}
+                        <button onClick={() => setReplyAttachments(prev => prev.filter(a => a.id !== att.id))} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}>&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   className="cx-inbox__reply-input"
                   placeholder="Type a reply..."
@@ -669,7 +775,10 @@ export default function InboxPage() {
                   rows={1}
                 />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment"><PaperclipSvg /></button>
+                  <input type="file" ref={replyFileInputRef} style={{ display: 'none' }} onChange={handleReplyFileSelect} />
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment" onClick={() => replyFileInputRef.current?.click()} disabled={uploadingReplyAttachment}>
+                    <PaperclipSvg />
+                  </button>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
                   <button
                     className="cx-inbox__reply-send"

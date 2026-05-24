@@ -10,9 +10,10 @@
  *  POST /api/v1/courses/:id/quizzes/:id/submissions/:id/complete  — submit
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
 import './assignment.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -529,6 +530,8 @@ export default function QuizzesPage() {
   })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newQuiz, setNewQuiz] = useState({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
+  const [creatingQuiz, setCreatingQuiz] = useState(false)
+  const { showToast } = useNotification()
 
   useEffect(() => {
     if (quizIdFromQuery) {
@@ -546,7 +549,7 @@ export default function QuizzesPage() {
     }
   }, [courseId, navigate])
 
-  const { data: quizzes, isLoading } = useCanvasQuery<Quiz[]>(
+  const { data: quizzes, isLoading, refetch } = useCanvasQuery<Quiz[]>(
     courseId ? `/api/v1/courses/${courseId}/quizzes` : '',
     { per_page: 50 } as any
   )
@@ -658,7 +661,33 @@ export default function QuizzesPage() {
             </div>
             <div className="cx-modal__footer">
               <button className="cx-btn cx-btn--secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(false)}>Save Settings</button>
+              <button className="cx-btn cx-btn--primary" disabled={creatingQuiz || !newQuiz.title.trim()} onClick={async () => {
+                if (!courseId || !newQuiz.title.trim()) return
+                setCreatingQuiz(true)
+                try {
+                  await canvasFetch(`/api/v1/courses/${courseId}/quizzes`, {
+                    method: 'POST',
+                    body: {
+                      quiz: {
+                        title: newQuiz.title.trim(),
+                        quiz_type: 'assignment',
+                        time_limit: newQuiz.timeLimit ? Number(newQuiz.timeLimit) : undefined,
+                        allowed_attempts: Number(newQuiz.maxAttempts) || 1,
+                      }
+                    }
+                  })
+                  showToast({ title: 'Quiz Created', message: `"${newQuiz.title.trim()}" has been created.`, type: 'success' })
+                  setNewQuiz({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
+                  setShowCreateModal(false)
+                  refetch()
+                } catch (err: any) {
+                  showToast({ title: 'Create Failed', message: err.message || 'Could not create quiz.', type: 'error' })
+                } finally {
+                  setCreatingQuiz(false)
+                }
+              }}>
+                {creatingQuiz ? 'Creating…' : 'Save Settings'}
+              </button>
             </div>
           </div>
         </div>

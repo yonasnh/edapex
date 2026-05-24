@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import CourseCard from '../../components/CourseCard';
@@ -13,16 +13,6 @@ interface SectionData {
   isActive: boolean;
 }
 
-const mockSections: SectionData[] = [
-  { id: 's1', courseId: '1', name: 'Section A - Morning', studentCount: 22, startAt: '2024-01-15T08:00:00Z', endAt: '2024-05-15T08:00:00Z', isActive: true },
-  { id: 's2', courseId: '1', name: 'Section B - Afternoon', studentCount: 18, startAt: '2024-01-15T13:00:00Z', endAt: '2024-05-15T13:00:00Z', isActive: true },
-  { id: 's3', courseId: '1', name: 'Section C - Evening', studentCount: 5, startAt: '2024-01-15T18:00:00Z', endAt: '2024-05-15T18:00:00Z', isActive: true },
-  { id: 's4', courseId: '2', name: 'Section A - MWF', studentCount: 16, isActive: true },
-  { id: 's5', courseId: '2', name: 'Section B - TTh', studentCount: 12, isActive: true },
-  { id: 's6', courseId: '3', name: 'Section A', studentCount: 20, isActive: true },
-  { id: 's7', courseId: '3', name: 'Section B - Online', studentCount: 12, isActive: true },
-];
-
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function XSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l6 6M10 4l-6 6"/></svg>; }
@@ -34,12 +24,9 @@ function CheckSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fil
 function AlertSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/></svg>; }
 function XCircleSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6l4 4M10 6l-4 4"/></svg>; }
 function BookSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>; }
-function UserCheckSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/></svg>; }
 function PeopleSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>; }
-function CalendarSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 8h18"/><path d="M8 2v3M16 2v3"/></svg>; }
 function ChevronDownSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 5l3 3 3-3"/></svg>; }
 function LaunchSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 8v3.5a1.5 1.5 0 01-1.5 1.5h-7A1.5 1.5 0 011 11.5v-7A1.5 1.5 0 012.5 3H6"/><path d="M8 1h5v5"/><path d="M7 7l6-6"/></svg>; }
-function DownloadSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 10V2M4 7l3 3 3-3"/><path d="M2 11v1h10v-1"/></svg>; }
 function SettingsSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="1.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.9 2.9l1.1 1.1M10 10l1.1 1.1M2.9 11.1L4 10M10 4l1.1-1.1"/></svg>; }
 function GridSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><rect x="8" y="8" width="5" height="5" rx="1"/></svg>; }
 function ListSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3h10M2 7h10M2 11h10"/></svg>; }
@@ -88,18 +75,20 @@ const AdminCourseManagementPage: React.FC = () => {
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize] = useState(20);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CourseData | null>(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
-  const [showDeleteModal, setShowDeleteModal] = useState<number | null>(null);
   const [activeMigrationModal, setActiveMigrationModal] = useState<'export' | 'import' | null>(null);
   const [showActions, setShowActions] = useState<string | null>(null);
   const [showSectionsModal, setShowSectionsModal] = useState(false);
-  const [sections, setSections] = useState<SectionData[]>(mockSections);
+  const [sections, setSections] = useState<SectionData[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [addingSection, setAddingSection] = useState(false);
+  const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
   const [sectionForm, setSectionForm] = useState({ name: '', studentCount: 0, isActive: true });
 
   // Bulk Operations & Migration States (S15-03, S15-08, S15-10)
@@ -110,7 +99,7 @@ const AdminCourseManagementPage: React.FC = () => {
     { id: 'm1', type: 'Common Cartridge 1.3 Import', date: '2026-05-18', size: '42.1 MB', status: 'Completed' },
     { id: 'm2', type: 'Canvas Course Package (.imscc) Import', date: '2026-05-15', size: '128.5 MB', status: 'Completed' }
   ]);
-  const [auditLogs, setAuditLogs] = useState([
+  const [auditLogs] = useState([
     { id: 'a1', date: '2026-05-19T10:14:00Z', user: 'Sophia Miller', course: 'Computer Science 101', role: 'Student', action: 'Enrolled via SIS Import', actor: 'System Admin' },
     { id: 'a2', date: '2026-05-19T09:45:00Z', user: 'James Wilson', course: 'Mathematics 204', role: 'Teacher', action: 'Added to Section A', actor: 'Professor Davis (Masquerading)' },
     { id: 'a3', date: '2026-05-18T14:22:00Z', user: 'Emma Thompson', course: 'Chemistry Lab', role: 'Student', action: 'Dropped Course', actor: 'Student (Self-service)' }
@@ -179,6 +168,74 @@ const AdminCourseManagementPage: React.FC = () => {
   }), [mockCourses]);
 
   const getStatusIcon = (s: string) => s === 'available' ? <CheckSvg /> : s === 'unpublished' ? <AlertSvg /> : s === 'completed' ? <CheckSvg /> : <XCircleSvg />;
+
+  // Fetch sections when a course modal is opened
+  const fetchSections = useCallback(async () => {
+    if (!selectedCourse) return;
+    try {
+      setSectionsLoading(true);
+      const data = await canvasFetch(`/api/v1/courses/${selectedCourse.id}/sections?include[]=students`);
+      const mapped = (Array.isArray(data) ? data : []).map((s: any) => ({
+        id: String(s.id),
+        courseId: selectedCourse.id,
+        name: s.name,
+        studentCount: s.students?.length || 0,
+        startAt: s.start_at,
+        endAt: s.end_at,
+        isActive: true,
+      }));
+      setSections(mapped);
+    } catch (err: any) {
+      showToast({ title: 'Failed to load sections', message: err.message || 'An error occurred while loading sections.', type: 'error' });
+    } finally {
+      setSectionsLoading(false);
+    }
+  }, [selectedCourse, showToast]);
+
+  useEffect(() => {
+    if (selectedCourse && (showSectionsModal || showCourseModal)) {
+      fetchSections();
+    }
+  }, [selectedCourse, showSectionsModal, showCourseModal, fetchSections]);
+
+  const handleAddSection = async () => {
+    if (!selectedCourse || !sectionForm.name.trim()) return;
+    try {
+      setAddingSection(true);
+      await canvasFetch(`/api/v1/courses/${selectedCourse.id}/sections`, {
+        method: 'POST',
+        body: { course_section: { name: sectionForm.name.trim() } }
+      });
+      showToast({ title: 'Section Added', message: 'Section created successfully.', type: 'success' });
+      setSectionForm({ name: '', studentCount: 0, isActive: true });
+      await fetchSections();
+    } catch (err: any) {
+      showToast({ title: 'Failed to add section', message: err.message || 'An error occurred while adding the section.', type: 'error' });
+    } finally {
+      setAddingSection(false);
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Section',
+      message: 'Are you sure you want to delete this section? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    try {
+      setDeletingSectionId(sectionId);
+      await canvasFetch(`/api/v1/sections/${sectionId}`, { method: 'DELETE' });
+      showToast({ title: 'Section Deleted', message: 'Section deleted successfully.', type: 'success' });
+      await fetchSections();
+    } catch (err: any) {
+      showToast({ title: 'Failed to delete section', message: err.message || 'An error occurred while deleting the section.', type: 'error' });
+    } finally {
+      setDeletingSectionId(null);
+    }
+  };
 
   const handleCreateCourse = async () => {
     try {
@@ -385,7 +442,6 @@ const AdminCourseManagementPage: React.FC = () => {
       });
     }
   };
-  const handleExport = () => console.log('Exporting course data...');
   const handleClearFilters = () => { setSearchTerm(''); setFilterStatus('all'); setFilterTerm('all'); setFilterDepartment('all'); setPage(1); };
 
   const inpStyle: React.CSSProperties = { border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', padding: '8px 12px', width: '100%', background: 'var(--cx-bg-surface)', color: 'var(--cx-text-primary)', fontFamily: 'inherit' };
@@ -956,40 +1012,38 @@ const AdminCourseManagementPage: React.FC = () => {
               <button className="cx-btn cx-btn--ghost" onClick={() => setShowSectionsModal(false)}><XSvg /></button>
             </div>
             <div className="cx-modal__body">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                {sections.filter(s => s.courseId === selectedCourse.id).map(s => (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)' }}>
-                    <div>
-                      <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{s.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>{s.studentCount} enrolled</div>
+              {sectionsLoading ? (
+                <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>Loading sections...</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {sections.filter(s => s.courseId === selectedCourse.id).map(s => (
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)' }}>
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{s.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>{s.studentCount} enrolled</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span className={clsx('cx-badge', s.isActive ? 'cx-badge--success' : 'cx-badge--neutral')} style={{ fontSize: '0.6875rem' }}>{s.isActive ? 'Active' : 'Inactive'}</span>
+                        <button className="cx-btn cx-btn--ghost cx-btn--sm" disabled={deletingSectionId === s.id} onClick={() => handleDeleteSection(s.id)}>
+                          {deletingSectionId === s.id ? '...' : <TrashSvg />}
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <span className={clsx('cx-badge', s.isActive ? 'cx-badge--success' : 'cx-badge--neutral')} style={{ fontSize: '0.6875rem' }}>{s.isActive ? 'Active' : 'Inactive'}</span>
-                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setSections(prev => prev.filter(x => x.id !== s.id))}><TrashSvg /></button>
-                    </div>
-                  </div>
-                ))}
-                {sections.filter(s => s.courseId === selectedCourse.id).length === 0 && (
-                  <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>No sections yet. Add one below.</p>
-                )}
-              </div>
+                  ))}
+                  {sections.filter(s => s.courseId === selectedCourse.id).length === 0 && (
+                    <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>No sections yet. Add one below.</p>
+                  )}
+                </div>
+              )}
               <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 16 }}>
                 <h4 style={{ fontSize: '0.875rem', fontWeight: 600, margin: '0 0 12px' }}>Add Section</h4>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <input className="cx-input" type="text" placeholder="Section name" value={sectionForm.name} onChange={e => setSectionForm(p => ({ ...p, name: e.target.value }))} style={{ flex: 1 }} />
                   <input className="cx-input" type="number" placeholder="Students" min={0} value={sectionForm.studentCount} onChange={e => setSectionForm(p => ({ ...p, studentCount: Math.max(0, Number(e.target.value)) }))} style={{ width: 100 }} />
                 </div>
-                <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={!sectionForm.name.trim()} onClick={() => {
-                  const newSection: SectionData = {
-                    id: `section-${Date.now()}`,
-                    courseId: selectedCourse.id,
-                    name: sectionForm.name,
-                    studentCount: sectionForm.studentCount,
-                    isActive: true,
-                  };
-                  setSections(prev => [...prev, newSection]);
-                  setSectionForm({ name: '', studentCount: 0, isActive: true });
-                }}><PlusSvg /> Add Section</button>
+                <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={!sectionForm.name.trim() || addingSection} onClick={handleAddSection}>
+                  {addingSection ? 'Adding...' : <><PlusSvg /> Add Section</>}
+                </button>
               </div>
             </div>
             <div className="cx-modal__footer">

@@ -1,4 +1,6 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { canvasFetch } from '../../hooks/useCanvasQuery'
 import { useNotification } from '../../hooks/useNotification'
 import clsx from 'clsx'
 
@@ -25,11 +27,11 @@ interface CourseSettings {
 }
 
 const defaultSettings: CourseSettings = {
-  name: 'Computer Science 101',
-  courseCode: 'CS101',
-  description: 'Introduction to computer science fundamentals including programming, algorithms, and data structures.',
+  name: '',
+  courseCode: '',
+  description: '',
   isPublic: false,
-  isPublished: true,
+  isPublished: false,
   allowStudentDiscussionEditing: false,
   allowStudentDiscussionAttachments: true,
   allowStudentDiscussionReporting: true,
@@ -46,8 +48,31 @@ const defaultSettings: CourseSettings = {
   timeZone: 'America/New_York',
 }
 
+function mapCourseToSettings(course: any): CourseSettings {
+  return {
+    name: course.name || '',
+    courseCode: course.course_code || '',
+    description: course.description || course.syllabus_body || '',
+    isPublic: !!course.is_public,
+    isPublished: course.workflow_state === 'available',
+    allowStudentDiscussionEditing: !!course.allow_student_discussion_editing,
+    allowStudentDiscussionAttachments: course.allow_student_discussion_attachments !== false,
+    allowStudentDiscussionReporting: course.allow_student_discussion_reporting !== false,
+    restrictEnrollmentsToCourseDates: !!course.restrict_enrollments_to_course_dates,
+    hideFinalGrades: !!course.hide_final_grades,
+    allowFinalGradeOverride: course.allow_final_grade_override !== false,
+    allowStudentAssignmentEdits: !!course.allow_student_assignment_edits,
+    selfEnrollment: !!course.self_enrollment,
+    openEnrollment: course.open_enrollment !== false,
+    defaultView: course.default_view || 'modules',
+    storageQuota: course.storage_quota_mb || 500,
+    gradingStandard: course.grading_standard_id ? 'custom' : 'A-F',
+    language: course.locale === 'es' ? 'Spanish' : course.locale === 'fr' ? 'French' : 'English',
+    timeZone: course.time_zone || 'America/New_York',
+  }
+}
+
 function CheckSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg>; }
-function SettingsSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>; }
 function GripSvg() { return <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="4" cy="3" r="1"/><circle cx="8" cy="3" r="1"/><circle cx="4" cy="6" r="1"/><circle cx="8" cy="6" r="1"/><circle cx="4" cy="9" r="1"/><circle cx="8" cy="9" r="1"/></svg>; }
 
 const labelStyle: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }
@@ -56,11 +81,33 @@ const toggleLabelStyle: React.CSSProperties = { fontSize: '0.8125rem', color: 'v
 
 export default function CourseSettingsPage() {
   const { showToast } = useNotification()
+  const [searchParams] = useSearchParams()
+  const courseId = searchParams.get('id')
+
   const [settings, setSettings] = useState<CourseSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
   const [sections, setSections] = useState(['General', 'Course Content', 'Enrollment', 'Grading', 'Blueprint Settings', 'Navigation Tabs', 'Sections & Cross-Listing', 'System'])
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Load course from API
+  useEffect(() => {
+    if (!courseId) return
+    const fetchCourse = async () => {
+      try {
+        setLoading(true)
+        const course = await canvasFetch(`/api/v1/courses/${courseId}`)
+        setSettings(mapCourseToSettings(course))
+      } catch (err: any) {
+        showToast({ title: 'Failed to load course', message: err.message || 'An error occurred while loading course settings.', type: 'error' })
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCourse()
+  }, [courseId])
 
   // Blueprint states (S15-06)
   const [isBlueprint, setIsBlueprint] = useState(false)
@@ -111,46 +158,174 @@ export default function CourseSettingsPage() {
     { name: 'D', value: 60 },
     { name: 'F', value: 0 },
   ])
+  const [savingScheme, setSavingScheme] = useState(false)
+  const [existingStandards, setExistingStandards] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!showGradingSchemeModal) return
+    const fetchStandards = async () => {
+      try {
+        const data = await canvasFetch('/api/v1/accounts/1/grading_standards')
+        setExistingStandards(Array.isArray(data) ? data : [])
+      } catch {
+        // Silently fail — existing standards are optional
+      }
+    }
+    fetchStandards()
+  }, [showGradingSchemeModal])
+
+  const handleApplyCustomScheme = async () => {
+    if (!courseId) return
+    try {
+      setSavingScheme(true)
+      const response = await canvasFetch('/api/v1/accounts/1/grading_standards', {
+        method: 'POST',
+        body: {
+          grading_standard: {
+            title: 'Custom Scheme',
+            data: customScheme.map(s => ({ name: s.name, value: s.value }))
+          }
+        }
+      })
+      if (response?.id) {
+        await canvasFetch(`/api/v1/courses/${courseId}`, {
+          method: 'PUT',
+          body: { course: { grading_standard_id: response.id } }
+        })
+      }
+      update('gradingStandard', 'custom')
+      setShowGradingSchemeModal(false)
+      showToast({ title: 'Grading Scheme Saved', message: 'Custom grading scheme applied successfully.', type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Failed to save grading scheme', message: err.message || 'An error occurred.', type: 'error' })
+    } finally {
+      setSavingScheme(false)
+    }
+  }
 
   // Sections & Cross-Listing states
-  const [courseSections, setCourseSections] = useState([
-    { id: '1', name: 'Section A - Morning', students: 25, waitlist: 2, crossListedTo: null },
-    { id: '2', name: 'Section B - Afternoon', students: 30, waitlist: 0, crossListedTo: null },
-    { id: '3', name: 'Section C - Evening', students: 15, waitlist: 0, crossListedTo: '105' }
-  ])
+  const [courseSections, setCourseSections] = useState<any[]>([])
+  const [sectionsLoading, setSectionsLoading] = useState(false)
   const [showCrossListModal, setShowCrossListModal] = useState<string | null>(null)
   const [crossListTarget, setCrossListTarget] = useState('')
+  const [crossListLoading, setCrossListLoading] = useState(false)
+
+  useEffect(() => {
+    if (!courseId || activeSection !== 6) return
+    const fetchSections = async () => {
+      try {
+        setSectionsLoading(true)
+        const data = await canvasFetch(`/api/v1/courses/${courseId}/sections?include[]=students`)
+        const mapped = (Array.isArray(data) ? data : []).map((s: any) => ({
+          id: String(s.id),
+          name: s.name,
+          students: s.students?.length || 0,
+          waitlist: 0,
+          crossListedTo: s.nonxlist_course_id ? String(s.nonxlist_course_id) : null,
+        }))
+        setCourseSections(mapped)
+      } catch (err: any) {
+        showToast({ title: 'Failed to load sections', message: err.message || 'An error occurred while loading sections.', type: 'error' })
+      } finally {
+        setSectionsLoading(false)
+      }
+    }
+    fetchSections()
+  }, [courseId, activeSection])
+
+  const refetchSections = async () => {
+    if (!courseId) return
+    try {
+      setSectionsLoading(true)
+      const data = await canvasFetch(`/api/v1/courses/${courseId}/sections?include[]=students`)
+      const mapped = (Array.isArray(data) ? data : []).map((s: any) => ({
+        id: String(s.id),
+        name: s.name,
+        students: s.students?.length || 0,
+        waitlist: 0,
+        crossListedTo: s.nonxlist_course_id ? String(s.nonxlist_course_id) : null,
+      }))
+      setCourseSections(mapped)
+    } catch (err: any) {
+      showToast({ title: 'Failed to refresh sections', message: err.message || 'An error occurred.', type: 'error' })
+    } finally {
+      setSectionsLoading(false)
+    }
+  }
 
   const handleCrossListSubmit = async (sectionId: string) => {
+    if (!crossListTarget) return
     try {
-      // Simulate API call to POST /api/v1/sections/:id/crosslist/:new_course_id
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCourseSections(prev => prev.map(s => s.id === sectionId ? { ...s, crossListedTo: crossListTarget } : s));
-      setShowCrossListModal(null);
-      setCrossListTarget('');
-      showToast({ title: 'Section Cross-Listed', message: 'Successfully cross-listed section to course ' + crossListTarget, type: 'success' });
-    } catch (err) {
-      showToast({ title: 'Cross-Listing Failed', message: 'Failed to cross-list section.', type: 'error' });
+      setCrossListLoading(true)
+      await canvasFetch(`/api/v1/sections/${sectionId}/crosslist/${crossListTarget}`, { method: 'POST' })
+      setShowCrossListModal(null)
+      setCrossListTarget('')
+      showToast({ title: 'Section Cross-Listed', message: 'Successfully cross-listed section to course ' + crossListTarget, type: 'success' })
+      await refetchSections()
+    } catch (err: any) {
+      showToast({ title: 'Cross-Listing Failed', message: err.message || 'Failed to cross-list section.', type: 'error' })
+    } finally {
+      setCrossListLoading(false)
     }
   }
 
   const handleDecrossList = async (sectionId: string) => {
     try {
-      // Simulate API call to DELETE /api/v1/sections/:id/crosslist
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCourseSections(prev => prev.map(s => s.id === sectionId ? { ...s, crossListedTo: null } : s));
-      showToast({ title: 'Section De-Cross-Listed', message: 'Successfully restored section to original course.', type: 'success' });
-    } catch (err) {
-      showToast({ title: 'De-Cross-Listing Failed', message: 'Failed to de-cross-list section.', type: 'error' });
+      setCrossListLoading(true)
+      await canvasFetch(`/api/v1/sections/${sectionId}/crosslist`, { method: 'DELETE' })
+      showToast({ title: 'Section De-Cross-Listed', message: 'Successfully restored section to original course.', type: 'success' })
+      await refetchSections()
+    } catch (err: any) {
+      showToast({ title: 'De-Cross-Listing Failed', message: err.message || 'Failed to de-cross-list section.', type: 'error' })
+    } finally {
+      setCrossListLoading(false)
     }
   }
 
   const update = (key: keyof CourseSettings, value: any) => setSettings(p => ({ ...p, [key]: value }))
 
-  const handleSave = () => {
-    console.log('Saving course settings:', settings)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  const handleSave = async () => {
+    if (!courseId) {
+      showToast({ title: 'Error', message: 'No course ID found in URL.', type: 'error' })
+      return
+    }
+    try {
+      setSaving(true)
+      const payload: any = {
+        course: {
+          name: settings.name,
+          course_code: settings.courseCode,
+          description: settings.description,
+          is_public: settings.isPublic,
+          allow_student_discussion_editing: settings.allowStudentDiscussionEditing,
+          allow_student_discussion_attachments: settings.allowStudentDiscussionAttachments,
+          allow_student_discussion_reporting: settings.allowStudentDiscussionReporting,
+          restrict_enrollments_to_course_dates: settings.restrictEnrollmentsToCourseDates,
+          hide_final_grades: settings.hideFinalGrades,
+          allow_final_grade_override: settings.allowFinalGradeOverride,
+          allow_student_assignment_edits: settings.allowStudentAssignmentEdits,
+          self_enrollment: settings.selfEnrollment,
+          open_enrollment: settings.openEnrollment,
+          default_view: settings.defaultView,
+          storage_quota_mb: settings.storageQuota,
+          time_zone: settings.timeZone,
+          locale: settings.language === 'Spanish' ? 'es' : settings.language === 'French' ? 'fr' : 'en',
+        }
+      }
+      if (settings.isPublished) {
+        payload.course.event = 'offer'
+      } else {
+        payload.course.event = 'claim'
+      }
+      await canvasFetch(`/api/v1/courses/${courseId}`, { method: 'PUT', body: payload })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+      showToast({ title: 'Settings Saved', message: 'Course settings updated successfully.', type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Failed to save settings', message: err.message || 'An error occurred while saving.', type: 'error' })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDragStart = useCallback((idx: number) => {
@@ -192,6 +367,12 @@ export default function CourseSettingsPage() {
             <div className="cx-notification__title">Settings Saved</div>
             <div className="cx-notification__subtitle">Course settings updated successfully.</div>
           </div>
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ marginBottom: 16, fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
+          Loading course settings...
         </div>
       )}
 
@@ -479,42 +660,57 @@ export default function CourseSettingsPage() {
                 </p>
               </div>
 
-              <div className="cx-table-container">
-                <table className="cx-table">
-                  <thead>
-                    <tr>
-                      <th>Section Name</th>
-                      <th>Enrolled Students</th>
-                      <th>Waitlist</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {courseSections.map(s => (
-                      <tr key={s.id} className="cx-table__row">
-                        <td className="cx-table__cell cx-table__cell--name">{s.name}</td>
-                        <td className="cx-table__cell cx-table__cell--muted">{s.students}</td>
-                        <td className="cx-table__cell cx-table__cell--muted">{s.waitlist}</td>
-                        <td className="cx-table__cell">
-                          {s.crossListedTo ? (
-                            <span className="cx-badge cx-badge--warning" style={{ fontSize: '0.6875rem' }}>Cross-Listed to {s.crossListedTo}</span>
-                          ) : (
-                            <span className="cx-badge cx-badge--success" style={{ fontSize: '0.6875rem' }}>Active here</span>
-                          )}
-                        </td>
-                        <td className="cx-table__cell cx-table__cell--actions">
-                          {s.crossListedTo ? (
-                            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDecrossList(s.id)}>De-Cross-List</button>
-                          ) : (
-                            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowCrossListModal(s.id)}>Cross-List</button>
-                          )}
-                        </td>
+              {sectionsLoading ? (
+                <div style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>Loading sections...</div>
+              ) : (
+                <div className="cx-table-container">
+                  <table className="cx-table">
+                    <thead>
+                      <tr>
+                        <th>Section Name</th>
+                        <th>Enrolled Students</th>
+                        <th>Waitlist</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {courseSections.map(s => (
+                        <tr key={s.id} className="cx-table__row">
+                          <td className="cx-table__cell cx-table__cell--name">{s.name}</td>
+                          <td className="cx-table__cell cx-table__cell--muted">{s.students}</td>
+                          <td className="cx-table__cell cx-table__cell--muted">{s.waitlist}</td>
+                          <td className="cx-table__cell">
+                            {s.crossListedTo ? (
+                              <span className="cx-badge cx-badge--warning" style={{ fontSize: '0.6875rem' }}>Cross-Listed to {s.crossListedTo}</span>
+                            ) : (
+                              <span className="cx-badge cx-badge--success" style={{ fontSize: '0.6875rem' }}>Active here</span>
+                            )}
+                          </td>
+                          <td className="cx-table__cell cx-table__cell--actions">
+                            {s.crossListedTo ? (
+                              <button className="cx-btn cx-btn--ghost cx-btn--sm" disabled={crossListLoading} onClick={() => handleDecrossList(s.id)}>
+                                {crossListLoading ? 'Working...' : 'De-Cross-List'}
+                              </button>
+                            ) : (
+                              <button className="cx-btn cx-btn--ghost cx-btn--sm" disabled={crossListLoading} onClick={() => setShowCrossListModal(s.id)}>
+                                Cross-List
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {courseSections.length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', padding: '16px', color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>
+                            No sections found for this course.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               {showCrossListModal && (
                 <div className="cx-modal-overlay" onClick={() => setShowCrossListModal(null)}>
@@ -532,7 +728,9 @@ export default function CourseSettingsPage() {
                     </div>
                     <div className="cx-modal__footer">
                       <button className="cx-btn cx-btn--secondary" onClick={() => setShowCrossListModal(null)}>Cancel</button>
-                      <button className="cx-btn cx-btn--primary" disabled={!crossListTarget} onClick={() => handleCrossListSubmit(showCrossListModal)}>Cross-List</button>
+                      <button className="cx-btn cx-btn--primary" disabled={!crossListTarget || crossListLoading} onClick={() => handleCrossListSubmit(showCrossListModal)}>
+                        {crossListLoading ? 'Cross-Listing...' : 'Cross-List'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -555,7 +753,9 @@ export default function CourseSettingsPage() {
         </div>
 
         <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
-          <button className="cx-btn cx-btn--primary" onClick={handleSave}><CheckSvg /> Save Settings</button>
+          <button className="cx-btn cx-btn--primary" onClick={handleSave} disabled={saving || loading}>
+            <CheckSvg /> {saving ? 'Saving...' : 'Save Settings'}
+          </button>
           <button className="cx-btn cx-btn--secondary" onClick={() => setSettings(defaultSettings)}>Reset to Defaults</button>
         </div>
       </div>
@@ -571,7 +771,12 @@ export default function CourseSettingsPage() {
               <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>
                 Define custom grading schemes to automatically map percentage scores to letter grades or custom identifiers.
               </p>
-              
+              {existingStandards.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Existing Standards ({existingStandards.length})</label>
+                </div>
+              )}
+
               <div className="cx-table-container">
                 <table className="cx-table">
                   <thead>
@@ -621,11 +826,9 @@ export default function CourseSettingsPage() {
             </div>
             <div className="cx-modal__footer">
               <button className="cx-btn cx-btn--secondary" onClick={() => setShowGradingSchemeModal(false)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary" onClick={() => {
-                update('gradingStandard', 'custom');
-                setShowGradingSchemeModal(false);
-                showToast({ title: 'Grading Scheme Saved', message: 'Custom grading scheme applied successfully.', type: 'success' });
-              }}>Apply Custom Scheme</button>
+              <button className="cx-btn cx-btn--primary" disabled={savingScheme} onClick={handleApplyCustomScheme}>
+                {savingScheme ? 'Saving...' : 'Apply Custom Scheme'}
+              </button>
             </div>
           </div>
         </div>

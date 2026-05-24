@@ -12,12 +12,49 @@ beforeAll(() => {
   }
 })
 
+// Mock useNotification hook
+vi.mock('../../hooks/useNotification', () => ({
+  useNotification: () => ({
+    showToast: vi.fn(),
+    showConfirm: vi.fn().mockResolvedValue(true),
+    showAlert: vi.fn(),
+  }),
+}))
+
 // Mock useCanvasQuery with URL-aware responses matching Analytics.tsx usage
 vi.mock('../../hooks/useCanvasQuery', () => ({
   useCanvasQuery: vi.fn().mockImplementation((url: string) => {
     if (url === '/api/v1/courses') {
       return {
         data: [{ id: 1, name: 'Physics 101', course_code: 'PHY101', workflow_state: 'available', total_students: 30 }],
+        isLoading: false,
+        isError: false,
+      }
+    }
+    if (url === '/api/v1/courses/1/assignments') {
+      return {
+        data: [
+          { id: 101, name: 'Midterm Examination', points_possible: 100 },
+          { id: 102, name: 'Quiz 1', points_possible: 50 },
+        ],
+        isLoading: false,
+        isError: false,
+      }
+    }
+    if (url === '/api/v1/courses/1/students/submissions') {
+      return {
+        data: [
+          { id: 1, assignment_id: 101, score: 85, assignment: { id: 101, points_possible: 100 } },
+          { id: 2, assignment_id: 101, score: 92, assignment: { id: 101, points_possible: 100 } },
+          { id: 3, assignment_id: 101, score: 78, assignment: { id: 101, points_possible: 100 } },
+          { id: 4, assignment_id: 101, score: 65, assignment: { id: 101, points_possible: 100 } },
+          { id: 5, assignment_id: 101, score: 88, assignment: { id: 101, points_possible: 100 } },
+          { id: 6, assignment_id: 102, score: 40, assignment: { id: 102, points_possible: 50 } },
+          { id: 7, assignment_id: 102, score: 45, assignment: { id: 102, points_possible: 50 } },
+          { id: 8, assignment_id: 102, score: 35, assignment: { id: 102, points_possible: 50 } },
+          { id: 9, assignment_id: 102, score: 25, assignment: { id: 102, points_possible: 50 } },
+          { id: 10, assignment_id: 102, score: 50, assignment: { id: 102, points_possible: 50 } },
+        ],
         isLoading: false,
         isError: false,
       }
@@ -74,21 +111,23 @@ describe('Analytics Page', () => {
     expect(gradesTab).toBeInTheDocument()
     fireEvent.click(gradesTab)
 
-    // Default is midterm exam (Class Average: 78.4%, Std Dev: 8.2%, Median: 81.0%)
-    expect(screen.getByText('78.4%')).toBeInTheDocument()
-    expect(screen.getByText('8.2%')).toBeInTheDocument()
-    expect(screen.getByText('81.0%')).toBeInTheDocument()
+    // Default assignment is Midterm Examination (id=101)
+    // Percentages: 85, 92, 78, 65, 88 => avg=81.6, median=85.0, stdDev≈10.6
+    expect(screen.getByText('81.6%')).toBeInTheDocument()
+    expect(screen.getByText('10.6%')).toBeInTheDocument()
+    expect(screen.getByText('85.0%')).toBeInTheDocument()
 
-    // Find the select dropdown
-    const select = screen.getByLabelText('Assignment selector')
-    expect(select).toBeInTheDocument()
+    // Find the assignment select dropdown
+    const assignmentSelect = screen.getByLabelText('Assignment selector')
+    expect(assignmentSelect).toBeInTheDocument()
 
-    // Change assignment to project1
-    fireEvent.change(select, { target: { value: 'project1' } })
+    // Change assignment to Quiz 1 (id=102)
+    fireEvent.change(assignmentSelect, { target: { value: '102' } })
 
-    // Verify it updated to Programming Project 1 metrics (Class Average: 86.1%, Std Dev: 5.4%, Median: 88.5%)
-    expect(screen.getByText('86.1%')).toBeInTheDocument()
-    expect(screen.getByText('5.4%')).toBeInTheDocument()
-    expect(screen.getByText('88.5%')).toBeInTheDocument()
+    // Verify it updated to Quiz 1 metrics
+    // Percentages: 80, 90, 70, 50, 100 => avg=78.0, median=80.0, stdDev≈19.2
+    expect(screen.getByText('78.0%')).toBeInTheDocument()
+    expect(screen.getByText('19.2%')).toBeInTheDocument()
+    expect(screen.getByText('80.0%')).toBeInTheDocument()
   })
 })

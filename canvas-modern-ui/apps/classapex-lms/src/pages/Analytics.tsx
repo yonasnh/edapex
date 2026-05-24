@@ -14,6 +14,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
@@ -101,6 +102,33 @@ interface AccountUser {
   name: string
 }
 
+interface AssignmentItem {
+  id: number
+  name: string
+  points_possible: number
+}
+
+interface SubmissionItem {
+  id: number
+  user_id: number
+  assignment_id: number
+  score: number | null
+  assignment?: { id: number; points_possible: number }
+}
+
+interface StudentUser {
+  id: number
+  name: string
+  enrollments?: { type: string; grades?: { current_score?: number } }[]
+}
+
+interface StudentSummary {
+  id: number
+  page_views: number
+  participations: number
+  current_score: number
+}
+
 // ─── Helper ──────────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -147,51 +175,15 @@ function ProgressRow({ label, value, max, format }: { label: string; value: numb
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-const GRADE_DISTRIBUTIONS = {
-  midterm: {
-    average: '78.4%',
-    stdDev: '8.2%',
-    median: '81.0%',
-    bars: [
-      { label: '0–59% (F)', count: 2, pct: 15 },
-      { label: '60–69% (D)', count: 4, pct: 30 },
-      { label: '70–79% (C)', count: 12, pct: 90 },
-      { label: '80–89% (B)', count: 9, pct: 67 },
-      { label: '90–100% (A)', count: 5, pct: 37 }
-    ]
-  },
-  project1: {
-    average: '86.1%',
-    stdDev: '5.4%',
-    median: '88.5%',
-    bars: [
-      { label: '0–59% (F)', count: 0, pct: 0 },
-      { label: '60–69% (D)', count: 1, pct: 8 },
-      { label: '70–79% (C)', count: 4, pct: 30 },
-      { label: '80–89% (B)', count: 15, pct: 100 },
-      { label: '90–100% (A)', count: 12, pct: 80 }
-    ]
-  },
-  quiz3: {
-    average: '92.3%',
-    stdDev: '4.1%',
-    median: '94.0%',
-    bars: [
-      { label: '0–59% (F)', count: 0, pct: 0 },
-      { label: '60–69% (D)', count: 0, pct: 0 },
-      { label: '70–79% (C)', count: 2, pct: 13 },
-      { label: '80–89% (B)', count: 8, pct: 53 },
-      { label: '90–100% (A)', count: 15, pct: 100 }
-    ]
-  }
-}
-
 const Analytics: React.FC = () => {
   const [timeRange, setTimeRange] = useState<'7days' | '30days' | '90days' | '1year'>('30days')
   const [mode, setMode] = useState<'system' | 'student' | 'grades'>('system')
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null)
-  const [selectedAssignment, setSelectedAssignment] = useState<'midterm' | 'project1' | 'quiz3'>('midterm')
-  const currentDistribution = GRADE_DISTRIBUTIONS[selectedAssignment]
+  const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null)
+  const [selectedGradeCourseId, setSelectedGradeCourseId] = useState<number | null>(null)
+  const [selectedStudentCourseId, setSelectedStudentCourseId] = useState<number | null>(null)
+
+  const { showConfirm, showToast } = useNotification()
 
   // ── Live Canvas API queries ──────────────────────────────────────────────
   const { data: courses, isLoading: coursesLoading } = useCanvasQuery<Course[]>(
@@ -222,6 +214,36 @@ const Analytics: React.FC = () => {
   const { data: accountUsers } = useCanvasQuery<AccountUser[]>(
     '/api/v1/accounts/1/users',
     { per_page: 1 } as any,
+  )
+
+  // ── Grades mode queries ──────────────────────────────────────────────────
+  const activeGradeCourseId = selectedGradeCourseId ?? (courses?.find(c => c.workflow_state === 'available')?.id ?? null)
+
+  const { data: assignments, isLoading: assignmentsLoading } = useCanvasQuery<AssignmentItem[]>(
+    activeGradeCourseId ? `/api/v1/courses/${activeGradeCourseId}/assignments` : '',
+    { per_page: 100 } as any,
+    { enabled: !!activeGradeCourseId && mode === 'grades' }
+  )
+
+  const { data: submissions, isLoading: submissionsLoading } = useCanvasQuery<SubmissionItem[]>(
+    activeGradeCourseId ? `/api/v1/courses/${activeGradeCourseId}/students/submissions` : '',
+    { include: ['assignment'], per_page: 100 } as any,
+    { enabled: !!activeGradeCourseId && mode === 'grades' }
+  )
+
+  // ── Student mode queries ─────────────────────────────────────────────────
+  const activeStudentCourseId = selectedStudentCourseId ?? (courses?.find(c => c.workflow_state === 'available')?.id ?? null)
+
+  const { data: students, isLoading: studentsLoading } = useCanvasQuery<StudentUser[]>(
+    activeStudentCourseId ? `/api/v1/courses/${activeStudentCourseId}/users` : '',
+    { enrollment_type: ['student'], include: ['enrollments'], per_page: 100 } as any,
+    { enabled: !!activeStudentCourseId && mode === 'student' }
+  )
+
+  const { data: studentSummaries, isLoading: summariesLoading } = useCanvasQuery<StudentSummary[]>(
+    activeStudentCourseId ? `/api/v1/courses/${activeStudentCourseId}/analytics/student_summaries` : '',
+    undefined,
+    { enabled: !!activeStudentCourseId && mode === 'student' }
   )
 
   const isLoading = coursesLoading || todosLoading
@@ -316,6 +338,111 @@ const Analytics: React.FC = () => {
 
   const maxEnrollment = topCourses[0]?.total_students ?? 1
 
+  // ── Grade distribution computation ───────────────────────────────────────
+  const activeAssignmentId = selectedAssignment ?? (assignments?.[0]?.id ?? null)
+
+  const gradeDistribution = useMemo(() => {
+    if (!assignments || !submissions || !activeAssignmentId) return null
+
+    const assignment = assignments.find(a => a.id === activeAssignmentId)
+    if (!assignment) return null
+
+    const pointsPossible = assignment.points_possible || 0
+    if (pointsPossible <= 0) return null
+
+    const relevantSubmissions = submissions.filter(
+      s => s.assignment_id === activeAssignmentId && s.score !== null && s.score !== undefined
+    )
+
+    if (relevantSubmissions.length === 0) return null
+
+    const percentages = relevantSubmissions.map(s => (s.score! / pointsPossible) * 100)
+
+    const buckets = [
+      { label: '0–59% (F)', count: 0, pct: 0 },
+      { label: '60–69% (D)', count: 0, pct: 0 },
+      { label: '70–79% (C)', count: 0, pct: 0 },
+      { label: '80–89% (B)', count: 0, pct: 0 },
+      { label: '90–100% (A)', count: 0, pct: 0 },
+    ]
+
+    percentages.forEach(pct => {
+      if (pct >= 90) buckets[4].count++
+      else if (pct >= 80) buckets[3].count++
+      else if (pct >= 70) buckets[2].count++
+      else if (pct >= 60) buckets[1].count++
+      else buckets[0].count++
+    })
+
+    const maxCount = Math.max(...buckets.map(b => b.count), 1)
+    buckets.forEach(b => { b.pct = Math.round((b.count / maxCount) * 100) })
+
+    const avg = percentages.reduce((a, b) => a + b, 0) / percentages.length
+    const sorted = [...percentages].sort((a, b) => a - b)
+    const median = sorted.length % 2 === 1
+      ? sorted[Math.floor(sorted.length / 2)]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+
+    const variance = percentages.reduce((sum, p) => sum + Math.pow(p - avg, 2), 0) / (percentages.length - 1 || 1)
+    const stdDev = Math.sqrt(variance)
+
+    return {
+      average: `${avg.toFixed(1)}%`,
+      median: `${median.toFixed(1)}%`,
+      stdDev: `${stdDev.toFixed(1)}%`,
+      bars: buckets.map(b => ({ label: b.label, count: b.count, pct: b.pct })),
+      total: relevantSubmissions.length,
+    }
+  }, [assignments, submissions, activeAssignmentId])
+
+  // ── Student list computation ─────────────────────────────────────────────
+  const studentList = useMemo(() => {
+    if (!students) return []
+
+    const summaryMap = new Map<number, StudentSummary>()
+    studentSummaries?.forEach(s => summaryMap.set(s.id, s))
+
+    return students.map(student => {
+      const summary = summaryMap.get(student.id)
+      const score = summary?.current_score ?? student.enrollments?.[0]?.grades?.current_score ?? null
+
+      let tier: string
+      let color: string
+      let statusText: string
+
+      if (score === null || score === undefined) {
+        tier = 'Ungraded'
+        color = 'cx-badge--secondary'
+        statusText = 'No grade data'
+      } else if (score >= 90) {
+        tier = 'Excelling'
+        color = 'cx-badge--success'
+        statusText = 'Good Standing / Excelling'
+      } else if (score >= 70) {
+        tier = 'On Track'
+        color = 'cx-badge--info'
+        statusText = 'On Track'
+      } else {
+        tier = 'At Risk'
+        color = 'cx-badge--danger'
+        statusText = 'At Risk (Low Participation)'
+      }
+
+      return {
+        id: student.id,
+        name: student.name,
+        grade: score !== null && score !== undefined ? `${score.toFixed(1)}%` : 'N/A',
+        views: summary?.page_views ?? 0,
+        actions: summary?.participations ?? 0,
+        tier,
+        color,
+        statusText,
+      }
+    })
+  }, [students, studentSummaries])
+
+  const selectedStudent = studentList.find(s => s.id === selectedStudentId)
+
   // ─── Export CSV ──────────────────────────────────────────────────────────
   const handleExport = () => {
     if (!courses || courses.length === 0) return
@@ -333,6 +460,9 @@ const Analytics: React.FC = () => {
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────
+
+  const gradesLoading = assignmentsLoading || submissionsLoading
+  const studentModeLoading = studentsLoading || summariesLoading
 
   if (isLoading) {
     return (
@@ -542,98 +672,113 @@ const Analytics: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: selectedStudentId ? '1fr 340px' : '1fr', gap: 20 }}>
           {/* Students list */}
           <div className="cx-card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 12px 0' }}>Student Progress Tracking Dashboard</h3>
-            <div className="cx-table-container">
-              <table className="cx-table">
-                <thead>
-                  <tr>
-                    <th>Student Name</th>
-                    <th>Current Grade</th>
-                    <th>Page Views</th>
-                    <th>Participations</th>
-                    <th>Performance Tier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { id: 1, name: 'Sophia Miller', grade: '94.2%', views: 412, actions: 82, tier: 'Excelling', color: 'cx-badge--success' },
-                    { id: 2, name: 'Liam Johnson', grade: '82.5%', views: 245, actions: 34, tier: 'On Track', color: 'cx-badge--info' },
-                    { id: 3, name: 'Noah Smith', grade: '68.1%', views: 180, actions: 12, tier: 'At Risk', color: 'cx-badge--danger' },
-                    { id: 4, name: 'Ava Martinez', grade: '89.7%', views: 320, actions: 48, tier: 'On Track', color: 'cx-badge--info' },
-                  ].map(student => (
-                    <tr
-                      key={student.id}
-                      className="cx-table__row"
-                      style={{ cursor: 'pointer', background: selectedStudentId === student.id ? 'rgba(99,102,241,0.05)' : 'none' }}
-                      onClick={() => setSelectedStudentId(student.id)}
-                    >
-                      <td style={{ fontWeight: 600, color: 'var(--cx-color-primary)' }}>{student.name}</td>
-                      <td style={{ fontWeight: 700 }}>{student.grade}</td>
-                      <td>{student.views}</td>
-                      <td>{student.actions}</td>
-                      <td>
-                        <span className={`cx-badge ${student.color}`} style={{ fontSize: '0.7rem' }}>
-                          {student.tier}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>Student Progress Tracking Dashboard</h3>
+              <select
+                className="cx-select"
+                aria-label="Course selector"
+                value={activeStudentCourseId ?? ''}
+                onChange={e => {
+                  setSelectedStudentCourseId(Number(e.target.value) || null)
+                  setSelectedStudentId(null)
+                }}
+              >
+                {courses?.filter(c => c.workflow_state === 'available').map(course => (
+                  <option key={course.id} value={course.id}>{course.name}</option>
+                ))}
+              </select>
             </div>
+            {studentModeLoading ? (
+              <div className="cx-loading" style={{ padding: '40px 0' }}>
+                <div className="cx-loading__spinner" />
+                <span className="cx-loading__text">Loading student data…</span>
+              </div>
+            ) : !activeStudentCourseId || studentList.length === 0 ? (
+              <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
+                {!activeStudentCourseId ? 'No active courses available.' : 'No students enrolled in this course.'}
+              </p>
+            ) : (
+              <div className="cx-table-container">
+                <table className="cx-table">
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Current Grade</th>
+                      <th>Page Views</th>
+                      <th>Participations</th>
+                      <th>Performance Tier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studentList.map(student => (
+                      <tr
+                        key={student.id}
+                        className="cx-table__row"
+                        style={{ cursor: 'pointer', background: selectedStudentId === student.id ? 'rgba(99,102,241,0.05)' : 'none' }}
+                        onClick={() => setSelectedStudentId(student.id)}
+                      >
+                        <td style={{ fontWeight: 600, color: 'var(--cx-color-primary)' }}>{student.name}</td>
+                        <td style={{ fontWeight: 700 }}>{student.grade}</td>
+                        <td>{student.views}</td>
+                        <td>{student.actions}</td>
+                        <td>
+                          <span className={`cx-badge ${student.color}`} style={{ fontSize: '0.7rem' }}>
+                            {student.tier}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Student details panel */}
-          {selectedStudentId && (
+          {selectedStudentId && selectedStudent && (
             <div className="cx-card" style={{ padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>Student Analytics Visualizer</h4>
                 <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setSelectedStudentId(null)}>Close</button>
               </div>
 
-              {selectedStudentId === 3 ? (
-                <div>
-                  <h5 style={{ margin: '0 0 4px 0', fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>Noah Smith</h5>
-                  <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: 'var(--cx-accent-error)', fontWeight: 600 }}>Status: At Risk (Low Participation)</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)', marginBottom: 4 }}>Weekly Activity Streams</div>
+              <div>
+                <h5 style={{ margin: '0 0 4px 0', fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>{selectedStudent.name}</h5>
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: selectedStudent.tier === 'At Risk' ? 'var(--cx-accent-error)' : 'var(--cx-color-success)', fontWeight: 600 }}>
+                  Status: {selectedStudent.statusText}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)', marginBottom: 4 }}>Weekly Activity Streams</div>
+                    {selectedStudent.views > 0 || selectedStudent.actions > 0 ? (
                       <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 80, padding: '4px 0' }}>
-                        {[8, 12, 5, 2, 0, 1].map((val, i) => (
-                          <div key={i} style={{ flex: 1, height: `${(val / 15) * 100}%`, background: 'var(--cx-accent-error)', borderRadius: '2px 2px 0 0' }} />
+                        {[selectedStudent.views * 0.1, selectedStudent.actions * 0.5, selectedStudent.views * 0.15, selectedStudent.actions * 0.3, selectedStudent.views * 0.08, selectedStudent.actions * 0.4].map((val, i) => (
+                          <div key={i} style={{ flex: 1, height: `${Math.min(Math.max((val / 50) * 100, 4), 100)}%`, background: selectedStudent.tier === 'At Risk' ? 'var(--cx-accent-error)' : 'var(--cx-color-primary)', borderRadius: '2px 2px 0 0' }} />
                         ))}
                       </div>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 12, fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>
-                      <strong>Recommendations:</strong> Send auto-nudge email reminder, offer virtual tutoring session.
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => alert('Intervention workflow initiated for Noah Smith.')}>Launch Intervention</button>
-                      <button className="cx-btn cx-btn--secondary cx-btn--sm">Send Message</button>
-                    </div>
+                    ) : (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', padding: '12px 0' }}>
+                        Weekly activity data not available for this student.
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 12, fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>
+                    <strong>Recommendations:</strong> {selectedStudent.tier === 'At Risk' ? 'Send auto-nudge email reminder, offer virtual tutoring session.' : 'Maintain current pace. Ready for honors assignments!'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button
+                      className="cx-btn cx-btn--primary cx-btn--sm"
+                      onClick={async () => {
+                        const confirmed = await showConfirm({ title: 'Launch Intervention?', message: 'This will flag the student for advisor outreach.', type: 'warning' })
+                        if (confirmed) showToast({ title: 'Intervention Initiated', message: `Workflow started for ${selectedStudent.name}.`, type: 'success' })
+                      }}
+                    >
+                      Launch Intervention
+                    </button>
+                    <button className="cx-btn cx-btn--secondary cx-btn--sm">Send Message</button>
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <h5 style={{ margin: '0 0 4px 0', fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>
-                    {selectedStudentId === 1 ? 'Sophia Miller' : selectedStudentId === 2 ? 'Liam Johnson' : 'Ava Martinez'}
-                  </h5>
-                  <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: 'var(--cx-color-success)', fontWeight: 600 }}>Status: Good Standing / On Track</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)', marginBottom: 4 }}>Weekly Activity Streams</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 80, padding: '4px 0' }}>
-                        {[22, 34, 45, 38, 51, 62].map((val, i) => (
-                          <div key={i} style={{ flex: 1, height: `${(val / 70) * 100}%`, background: 'var(--cx-color-primary)', borderRadius: '2px 2px 0 0' }} />
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 12, fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>
-                      <strong>Recommendations:</strong> Maintain current pace. Ready for honors assignments!
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -642,42 +787,78 @@ const Analytics: React.FC = () => {
       {mode === 'grades' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="cx-card" style={{ padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>Assignment Grade Distribution (S16-05)</h3>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>Assignment Grade Distribution</h3>
                 <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', margin: '4px 0 0 0' }}>
                   Visualize distribution curves across grading systems customized by institution tiers.
                 </p>
               </div>
-              <select
-                className="cx-select"
-                aria-label="Assignment selector"
-                value={selectedAssignment}
-                onChange={e => setSelectedAssignment(e.target.value as any)}
-              >
-                <option value="midterm">Midterm Examination (CS-101)</option>
-                <option value="project1">Programming Project 1</option>
-                <option value="quiz3">Quiz 3: Functional Paradigms</option>
-              </select>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select
+                  className="cx-select"
+                  aria-label="Course selector"
+                  value={activeGradeCourseId ?? ''}
+                  onChange={e => {
+                    setSelectedGradeCourseId(Number(e.target.value) || null)
+                    setSelectedAssignment(null)
+                  }}
+                >
+                  {courses?.filter(c => c.workflow_state === 'available').map(course => (
+                    <option key={course.id} value={course.id}>{course.name}</option>
+                  ))}
+                </select>
+                <select
+                  className="cx-select"
+                  aria-label="Assignment selector"
+                  value={activeAssignmentId ?? ''}
+                  onChange={e => setSelectedAssignment(Number(e.target.value) || null)}
+                >
+                  {assignments?.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', height: 240, padding: '24px 0', borderBottom: '1px solid var(--cx-border-subtle)' }}>
-              {currentDistribution.bars.map(bar => (
-                <div key={bar.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{bar.count} students</span>
-                  <div style={{ width: '100%', height: `${bar.pct}%`, background: 'rgba(99,102,241,0.85)', borderRadius: '4px 4px 0 0', position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'var(--cx-color-primary)', borderRadius: '4px 4px 0 0' }} />
-                  </div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-secondary)', fontWeight: 500 }}>{bar.label}</span>
+            {gradesLoading ? (
+              <div className="cx-loading" style={{ padding: '40px 0' }}>
+                <div className="cx-loading__spinner" />
+                <span className="cx-loading__text">Loading grade data…</span>
+              </div>
+            ) : !activeGradeCourseId || !courses || courses.length === 0 ? (
+              <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
+                No courses available. Enroll in or create a course to view grade distributions.
+              </p>
+            ) : !assignments || assignments.length === 0 ? (
+              <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
+                No assignments found in this course.
+              </p>
+            ) : !gradeDistribution ? (
+              <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
+                No submission data available for the selected assignment.
+              </p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', height: 240, padding: '24px 0', borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                  {gradeDistribution.bars.map(bar => (
+                    <div key={bar.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{bar.count} students</span>
+                      <div style={{ width: '100%', height: `${bar.pct}%`, background: 'rgba(99,102,241,0.85)', borderRadius: '4px 4px 0 0', position: 'relative' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'var(--cx-color-primary)', borderRadius: '4px 4px 0 0' }} />
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-secondary)', fontWeight: 500 }}>{bar.label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Class Average:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.average}</strong></div>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Standard Deviation:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.stdDev}</strong></div>
-              <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Median Score:</span> <strong style={{ fontSize: '0.875rem' }}>{currentDistribution.median}</strong></div>
-            </div>
+                <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
+                  <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Class Average:</span> <strong style={{ fontSize: '0.875rem' }}>{gradeDistribution.average}</strong></div>
+                  <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Standard Deviation:</span> <strong style={{ fontSize: '0.875rem' }}>{gradeDistribution.stdDev}</strong></div>
+                  <div><span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Median Score:</span> <strong style={{ fontSize: '0.875rem' }}>{gradeDistribution.median}</strong></div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
