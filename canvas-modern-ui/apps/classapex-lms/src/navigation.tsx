@@ -79,6 +79,7 @@ export const navItems: NavigationItem[] = [
       { id: 'course-settings', label: 'Course Settings Defaults', icon: SettingsIcon, href: '/admin/course-settings', description: 'Establish global classroom configurations', roles: ['admin'] },
       { id: 'system-settings', label: 'System Settings', icon: SlidersIcon, href: '/admin/settings', description: 'Configure system settings', roles: ['admin'] },
       { id: 'developer-keys', label: 'Developer Keys', icon: KeyIcon, href: '/admin/developer-keys', description: 'Manage LTI and API keys', roles: ['admin'] },
+      { id: 'assessment', label: 'Institutional Assessment', icon: ReportIcon, href: '/admin/assessment', description: 'Manage global question banks and outcomes', roles: ['admin'] },
       { id: 'theme-branding', label: 'Theme & Branding', icon: PaletteIcon, href: '/admin/branding', description: 'Configure platform visual appearance', roles: ['admin'] },
       { id: 'grade-change-audit', label: 'Grade Change Audit', icon: ShieldIcon, href: '/admin/grade-change-audit', description: 'Review grader modification history', roles: ['admin'] },
       { id: 'global-notifications', label: 'Global Notifications', icon: NotificationIcon, href: '/admin/notifications', description: 'Broadcast global system announcements', roles: ['admin'] },

@@ -527,6 +527,8 @@ export default function QuizzesPage() {
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(() => {
     return quizIdFromQuery ? parseInt(quizIdFromQuery, 10) : null
   })
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newQuiz, setNewQuiz] = useState({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
 
   useEffect(() => {
     if (quizIdFromQuery) {
@@ -561,9 +563,14 @@ export default function QuizzesPage() {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header" style={{ paddingTop: 0, marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Quizzes</h2>
-        <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Practice knowledge checks, graded quizzes, and surveys.</p>
+      <div className="cx-page__header" style={{ paddingTop: 0, marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Quizzes</h2>
+          <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Practice knowledge checks, graded quizzes, and surveys.</p>
+        </div>
+        <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(true)}>
+          + Create Quiz
+        </button>
       </div>
 
       {isLoading ? (
@@ -614,6 +621,47 @@ export default function QuizzesPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {showCreateModal && (
+        <div className="cx-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Create Quiz</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setShowCreateModal(false)}>&times;</button>
+            </div>
+            <div className="cx-modal__body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem', fontWeight: 600 }}>Quiz Title</label>
+                  <input type="text" className="cx-search__input" style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }} value={newQuiz.title} onChange={e => setNewQuiz({...newQuiz, title: e.target.value})} placeholder="e.g. Midterm Exam" />
+                </div>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem', fontWeight: 600 }}>Time Limit (Minutes)</label>
+                    <input type="number" className="cx-search__input" style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }} value={newQuiz.timeLimit} onChange={e => setNewQuiz({...newQuiz, timeLimit: e.target.value})} placeholder="Optional" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem', fontWeight: 600 }}>Max Attempts</label>
+                    <input type="number" className="cx-search__input" style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }} value={newQuiz.maxAttempts} onChange={e => setNewQuiz({...newQuiz, maxAttempts: Number(e.target.value)})} min="1" />
+                  </div>
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 8, marginTop: 8 }}>Advanced Settings</h3>
+                  <label className="cx-toggle">
+                    <input type="checkbox" checked={newQuiz.proctoring} onChange={e => setNewQuiz({...newQuiz, proctoring: e.target.checked})} />
+                    <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                    <span className="cx-toggle__label" style={{ fontSize: '0.875rem' }}>Require Respondus LockDown Browser / Proctoring Hooks</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(false)}>Save Settings</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

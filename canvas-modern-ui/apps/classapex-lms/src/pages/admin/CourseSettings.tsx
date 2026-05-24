@@ -102,6 +102,16 @@ export default function CourseSettingsPage() {
     setDragTabIdx(null)
   }
 
+  // Grading Schemes
+  const [showGradingSchemeModal, setShowGradingSchemeModal] = useState(false)
+  const [customScheme, setCustomScheme] = useState([
+    { name: 'A', value: 90 },
+    { name: 'B', value: 80 },
+    { name: 'C', value: 70 },
+    { name: 'D', value: 60 },
+    { name: 'F', value: 0 },
+  ])
+
   // Sections & Cross-Listing states
   const [courseSections, setCourseSections] = useState([
     { id: '1', name: 'Section A - Morning', students: 25, waitlist: 2, crossListedTo: null },
@@ -324,12 +334,16 @@ export default function CourseSettingsPage() {
             <>
               <div>
                 <label style={labelStyle}>Grading Standard</label>
-                <select className="cx-select" style={{ width: '100%' }} value={settings.gradingStandard} onChange={e => update('gradingStandard', e.target.value)}>
-                  <option value="A-F">A–F Letter Grades</option>
-                  <option value="pass-fail">Pass/Fail</option>
-                  <option value="percent">Percentage Only</option>
-                  <option value="gpa">GPA Scale</option>
-                </select>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <select className="cx-select" style={{ flex: 1 }} value={settings.gradingStandard} onChange={e => update('gradingStandard', e.target.value)}>
+                    <option value="A-F">A–F Letter Grades</option>
+                    <option value="pass-fail">Pass/Fail</option>
+                    <option value="percent">Percentage Only</option>
+                    <option value="gpa">GPA Scale</option>
+                    <option value="custom">Custom Grading Scheme</option>
+                  </select>
+                  <button className="cx-btn cx-btn--secondary" onClick={() => setShowGradingSchemeModal(true)}>Manage Schemes</button>
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <label className="cx-toggle">
@@ -545,6 +559,77 @@ export default function CourseSettingsPage() {
           <button className="cx-btn cx-btn--secondary" onClick={() => setSettings(defaultSettings)}>Reset to Defaults</button>
         </div>
       </div>
+
+      {showGradingSchemeModal && (
+        <div className="cx-modal-overlay" onClick={() => setShowGradingSchemeModal(false)}>
+          <div className="cx-modal cx-modal--lg" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Manage Grading Schemes</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setShowGradingSchemeModal(false)}>&times;</button>
+            </div>
+            <div className="cx-modal__body">
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>
+                Define custom grading schemes to automatically map percentage scores to letter grades or custom identifiers.
+              </p>
+              
+              <div className="cx-table-container">
+                <table className="cx-table">
+                  <thead>
+                    <tr>
+                      <th>Grade Name</th>
+                      <th>Minimum %</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customScheme.map((item, idx) => (
+                      <tr key={idx} className="cx-table__row">
+                        <td className="cx-table__cell">
+                          <input type="text" style={{ ...inpStyle, padding: '4px 8px' }} value={item.name} onChange={e => {
+                            const newScheme = [...customScheme];
+                            newScheme[idx].name = e.target.value;
+                            setCustomScheme(newScheme);
+                          }} />
+                        </td>
+                        <td className="cx-table__cell">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>&ge;</span>
+                            <input type="number" style={{ ...inpStyle, padding: '4px 8px', width: 80 }} value={item.value} onChange={e => {
+                              const newScheme = [...customScheme];
+                              newScheme[idx].value = Number(e.target.value);
+                              setCustomScheme(newScheme);
+                            }} />
+                            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>%</span>
+                          </div>
+                        </td>
+                        <td className="cx-table__cell cx-table__cell--actions">
+                          <button className="cx-btn cx-btn--ghost cx-btn--sm" style={{ color: 'var(--cx-color-danger)' }} onClick={() => {
+                            const newScheme = customScheme.filter((_, i) => i !== idx);
+                            setCustomScheme(newScheme);
+                          }}>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button className="cx-btn cx-btn--secondary cx-btn--sm" style={{ marginTop: 16 }} onClick={() => {
+                setCustomScheme([...customScheme, { name: '', value: 0 }]);
+              }}>
+                + Add Grade Range
+              </button>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setShowGradingSchemeModal(false)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={() => {
+                update('gradingStandard', 'custom');
+                setShowGradingSchemeModal(false);
+                showToast({ title: 'Grading Scheme Saved', message: 'Custom grading scheme applied successfully.', type: 'success' });
+              }}>Apply Custom Scheme</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

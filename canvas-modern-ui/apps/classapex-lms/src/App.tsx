@@ -31,6 +31,7 @@ import { AIAssistantDrawer } from './components/AIAssistantDrawer'
 
 // Canvas API hooks
 import { useActivityStream, useCurrentUser, useGlobalSearch, useAccountNotifications } from './hooks/useShellData'
+import { useCanvasQuery } from './hooks/useCanvasQuery'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 import { TenantProvider } from './contexts/TenantContext'
 import { navItems, filterNavItemsByRole } from './navigation'
@@ -74,11 +75,13 @@ const AdminBrandConfigsPage = React.lazy(() => import('./pages/admin/BrandConfig
 const AdminSisImportsPage = React.lazy(() => import('./pages/admin/SisImports'))
 const AdminGradeChangeAuditPage = React.lazy(() => import('./pages/admin/GradeChangeAudit'))
 const AdminDeveloperKeysPage = React.lazy(() => import('./pages/admin/DeveloperKeys'))
+const AdminAssessmentPage = React.lazy(() => import('./pages/admin/Assessment'))
 const PagesPage = React.lazy(() => import('./pages/Pages'))
 const QuizzesPage = React.lazy(() => import('./pages/Quizzes'))
 const RubricsPage = React.lazy(() => import('./pages/Rubrics'))
 const OutcomesPage = React.lazy(() => import('./pages/Outcomes'))
 const ExternalToolsPage = React.lazy(() => import('./pages/ExternalTools'))
+const LtiPlayerPage = React.lazy(() => import('./pages/LtiPlayer'))
 const EPortfolioPage = React.lazy(() => import('./pages/ePortfolio'))
 const AccessibilityStatementPage = React.lazy(() => import('./pages/AccessibilityStatement'))
 
@@ -315,6 +318,9 @@ const AppContent = () => {
   const { results: searchResults, isSearching, search, clearResults } = useGlobalSearch()
   const { notifications: accountNotifs, dismissNotification } = useAccountNotifications()
 
+  // Fetch account-level LTI placements
+  const { data: externalTools } = useCanvasQuery<any[]>('/api/v1/accounts/1/external_tools');
+
   // Role context (used for role-based nav filtering)
   const { role, user: demoUser, isMasquerading, masqueradeAs } = useRole()
 
@@ -424,6 +430,25 @@ const AppContent = () => {
 
   const breadcrumbItems = generateBreadcrumbs(location.pathname)
 
+  const dynamicNavItems = React.useMemo(() => {
+    let items = filterNavItemsByRole(navItems, role);
+    if (externalTools && externalTools.length > 0) {
+      const globalTools = externalTools.filter((t) => t.global_navigation);
+      if (globalTools.length > 0) {
+        items = [
+          ...items,
+          ...globalTools.map((tool) => ({
+            id: `lti-global-${tool.id}`,
+            label: tool.name,
+            icon: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2l3 6 6 .5-4.5 4 1.5 6-6-3.5L4 18.5l1.5-6L1 8.5 7 8z"/></svg>,
+            href: `/courses/1/lti?tool_id=${tool.id}`, // using a dummy course 1 or global launch URL, but we need a route for account LTI if possible. For now map to course 1 or use a special route.
+          }))
+        ];
+      }
+    }
+    return items;
+  }, [role, externalTools]);
+
   // Sidebar element — AppShell clones it to inject collapse props
   const sidebar = (
     <NavigationSidebar
@@ -442,7 +467,7 @@ const AppContent = () => {
       isCollapsed={false}
       onToggleCollapse={() => {}}
       onNavigate={(_, href) => { if (href) navigate(href) }}
-      customItems={filterNavItemsByRole(navItems, role)}
+      customItems={dynamicNavItems}
       showBadges={true}
       logo={<ClassApexLogo />}
       theme={theme}
@@ -638,12 +663,15 @@ const AppContent = () => {
             <Route path="/admin/branding" element={<AdminBrandConfigsPage />} />
             <Route path="/admin/sis-imports" element={<AdminSisImportsPage />} />
             <Route path="/admin/developer-keys" element={<AdminDeveloperKeysPage />} />
+            <Route path="/admin/assessment" element={<AdminAssessmentPage />} />
             <Route path="/admin/grade-change-audit" element={<AdminGradeChangeAuditPage />} />
             <Route path="/courses/:courseId/pages" element={<PagesPage />} />
             <Route path="/courses/:courseId/quizzes" element={<QuizzesPage />} />
             <Route path="/courses/:courseId/rubrics" element={<RubricsPage />} />
             <Route path="/courses/:courseId/outcomes" element={<OutcomesPage />} />
             <Route path="/courses/:courseId/external-tools" element={<ExternalToolsPage />} />
+            <Route path="/courses/:courseId/lti" element={<LtiPlayerPage />} />
+            <Route path="/accounts/:accountId/lti" element={<LtiPlayerPage />} />
             <Route path="/help"          element={<HelpPage />} />
             <Route path="/eportfolios"   element={<EPortfolioPage />} />
             <Route path="/accessibility-statement" element={<AccessibilityStatementPage />} />

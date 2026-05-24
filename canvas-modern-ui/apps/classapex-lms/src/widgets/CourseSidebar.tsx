@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { useCanvasQuery } from '../hooks/useCanvasQuery'
 
 interface CourseSidebarProps {
   courseId: string | number
@@ -22,6 +23,11 @@ export function CourseSidebar({
   storageUsed = '--',
   isLoading = false,
 }: CourseSidebarProps) {
+  // Fetch course-level external tools (LTI Placements)
+  const { data: externalTools } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/external_tools` : null
+  );
+
   if (isLoading) {
     return (
       <div className="cx-course-sidebar">
@@ -70,6 +76,23 @@ export function CourseSidebar({
           <Link to={`/grades?courseId=${courseId}`} className="cx-course-sidebar__link">Grades</Link>
         </nav>
       </div>
+
+      {externalTools && externalTools.length > 0 && (
+        <div className="cx-course-sidebar__section">
+          <h3 className="cx-course-sidebar__heading">External Tools</h3>
+          <nav className="cx-course-sidebar__nav">
+            {externalTools.filter((tool) => tool.course_navigation).map((tool) => (
+              <Link 
+                key={tool.id} 
+                to={`/courses/${courseId}/lti?tool_id=${tool.id}`} 
+                className="cx-course-sidebar__link"
+              >
+                {tool.name}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
     </div>
   )
 }

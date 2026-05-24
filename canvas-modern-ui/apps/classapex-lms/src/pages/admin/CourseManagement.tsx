@@ -95,6 +95,8 @@ const AdminCourseManagementPage: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<CourseData | null>(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [showDeleteModal, setShowDeleteModal] = useState<number | null>(null);
+  const [activeMigrationModal, setActiveMigrationModal] = useState<'export' | 'import' | null>(null);
   const [showActions, setShowActions] = useState<string | null>(null);
   const [showSectionsModal, setShowSectionsModal] = useState(false);
   const [sections, setSections] = useState<SectionData[]>(mockSections);
@@ -1068,6 +1070,70 @@ const AdminCourseManagementPage: React.FC = () => {
               <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => { setShowCourseModal(false); handleEditClick(selectedCourse); }}><EditSvg /> Edit Course</button>
               <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setShowCourseModal(false); setShowSectionsModal(true); }}><PeopleSvg /> Manage Sections</button>
               <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { setShowCourseModal(false); navigate(`/courses/${selectedCourse.id}`); }}><LaunchSvg /> Open Course</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export / Import Modals */}
+      {activeMigrationModal === 'export' && (
+        <div className="cx-modal-overlay" onClick={() => setActiveMigrationModal(null)}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Export Course Content</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setActiveMigrationModal(null)}>&times;</button>
+            </div>
+            <div className="cx-modal__body">
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>
+                Export course content as an IMS Common Cartridge (.imscc) file. You can select specific courses to export.
+              </p>
+              <label style={labelStyle}>Select Course to Export</label>
+              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }}>
+                {filteredCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <label className="cx-toggle">
+                <input type="checkbox" defaultChecked />
+                <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                <span className="cx-toggle__label" style={toggleLabelStyle}>Include Quizzes and Question Banks</span>
+              </label>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setActiveMigrationModal(null)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={() => {
+                showToast({ title: 'Export Started', message: 'Course export is running in the background. You will be notified when the package is ready.', type: 'info' });
+                setActiveMigrationModal(null);
+              }}>Start Export</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeMigrationModal === 'import' && (
+        <div className="cx-modal-overlay" onClick={() => setActiveMigrationModal(null)}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Import Course Content</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setActiveMigrationModal(null)}>&times;</button>
+            </div>
+            <div className="cx-modal__body">
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>
+                Upload an IMS Common Cartridge, Canvas Export package, or SCORM package.
+              </p>
+              <label style={labelStyle}>Target Course</label>
+              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }}>
+                {filteredCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <label style={labelStyle}>Content Package</label>
+              <div style={{ border: '2px dashed var(--cx-border-subtle)', borderRadius: 8, padding: 32, textAlign: 'center', marginBottom: 16, cursor: 'pointer' }}>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>Click to browse or drag and drop file here</p>
+              </div>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setActiveMigrationModal(null)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={() => {
+                showToast({ title: 'Import Started', message: 'Content import has been queued.', type: 'info' });
+                setActiveMigrationModal(null);
+              }}>Start Import</button>
             </div>
           </div>
         </div>

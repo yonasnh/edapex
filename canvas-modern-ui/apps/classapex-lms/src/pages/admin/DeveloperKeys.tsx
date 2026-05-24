@@ -28,6 +28,8 @@ const DeveloperKeysPage: React.FC = () => {
   const { showToast } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [keys, setKeys] = useState<DeveloperKey[]>(mockKeys);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newKey, setNewKey] = useState<{name: string, isLti: boolean, redirectUris: string}>({ name: '', isLti: false, redirectUris: '' });
 
   const filteredKeys = keys.filter(k => k.name.toLowerCase().includes(searchTerm.toLowerCase()) || k.clientId.includes(searchTerm));
 
@@ -42,6 +44,27 @@ const DeveloperKeysPage: React.FC = () => {
     }));
   };
 
+  const handleAddKey = () => {
+    if (!newKey.name) {
+      showToast({ title: 'Validation Error', message: 'Key Name is required', type: 'error' });
+      return;
+    }
+    const created: DeveloperKey = {
+      id: Math.random().toString(),
+      name: newKey.name,
+      clientId: '10000' + Math.floor(Math.random() * 10000000),
+      redirectUris: newKey.redirectUris,
+      scopes: [],
+      workflowState: 'active',
+      isLti: newKey.isLti,
+      createdAt: new Date().toISOString()
+    };
+    setKeys(prev => [created, ...prev]);
+    setShowAddModal(false);
+    setNewKey({ name: '', isLti: false, redirectUris: '' });
+    showToast({ title: 'Key Created', message: 'Developer Key successfully generated.', type: 'success' });
+  };
+
   return (
     <div className="cx-page">
       <div className="cx-page__header">
@@ -49,7 +72,7 @@ const DeveloperKeysPage: React.FC = () => {
           <h1 className="cx-page__title">Developer Keys</h1>
           <p className="cx-page__subtitle">Manage OAuth2 Developer Keys and LTI 1.3 Advantage registrations.</p>
         </div>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => showToast({ title: 'Not Implemented', message: 'Creation of new keys is restricted to root admins.', type: 'error' })}>
+        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowAddModal(true)}>
           <PlusSvg /> Add Developer Key
         </button>
       </div>
@@ -115,6 +138,41 @@ const DeveloperKeysPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {showAddModal && (
+        <div className="cx-modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Generate Developer Key</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setShowAddModal(false)}>&times;</button>
+            </div>
+            <div className="cx-modal__body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem', fontWeight: 600 }}>Key Name</label>
+                  <input type="text" className="cx-search__input" style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }} value={newKey.name} onChange={e => setNewKey({...newKey, name: e.target.value})} placeholder="e.g. Student App" />
+                </div>
+                <div>
+                  <label className="cx-toggle">
+                    <input type="checkbox" checked={newKey.isLti} onChange={e => setNewKey({...newKey, isLti: e.target.checked})} />
+                    <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                    <span className="cx-toggle__label" style={{ fontSize: '0.875rem' }}>This is an LTI 1.3 Tool</span>
+                  </label>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: '0.875rem', fontWeight: 600 }}>Redirect URIs</label>
+                  <textarea className="cx-search__input" style={{ width: '100%', border: '1px solid var(--cx-border-subtle)', minHeight: 80, resize: 'vertical' }} value={newKey.redirectUris} onChange={e => setNewKey({...newKey, redirectUris: e.target.value})} placeholder="https://example.com/callback" />
+                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>One URI per line.</p>
+                </div>
+              </div>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={handleAddKey}>Save Key</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
