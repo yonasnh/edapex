@@ -159,7 +159,7 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
           error: null,
         })
       } catch (err) {
-        console.error('[ClassApex Auth] ❌ fetchCurrentUser failed:', err)
+        console.warn('[ClassApex Auth] fetchCurrentUser failed (possibly offline or server down):', err)
         // Token expired or invalid — clear and let user re-login
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_KEY)
@@ -800,7 +800,8 @@ export function OAuthCallbackPage({ onSuccess }: { onSuccess?: () => void }) {
 // ─── Helpers ───
 
 async function fetchCurrentUser(token: string): Promise<AuthUser> {
-  const url = `${CANVAS_BASE_URL}/api/v1/users/self?include[]=avatar_url&include[]=permissions`
+  // Use relative path to leverage the Vite/Nginx proxy (enables offline SW interception and avoids CORS/DNS issues)
+  const url = `/api/v1/users/self?include[]=avatar_url&include[]=permissions`
   console.log('[ClassApex Auth] fetchCurrentUser URL:', url)
   console.log('[ClassApex Auth] fetchCurrentUser token:', token.substring(0, 8) + '...')
 

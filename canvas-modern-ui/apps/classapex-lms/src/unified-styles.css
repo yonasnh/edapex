@@ -5081,4 +5081,28 @@ select.cx-select,
   box-sizing: border-box !important;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   CLASSAPEX GLOBAL ANNOUNCEMENTS OVERLAY LAYOUT (CLS Optimization)
+   ───────────────────────────────────────────────────────────────────────────── */
+.cx-global-announcements {
+  position: fixed !important;
+  top: 80px !important;
+  right: 24px !important;
+  width: 380px !important;
+  max-width: calc(100vw - 48px) !important;
+  z-index: 10000 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.cx-global-announcements > div {
+  pointer-events: auto !important;
+  margin-bottom: 0 !important; /* Managed by container gap */
+  box-shadow: var(--shadow-lg) !important;
+}
+
+
 

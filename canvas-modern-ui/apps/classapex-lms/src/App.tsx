@@ -94,7 +94,7 @@ import './styles/navigation.css'
 function PageFallback() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
-  const logoSrc = isDark ? '/classapex_logo_darkmode.png' : '/classapex_logo_light.png'
+  const logoSrc = isDark ? '/classapex_logo_darkmode.webp' : '/classapex_logo_light.webp'
 
   return (
     <div className="cx-page-fallback" role="status" aria-label="Loading page">
@@ -547,7 +547,7 @@ const AppContent = () => {
         )}
         {/* Render global account announcements */}
         {accountNotifs && accountNotifs.length > 0 && (
-          <div className="cx-global-announcements" style={{ padding: '16px 24px 0 24px' }}>
+          <div className="cx-global-announcements">
             {accountNotifs.map(n => {
               const iconColor = n.icon === 'error' ? 'var(--cx-color-danger)' : n.icon === 'information' ? 'var(--cx-color-primary)' : 'var(--cx-color-warning)';
               const bgColor = n.icon === 'error' ? 'var(--cx-color-danger-subtle, rgba(239, 68, 68, 0.1))' : n.icon === 'information' ? 'var(--cx-color-primary-subtle, rgba(99, 102, 241, 0.1))' : 'var(--cx-color-warning-subtle, rgba(245, 158, 11, 0.1))';

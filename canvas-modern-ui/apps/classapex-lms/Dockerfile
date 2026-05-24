@@ -27,6 +27,9 @@ RUN npx turbo run build --filter=@classapex/lms-frontend
 # Production stage
 FROM nginx:alpine AS production
 
+# Install Brotli module
+RUN apk add --no-cache nginx-mod-http-brotli
+
 # Copy built static files
 COPY --from=base /app/apps/classapex-lms/dist /usr/share/nginx/html
 

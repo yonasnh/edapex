@@ -20,8 +20,8 @@ export const ClassApexLogo: React.FC<ClassApexLogoProps> = ({
   // • Dark mode  → white transparent mark (needs a dark circle bg to show)
   // • Light mode → dark circle baked into PNG (renders on any bg)
   const siloSrc = isDark
-    ? '/classapex_logo_darkmode.png'
-    : '/classapex_logo_light.png';
+    ? '/classapex_logo_darkmode.webp'
+    : '/classapex_logo_light.webp';
 
   const logoSrc = logoUrl ?? siloSrc;
 

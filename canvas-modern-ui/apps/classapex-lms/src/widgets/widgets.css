@@ -289,3 +289,16 @@
 .cx-widget__toggle-btn:active {
   transform: translateY(0);
 }
+
+/* Dark mode accessibility color-contrast override (IBM blue -> high-contrast light blue) */
+[data-theme="dark"] .cx-widget__toggle-btn {
+  color: #78a9ff;
+  border-color: rgba(120, 169, 255, 0.2);
+}
+
+[data-theme="dark"] .cx-widget__toggle-btn:hover {
+  background: rgba(120, 169, 255, 0.08);
+  border-color: #78a9ff;
+  color: #78a9ff;
+  box-shadow: 0 4px 12px rgba(120, 169, 255, 0.1);
+}

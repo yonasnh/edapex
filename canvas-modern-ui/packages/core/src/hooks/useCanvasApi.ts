@@ -15,6 +15,9 @@ function getClient(): CanvasApiClient {
   return _client
 }
 
+// ─── Singleton query cache for Stale-While-Revalidate ───
+const queryCache = new Map<string, any>()
+
 // ─── Generic Query Hook ───
 
 interface UseCanvasQueryOptions<T> {
@@ -38,21 +41,29 @@ export function useCanvasQuery<T>(
   options: UseCanvasQueryOptions<T> = {}
 ): UseCanvasQueryResult<T> {
   const { enabled = true, refetchInterval, onSuccess, onError } = options
-  const [data, setData] = useState<T | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  
+  // Stale-While-Revalidate caching key
+  const cacheKey = `${endpoint}?${JSON.stringify(params || {})}`
+  const cachedData = queryCache.get(cacheKey) as T | undefined
+
+  const [data, setData] = useState<T | null>(cachedData || null)
+  const [isLoading, setIsLoading] = useState(!cachedData && enabled)
   const [isError, setIsError] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isBackground = false) => {
     if (!enabled) return
-    setIsLoading(true)
+    if (!isBackground) {
+      setIsLoading(true)
+    }
     setIsError(false)
     setError(null)
 
     try {
       const result = await getClient().get<T>(endpoint, params)
       setData(result)
+      queryCache.set(cacheKey, result)
       onSuccess?.(result)
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err))
@@ -62,15 +73,18 @@ export function useCanvasQuery<T>(
     } finally {
       setIsLoading(false)
     }
-  }, [endpoint, JSON.stringify(params), enabled])
+  }, [endpoint, JSON.stringify(params), enabled, cacheKey])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    // If we have cached data, fetch in the background (stale-while-revalidate)
+    const isBackground = !!cachedData
+    fetchData(isBackground)
+  }, [fetchData, !!cachedData])
 
   useEffect(() => {
     if (refetchInterval && enabled) {
-      intervalRef.current = setInterval(fetchData, refetchInterval)
+      // Background refetches for intervals
+      intervalRef.current = setInterval(() => fetchData(true), refetchInterval)
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current)
       }
@@ -78,7 +92,7 @@ export function useCanvasQuery<T>(
     return undefined
   }, [refetchInterval, enabled, fetchData])
 
-  return { data, isLoading, isError, error, refetch: fetchData }
+  return { data, isLoading, isError, error, refetch: () => fetchData(false) }
 }
 
 // ─── Mutation Hook ───

@@ -86,7 +86,7 @@ export default function DashboardV2() {
           <button
             className={`cx-view-btn ${viewMode === 'cards' ? 'cx-view-btn--active' : ''}`}
             onClick={() => setViewMode('cards')}
-            aria-label="Card view"
+            aria-label="Grid view"
             role="radio"
             aria-checked={viewMode === 'cards'}
           >

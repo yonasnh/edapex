@@ -28,6 +28,9 @@
       "import": "./dist/data-display/index.js"
     }
   },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "files": [
     "dist"
   ],

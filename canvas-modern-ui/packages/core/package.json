@@ -18,6 +18,9 @@
     "./dist/config/design-tokens.css": "./dist/config/design-tokens.css",
     "./dist/config/component-tokens.css": "./dist/config/component-tokens.css"
   },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "files": [
     "dist"
   ],

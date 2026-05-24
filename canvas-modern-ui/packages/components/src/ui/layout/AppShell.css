@@ -96,6 +96,7 @@
 
 .cm-shell__content {
   flex: 1;
+  min-height: 100vh;
 }
 
 /* ─── Minimalist Footer ─── */
