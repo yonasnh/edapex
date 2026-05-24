@@ -93,12 +93,13 @@ const AdminCourseManagementPage: React.FC = () => {
 
   // Bulk Operations & Migration States (S15-03, S15-08, S15-10)
   const [activeBulkOp, setActiveBulkOp] = useState<'list' | 'import' | 'audit'>('list');
-  const [importProgress, setImportProgress] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [migrationLogs, setMigrationLogs] = useState([
-    { id: 'm1', type: 'Common Cartridge 1.3 Import', date: '2026-05-18', size: '42.1 MB', status: 'Completed' },
-    { id: 'm2', type: 'Canvas Course Package (.imscc) Import', date: '2026-05-15', size: '128.5 MB', status: 'Completed' }
-  ]);
+  const [exportCourseId, setExportCourseId] = useState<string>('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [importCourseId, setImportCourseId] = useState<string>('');
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [bulkImportCourseId, setBulkImportCourseId] = useState<string>('');
   const [auditLogs] = useState([
     { id: 'a1', date: '2026-05-19T10:14:00Z', user: 'Sophia Miller', course: 'Computer Science 101', role: 'Student', action: 'Enrolled via SIS Import', actor: 'System Admin' },
     { id: 'a2', date: '2026-05-19T09:45:00Z', user: 'James Wilson', course: 'Mathematics 204', role: 'Teacher', action: 'Added to Section A', actor: 'Professor Davis (Masquerading)' },
@@ -115,6 +116,7 @@ const AdminCourseManagementPage: React.FC = () => {
   const [editCourse, setEditCourse] = useState<Partial<CourseData>>({});
 
   const { data: canvasCourses, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/courses', { include: ['term', 'total_students', 'teachers', 'syllabus_body'], per_page: 50 } as any);
+  const { data: contentMigrations, isLoading: migrationsLoading } = useCanvasQuery<any[]>('/api/v1/accounts/1/content_migrations', { per_page: 10 } as any);
 
   const mockCourses = useMemo<CourseData[]>(() => {
     if (!Array.isArray(canvasCourses)) return [];
@@ -711,7 +713,14 @@ const AdminCourseManagementPage: React.FC = () => {
 
               <div className="cx-card" style={{ padding: 20 }}>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '0.875rem', fontWeight: 600 }}>Configure New Migration</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <label style={labelStyle}>Target Course</label>
+                    <select className="cx-select" style={{ width: '100%' }} value={bulkImportCourseId} onChange={e => setBulkImportCourseId(e.target.value)}>
+                      <option value="">Select course...</option>
+                      {filteredCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
                   <div>
                     <label style={labelStyle}>Migration Source Type</label>
                     <select className="cx-select" style={{ width: '100%' }}>
@@ -739,80 +748,79 @@ const AdminCourseManagementPage: React.FC = () => {
                     <span style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)', fontWeight: 600 }}>Selected: {selectedFile}</span>
                     <button
                       className="cx-btn cx-btn--primary cx-btn--sm"
-                      disabled={importProgress !== null}
-                      onClick={() => {
-                        setImportProgress(0);
-                        const interval = setInterval(() => {
-                          setImportProgress(prev => {
-                            if (prev === null) return 0;
-                            if (prev >= 100) {
-                              clearInterval(interval);
-                              setMigrationLogs(logs => [
-                                {
-                                  id: `m-${Date.now()}`,
-                                  type: `Common Cartridge 1.3 Import (${selectedFile})`,
-                                  date: new Date().toISOString().split('T')[0],
-                                  size: '34.8 MB',
-                                  status: 'Completed'
-                                },
-                                ...logs
-                              ]);
-                              setSelectedFile(null);
-                              showToast({
-                                title: 'Migration Complete',
-                                message: 'Common Cartridge content migration finished successfully! All aligned quizzes, assignments, and outcomes have been built.',
-                                type: 'success'
-                              });
-                              return null;
-                            }
-                            return prev + 20;
+                      disabled={importLoading || !bulkImportCourseId}
+                      onClick={async () => {
+                        if (!bulkImportCourseId || !selectedFile) return;
+                        setImportLoading(true);
+                        try {
+                          await canvasFetch(`/api/v1/courses/${bulkImportCourseId}/content_migrations`, {
+                            method: 'POST',
+                            body: { migration_type: 'canvas_cartridge_importer', pre_attachment: { name: selectedFile } }
                           });
-                        }, 400);
+                          showToast({ title: 'Import Queued', message: 'Content import has been queued successfully.', type: 'success' });
+                          setSelectedFile(null);
+                          setBulkImportCourseId('');
+                        } catch (err: any) {
+                          showToast({ title: 'Import Failed', message: err.message || 'Failed to queue import.', type: 'error' });
+                        } finally {
+                          setImportLoading(false);
+                        }
                       }}
                     >
-                      {importProgress !== null ? 'Importing...' : 'Start Content Migration'}
+                      {importLoading ? 'Queuing...' : 'Start Content Migration'}
                     </button>
                   </div>
                 )}
 
-                {importProgress !== null && (
+                {importLoading && (
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 4 }}>
-                      <span>Analyzing &amp; extracting package elements...</span>
-                      <span>{importProgress}%</span>
+                      <span>Queuing import...</span>
                     </div>
                     <div style={{ height: 6, background: 'var(--cx-border-subtle)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${importProgress}%`, background: 'var(--cx-color-primary)', borderRadius: 3, transition: 'width 0.2s ease' }} />
+                      <div style={{ height: '100%', width: '100%', background: 'var(--cx-color-primary)', borderRadius: 3, transition: 'width 0.2s ease' }} />
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="cx-card" style={{ padding: 20 }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.875rem', fontWeight: 600 }}>Historic Content Migrations (`GET /api/v1/content_migrations`)</h4>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '0.875rem', fontWeight: 600 }}>Recent Content Migrations</h4>
                 <div className="cx-table-container">
-                  <table className="cx-table">
-                    <thead>
-                      <tr>
-                        <th>Source Package / Type</th>
-                        <th>Import Date</th>
-                        <th>Package Size</th>
-                        <th>Migration Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {migrationLogs.map(log => (
-                        <tr key={log.id} className="cx-table__row">
-                          <td style={{ fontWeight: 600 }}>{log.type}</td>
-                          <td>{log.date}</td>
-                          <td>{log.size}</td>
-                          <td>
-                            <span className="cx-badge cx-badge--success" style={{ fontSize: '0.7rem' }}>{log.status}</span>
-                          </td>
+                  {migrationsLoading ? (
+                    <p style={{ padding: 16, color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>Loading migrations...</p>
+                  ) : (
+                    <table className="cx-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Type</th>
+                          <th>Status</th>
+                          <th>Created</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {Array.isArray(contentMigrations) && contentMigrations.length > 0 ? (
+                          contentMigrations.map((m: any) => (
+                            <tr key={m.id} className="cx-table__row">
+                              <td style={{ fontWeight: 600 }}>{m.id}</td>
+                              <td>{m.migration_type || 'Unknown'}</td>
+                              <td>
+                                <span className={clsx('cx-badge', m.workflow_state === 'completed' ? 'cx-badge--success' : m.workflow_state === 'failed' ? 'cx-badge--danger' : 'cx-badge--warning')} style={{ fontSize: '0.7rem' }}>
+                                  {m.workflow_state || 'queued'}
+                                </span>
+                              </td>
+                              <td>{m.created_at ? new Date(m.created_at).toLocaleDateString() : '-'}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} style={{ textAlign: 'center', color: 'var(--cx-text-tertiary)', padding: 16 }}>No recent migrations found.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             </div>
@@ -1142,7 +1150,8 @@ const AdminCourseManagementPage: React.FC = () => {
                 Export course content as an IMS Common Cartridge (.imscc) file. You can select specific courses to export.
               </p>
               <label style={labelStyle}>Select Course to Export</label>
-              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }}>
+              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }} value={exportCourseId} onChange={e => setExportCourseId(e.target.value)}>
+                <option value="">Select course...</option>
                 {filteredCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <label className="cx-toggle">
@@ -1153,10 +1162,23 @@ const AdminCourseManagementPage: React.FC = () => {
             </div>
             <div className="cx-modal__footer">
               <button className="cx-btn cx-btn--secondary" onClick={() => setActiveMigrationModal(null)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary" onClick={() => {
-                showToast({ title: 'Export Started', message: 'Course export is running in the background. You will be notified when the package is ready.', type: 'info' });
-                setActiveMigrationModal(null);
-              }}>Start Export</button>
+              <button className="cx-btn cx-btn--primary" disabled={exportLoading || !exportCourseId} onClick={async () => {
+                if (!exportCourseId) return;
+                setExportLoading(true);
+                try {
+                  await canvasFetch(`/api/v1/courses/${exportCourseId}/content_migrations`, {
+                    method: 'POST',
+                    body: { migration_type: 'course_export', settings: { export_format: 'common_cartridge' } }
+                  });
+                  showToast({ title: 'Export Queued', message: 'Course export has been queued successfully.', type: 'success' });
+                  setActiveMigrationModal(null);
+                  setExportCourseId('');
+                } catch (err: any) {
+                  showToast({ title: 'Export Failed', message: err.message || 'Failed to queue export.', type: 'error' });
+                } finally {
+                  setExportLoading(false);
+                }
+              }}>{exportLoading ? 'Queuing...' : 'Start Export'}</button>
             </div>
           </div>
         </div>
@@ -1174,20 +1196,47 @@ const AdminCourseManagementPage: React.FC = () => {
                 Upload an IMS Common Cartridge, Canvas Export package, or SCORM package.
               </p>
               <label style={labelStyle}>Target Course</label>
-              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }}>
+              <select className="cx-select" style={{ width: '100%', marginBottom: 16 }} value={importCourseId} onChange={e => setImportCourseId(e.target.value)}>
+                <option value="">Select course...</option>
                 {filteredCourses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <label style={labelStyle}>Content Package</label>
               <div style={{ border: '2px dashed var(--cx-border-subtle)', borderRadius: 8, padding: 32, textAlign: 'center', marginBottom: 16, cursor: 'pointer' }}>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>Click to browse or drag and drop file here</p>
+                <input
+                  type="file"
+                  accept=".imscc,.zip"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setImportFileName(file.name);
+                  }}
+                  style={{ display: 'none' }}
+                  id="import-file-input"
+                />
+                <label htmlFor="import-file-input" style={{ cursor: 'pointer', margin: 0, fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
+                  {importFileName ? `Selected: ${importFileName}` : 'Click to browse or drag and drop file here'}
+                </label>
               </div>
             </div>
             <div className="cx-modal__footer">
               <button className="cx-btn cx-btn--secondary" onClick={() => setActiveMigrationModal(null)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary" onClick={() => {
-                showToast({ title: 'Import Started', message: 'Content import has been queued.', type: 'info' });
-                setActiveMigrationModal(null);
-              }}>Start Import</button>
+              <button className="cx-btn cx-btn--primary" disabled={importLoading || !importCourseId || !importFileName} onClick={async () => {
+                if (!importCourseId || !importFileName) return;
+                setImportLoading(true);
+                try {
+                  await canvasFetch(`/api/v1/courses/${importCourseId}/content_migrations`, {
+                    method: 'POST',
+                    body: { migration_type: 'canvas_cartridge_importer', pre_attachment: { name: importFileName } }
+                  });
+                  showToast({ title: 'Import Queued', message: 'Content import has been queued successfully.', type: 'success' });
+                  setActiveMigrationModal(null);
+                  setImportCourseId('');
+                  setImportFileName(null);
+                } catch (err: any) {
+                  showToast({ title: 'Import Failed', message: err.message || 'Failed to queue import.', type: 'error' });
+                } finally {
+                  setImportLoading(false);
+                }
+              }}>{importLoading ? 'Queuing...' : 'Start Import'}</button>
             </div>
           </div>
         </div>

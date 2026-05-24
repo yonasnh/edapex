@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import clsx from 'clsx';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
@@ -6,22 +6,61 @@ import { useNotification } from '../../hooks/useNotification';
 function ShieldSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 1l7 3v5c0 4.5-3.5 7.5-7 8-3.5-.5-7-3.5-7-8V4l7-3z"/></svg>; }
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
-function CheckSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 8l3 3 5-5"/></svg>; }
-function XSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>; }
 
-const DEFAULT_PERMISSIONS = [
-  { id: 'manage_courses', label: 'Manage Courses', category: 'Course Management' },
-  { id: 'manage_users', label: 'Manage Users', category: 'User Management' },
-  { id: 'manage_grades', label: 'Manage Grades', category: 'Course Management' },
-  { id: 'view_statistics', label: 'View Analytics', category: 'Analytics' },
-  { id: 'manage_feature_flags', label: 'Manage Feature Flags', category: 'System Configuration' }
-];
+function inferPermissionCategory(key: string): string {
+  if (key.startsWith('manage_')) return 'Management';
+  if (key.startsWith('view_')) return 'Viewing';
+  if (key.startsWith('create_')) return 'Creation';
+  if (key.startsWith('delete_')) return 'Deletion';
+  if (key.startsWith('edit_')) return 'Editing';
+  if (key.startsWith('read_')) return 'Reading';
+  if (key.startsWith('post_')) return 'Posting';
+  if (key.startsWith('moderate_')) return 'Moderation';
+  if (key.startsWith('send_')) return 'Communication';
+  if (key.startsWith('add_')) return 'Addition';
+  if (key.startsWith('remove_')) return 'Removal';
+  if (key.startsWith('update_')) return 'Updating';
+  if (key.startsWith('generate_')) return 'Generation';
+  if (key.startsWith('import_')) return 'Import';
+  if (key.startsWith('export_')) return 'Export';
+  if (key.startsWith('change_')) return 'Changes';
+  if (key.startsWith('assign_')) return 'Assignment';
+  if (key.startsWith('grade_')) return 'Grading';
+  if (key.startsWith('submit_')) return 'Submission';
+  if (key.startsWith('share_')) return 'Sharing';
+  if (key.startsWith('publish_')) return 'Publishing';
+  if (key.startsWith('unpublish_')) return 'Unpublishing';
+  if (key.startsWith('copy_')) return 'Copying';
+  if (key.startsWith('move_')) return 'Moving';
+  if (key.startsWith('reorder_')) return 'Reordering';
+  if (key.startsWith('attach_')) return 'Attachment';
+  if (key.startsWith('download_')) return 'Downloading';
+  if (key.startsWith('upload_')) return 'Uploading';
+  if (key.startsWith('search_')) return 'Search';
+  if (key.startsWith('filter_')) return 'Filtering';
+  if (key.startsWith('configure_')) return 'Configuration';
+  if (key.startsWith('custom_')) return 'Customization';
+  if (key.startsWith('select_')) return 'Selection';
+  if (key.startsWith('set_')) return 'Settings';
+  if (key.startsWith('sync_')) return 'Sync';
+  if (key.startsWith('access_')) return 'Access';
+  if (key.startsWith('use_')) return 'Usage';
+  return 'Other';
+}
+
+function formatPermissionLabel(key: string): string {
+  return key
+    .split('_')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
 
 export default function AdminRolesPermissionsPage() {
   const { showToast } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'account' | 'course'>('account');
   const [selectedRole, setSelectedRole] = useState<any | null>(null);
+  const [updatingPermission, setUpdatingPermission] = useState<string | null>(null);
 
   const { data: roles, refetch } = useCanvasQuery<any[]>(
     '/api/v1/accounts/1/roles',
@@ -33,8 +72,20 @@ export default function AdminRolesPermissionsPage() {
     r.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const groupedPermissions = useMemo(() => {
+    const perms = selectedRole?.permissions || {};
+    const groups: Record<string, Array<[string, any]>> = {};
+    Object.entries(perms).forEach(([key, value]) => {
+      const category = inferPermissionCategory(key);
+      if (!groups[category]) groups[category] = [];
+      groups[category].push([key, value]);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [selectedRole]);
+
   const togglePermission = async (permId: string, enabled: boolean) => {
     if (!selectedRole) return;
+    setUpdatingPermission(permId);
     try {
       await canvasFetch(`/api/v1/accounts/1/roles/${selectedRole.id}`, {
         method: 'PUT',
@@ -44,10 +95,19 @@ export default function AdminRolesPermissionsPage() {
           }
         }
       });
+      setSelectedRole((prev: any) => ({
+        ...prev,
+        permissions: {
+          ...prev.permissions,
+          [permId]: { ...prev.permissions?.[permId], enabled: !enabled }
+        }
+      }));
       showToast({ title: 'Permission Updated', message: 'The role has been updated.', type: 'success' });
       refetch();
     } catch (err: any) {
       showToast({ title: 'Update Failed', message: err.message, type: 'error' });
+    } finally {
+      setUpdatingPermission(null);
     }
   };
 
@@ -112,41 +172,41 @@ export default function AdminRolesPermissionsPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {Object.entries(
-                  DEFAULT_PERMISSIONS.reduce((acc, p) => {
-                    if (!acc[p.category]) acc[p.category] = [];
-                    acc[p.category].push(p);
-                    return acc;
-                  }, {} as Record<string, typeof DEFAULT_PERMISSIONS>)
-                ).map(([category, perms]) => (
-                  <div key={category}>
-                    <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 8, marginBottom: 12 }}>{category}</h3>
-                    <div className="cx-table-container">
-                      <table className="cx-table" style={{ margin: 0 }}>
-                        <tbody>
-                          {perms.map(p => {
-                            const isEnabled = selectedRole.permissions && selectedRole.permissions[p.id] && selectedRole.permissions[p.id].enabled;
-                            return (
-                              <tr key={p.id}>
-                                <td style={{ width: '50%' }}>{p.label}</td>
-                                <td style={{ textAlign: 'right' }}>
-                                  <label className="cx-toggle">
-                                    <input 
-                                      type="checkbox" 
-                                      checked={!!isEnabled} 
-                                      onChange={() => togglePermission(p.id, !!isEnabled)} 
-                                    />
-                                    <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
-                                  </label>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                {groupedPermissions.length === 0 ? (
+                  <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>No permissions available for this role.</p>
+                ) : (
+                  groupedPermissions.map(([category, perms]) => (
+                    <div key={category}>
+                      <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 8, marginBottom: 12 }}>{category}</h3>
+                      <div className="cx-table-container">
+                        <table className="cx-table" style={{ margin: 0 }}>
+                          <tbody>
+                            {perms.map(([key, value]) => {
+                              const isEnabled = !!value?.enabled;
+                              const isReadonly = !!value?.readonly;
+                              return (
+                                <tr key={key}>
+                                  <td style={{ width: '50%' }}>{formatPermissionLabel(key)}</td>
+                                  <td style={{ textAlign: 'right' }}>
+                                    <label className="cx-toggle">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isEnabled} 
+                                        disabled={isReadonly || updatingPermission === key}
+                                        onChange={() => togglePermission(key, isEnabled)} 
+                                      />
+                                      <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                                    </label>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}

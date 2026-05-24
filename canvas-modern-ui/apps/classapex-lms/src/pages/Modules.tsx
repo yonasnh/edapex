@@ -10,6 +10,7 @@ function ChevronDownSvg() { return <svg width="16" height="16" viewBox="0 0 16 1
 function TrashSvg() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M3 4v10a1 1 0 001 1h8a1 1 0 001-1V4M5 4V2a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>; }
 function LinkSvg() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 8a3 3 0 010-4.2l2-2a3 3 0 014.2 4.2l-1 1"/><path d="M10 8a3 3 0 010 4.2l-2 2a3 3 0 01-4.2-4.2l1-1"/></svg>; }
 function GearSvg() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1.1 1.1M11.1 11.1l1.1 1.1M3.8 12.2l1.1-1.1M11.1 4.9l1.1-1.1"/></svg>; }
+function BranchSvg() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="3" r="1.5"/><path d="M8 4.5v3"/><path d="M8 7.5L4 12"/><path d="M8 7.5L12 12"/></svg>; }
 
 interface ModuleItem {
   id: number;
@@ -28,6 +29,31 @@ interface Module {
   prerequisite_module_ids?: number[];
   items?: ModuleItem[];
 }
+
+interface CanvasAssignment {
+  id: number;
+  name: string;
+}
+
+interface MasteryPathRule {
+  minScore: number;
+  maxScore: number;
+  itemIds: number[];
+}
+
+interface MasteryPathConfig {
+  baseAssessmentId: number | null;
+  remedial: MasteryPathRule;
+  standard: MasteryPathRule;
+  advanced: MasteryPathRule;
+}
+
+const defaultMasteryConfig = (): MasteryPathConfig => ({
+  baseAssessmentId: null,
+  remedial: { minScore: 0, maxScore: 59, itemIds: [] },
+  standard: { minScore: 60, maxScore: 79, itemIds: [] },
+  advanced: { minScore: 80, maxScore: 100, itemIds: [] },
+});
 
 export default function ModulesPage() {
   const { courseId } = useParams();
@@ -58,10 +84,20 @@ export default function ModulesPage() {
   const [completionMinScore, setCompletionMinScore] = useState<string>('');
   const [savingCompletionItemId, setSavingCompletionItemId] = useState<number | null>(null);
 
+  // Mastery Paths state
+  const [editingMasteryPathsModuleId, setEditingMasteryPathsModuleId] = useState<number | null>(null);
+  const [masteryPathsConfig, setMasteryPathsConfig] = useState<Record<number, MasteryPathConfig>>({});
+
   // Fetch modules with items
   const { data: modules, isLoading, isError, refetch } = useCanvasQuery<Module[]>(
     `/api/v1/courses/${courseId}/modules`,
     { 'include[]': 'items' } as any
+  );
+
+  // Fetch assignments for base assessment selector
+  const { data: assignments } = useCanvasQuery<CanvasAssignment[]>(
+    `/api/v1/courses/${courseId}/assignments`,
+    { per_page: 100 } as any
   );
 
   const toggleExpand = (modId: number) => {
@@ -245,6 +281,55 @@ export default function ModulesPage() {
     }
   };
 
+  // Mastery Paths handlers
+  const handleOpenMasteryPathsModal = (mod: Module) => {
+    setEditingMasteryPathsModuleId(mod.id);
+    setMasteryPathsConfig(prev => {
+      if (prev[mod.id]) return prev;
+      return { ...prev, [mod.id]: defaultMasteryConfig() };
+    });
+  };
+
+  const handleUpdateMasteryPath = (modId: number, pathKey: 'remedial' | 'standard' | 'advanced', updates: Partial<MasteryPathRule>) => {
+    setMasteryPathsConfig(prev => {
+      const existing = prev[modId] || defaultMasteryConfig();
+      return {
+        ...prev,
+        [modId]: {
+          ...existing,
+          [pathKey]: { ...existing[pathKey], ...updates }
+        }
+      };
+    });
+  };
+
+  const handleToggleMasteryPathItem = (modId: number, pathKey: 'remedial' | 'standard' | 'advanced', itemId: number) => {
+    setMasteryPathsConfig(prev => {
+      const existing = prev[modId] || defaultMasteryConfig();
+      const currentItemIds = existing[pathKey].itemIds;
+      const newItemIds = currentItemIds.includes(itemId)
+        ? currentItemIds.filter(id => id !== itemId)
+        : [...currentItemIds, itemId];
+      return {
+        ...prev,
+        [modId]: {
+          ...existing,
+          [pathKey]: { ...existing[pathKey], itemIds: newItemIds }
+        }
+      };
+    });
+  };
+
+  const handleSetBaseAssessment = (modId: number, assessmentId: number | null) => {
+    setMasteryPathsConfig(prev => {
+      const existing = prev[modId] || defaultMasteryConfig();
+      return {
+        ...prev,
+        [modId]: { ...existing, baseAssessmentId: assessmentId }
+      };
+    });
+  };
+
   // Drag and Drop reordering handlers
   const handleDragStart = useCallback((e: React.DragEvent, itemId: number) => {
     e.dataTransfer.setData('text/plain', String(itemId));
@@ -317,6 +402,16 @@ export default function ModulesPage() {
     }
   };
 
+  const getMasteryPathBadges = (modId: number, itemId: number) => {
+    const config = masteryPathsConfig[modId];
+    if (!config) return [];
+    const badges: { label: string; color: string; bg: string; border: string }[] = [];
+    if (config.remedial.itemIds.includes(itemId)) badges.push({ label: 'Remedial', color: '#c2410c', bg: '#fff7ed', border: '#fdba74' });
+    if (config.standard.itemIds.includes(itemId)) badges.push({ label: 'Standard', color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd' });
+    if (config.advanced.itemIds.includes(itemId)) badges.push({ label: 'Advanced', color: '#15803d', bg: '#f0fdf4', border: '#86efac' });
+    return badges;
+  };
+
   if (isLoading) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
@@ -334,6 +429,10 @@ export default function ModulesPage() {
   }
 
   const sortedModules = [...(modules || [])].sort((a, b) => a.position - b.position);
+
+  const editingMasteryModule = editingMasteryPathsModuleId !== null ? sortedModules.find(m => m.id === editingMasteryPathsModuleId) : undefined;
+  const editingMasteryItems = editingMasteryModule ? [...(editingMasteryModule.items || [])].sort((a, b) => a.position - b.position) : [];
+  const currentMasteryConfig = editingMasteryModule ? masteryPathsConfig[editingMasteryModule.id] : null;
 
   return (
     <div className="cx-page">
@@ -392,6 +491,7 @@ export default function ModulesPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowAddItemModal(mod.id)} disabled={mutatingModuleId === mod.id}><PlusSvg /></button>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenPrereqsModal(mod)} disabled={mutatingModuleId === mod.id || savingPrereqsModuleId === mod.id} title="Prerequisites"><LinkSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenMasteryPathsModal(mod)} disabled={mutatingModuleId === mod.id} title="Mastery Paths"><BranchSvg /></button>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishModule(mod)} disabled={mutatingModuleId === mod.id} style={{ color: mod.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteModule(mod.id)} disabled={mutatingModuleId === mod.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
                 </div>
@@ -399,35 +499,47 @@ export default function ModulesPage() {
               
               {isExpanded && (
                 <div style={{ padding: '8px 16px' }}>
-                  {items.map((item, idx) => (
-                    <div 
-                      key={item.id} 
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDropItem(e, mod.id, item.position)}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        padding: '12px 8px', 
-                        borderBottom: idx === items.length - 1 ? 'none' : '1px solid var(--cx-border-subtle)',
-                        opacity: draggingItemId === item.id ? 0.4 : 1,
-                        cursor: 'grab'
-                      }}
-                    >
-                      <div style={{ marginRight: 12, color: 'var(--cx-text-tertiary)' }}><DragHandleSvg /></div>
-                      <span style={{ marginRight: 12 }}>{getIconForType(item.type)}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500, color: 'var(--cx-text-primary)' }}>{item.title}</div>
-                        {item.completion_requirement && <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Must {item.completion_requirement.type}{item.completion_requirement.min_score !== undefined ? ` ≥ ${item.completion_requirement.min_score}` : ''}</div>}
+                  {items.map((item, idx) => {
+                    const badges = getMasteryPathBadges(mod.id, item.id);
+                    return (
+                      <div 
+                        key={item.id} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropItem(e, mod.id, item.position)}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          padding: '12px 8px', 
+                          borderBottom: idx === items.length - 1 ? 'none' : '1px solid var(--cx-border-subtle)',
+                          opacity: draggingItemId === item.id ? 0.4 : 1,
+                          cursor: 'grab'
+                        }}
+                      >
+                        <div style={{ marginRight: 12, color: 'var(--cx-text-tertiary)' }}><DragHandleSvg /></div>
+                        <span style={{ marginRight: 12 }}>{getIconForType(item.type)}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 500, color: 'var(--cx-text-primary)' }}>{item.title}</div>
+                          {item.completion_requirement && <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Must {item.completion_requirement.type}{item.completion_requirement.min_score !== undefined ? ` ≥ ${item.completion_requirement.min_score}` : ''}</div>}
+                          {badges.length > 0 && (
+                            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                              {badges.map(b => (
+                                <span key={b.label} style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, color: b.color, background: b.bg, border: `1px solid ${b.border}`, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                  {b.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
+                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} disabled={mutatingItemId === item.id} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
+                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenCompletionModal(mod.id, item)} disabled={mutatingItemId === item.id || savingCompletionItemId === item.id} title="Completion Requirement"><GearSvg /></button>
+                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} disabled={mutatingItemId === item.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} disabled={mutatingItemId === item.id} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
-                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenCompletionModal(mod.id, item)} disabled={mutatingItemId === item.id || savingCompletionItemId === item.id} title="Completion Requirement"><GearSvg /></button>
-                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} disabled={mutatingItemId === item.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {items.length === 0 && (
                     <div style={{ padding: '24px', textAlign: 'center', color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', border: '1px dashed var(--cx-border-subtle)', borderRadius: 6, margin: '8px 0' }}>
                       No items in this module. Click "+" to add content.
@@ -612,6 +724,101 @@ export default function ModulesPage() {
               >
                 {savingCompletionItemId === editingCompletionItem.itemId ? 'Saving...' : 'Save'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mastery Paths Modal */}
+      {editingMasteryPathsModuleId !== null && editingMasteryModule && currentMasteryConfig && (
+        <div className="cx-modal-overlay" onClick={() => setEditingMasteryPathsModuleId(null)}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()} style={{ maxWidth: 780 }}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Mastery Paths — {editingMasteryModule.name}</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setEditingMasteryPathsModuleId(null)}>&times;</button>
+            </div>
+            <div className="cx-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                Define conditional release rules. Students will see different content based on their performance.
+              </p>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: '0.875rem', fontWeight: 600 }}>Base Assessment</label>
+                <select 
+                  className="cx-select" 
+                  style={{ width: '100%' }} 
+                  value={currentMasteryConfig.baseAssessmentId ?? ''} 
+                  onChange={e => handleSetBaseAssessment(editingMasteryModule.id, e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">— Select an assignment or quiz —</option>
+                  {(assignments || []).map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                {([
+                  { key: 'remedial' as const, label: 'Remedial', color: '#c2410c', bg: '#fff7ed', border: '#fdba74' },
+                  { key: 'standard' as const, label: 'Standard', color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd' },
+                  { key: 'advanced' as const, label: 'Advanced', color: '#15803d', bg: '#f0fdf4', border: '#86efac' },
+                ]).map(path => (
+                  <div key={path.key} style={{ flex: 1, minWidth: 180, border: `1px solid ${path.border}`, borderRadius: 8, padding: 12, background: path.bg }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: path.color, marginBottom: 10, textAlign: 'center' }}>
+                      {path.label}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--cx-text-secondary)' }}>Min %</label>
+                        <input
+                          type="number"
+                          className="cx-search__input"
+                          style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }}
+                          min={0}
+                          max={100}
+                          value={currentMasteryConfig[path.key].minScore}
+                          onChange={e => handleUpdateMasteryPath(editingMasteryModule.id, path.key, { minScore: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--cx-text-secondary)' }}>Max %</label>
+                        <input
+                          type="number"
+                          className="cx-search__input"
+                          style={{ width: '100%', border: '1px solid var(--cx-border-subtle)' }}
+                          min={0}
+                          max={100}
+                          value={currentMasteryConfig[path.key].maxScore}
+                          onChange={e => handleUpdateMasteryPath(editingMasteryModule.id, path.key, { maxScore: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', marginBottom: 6 }}>Released Items</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+                      {editingMasteryItems.length === 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>No items in this module.</span>
+                      )}
+                      {editingMasteryItems.map(item => (
+                        <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', cursor: 'pointer', color: 'var(--cx-text-primary)' }}>
+                          <input
+                            type="checkbox"
+                            checked={currentMasteryConfig[path.key].itemIds.includes(item.id)}
+                            onChange={() => handleToggleMasteryPathItem(editingMasteryModule.id, path.key, item.id)}
+                          />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: 'var(--cx-text-secondary)', background: 'var(--cx-bg-surface-sunken)', padding: 12, borderRadius: 6, border: '1px solid var(--cx-border-subtle)' }}>
+                <strong>Note:</strong> These rules are displayed for instructional planning. Canvas conditional release is managed via Assignment Overrides.
+              </div>
+            </div>
+            <div className="cx-modal__footer">
+              <button type="button" className="cx-btn cx-btn--secondary" onClick={() => setEditingMasteryPathsModuleId(null)}>Close</button>
             </div>
           </div>
         </div>

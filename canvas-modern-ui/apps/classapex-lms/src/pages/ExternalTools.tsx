@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import React, { useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
+import { useNotification } from '../hooks/useNotification';
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function SettingsSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>; }
@@ -19,212 +20,198 @@ interface ExternalTool {
 interface DeveloperKey {
   id: number;
   name: string;
-  client_id: string;
-  secret: string;
-  contact_email: string;
-  status: 'active' | 'inactive';
-  placements: string[];
-}
-
-interface ScormPackage {
-  id: string;
-  title: string;
-  version: string;
-  status: string;
-  score: number;
+  api_key?: string;
+  email?: string;
+  redirect_uri?: string;
+  redirect_uris?: string;
+  workflow_state: 'active' | 'inactive';
+  created_at: string;
+  vendor_code?: string;
+  notes?: string;
 }
 
 export default function ExternalToolsPage() {
   const { courseId } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const { showToast, showConfirm } = useNotification();
   const [activeTab, setActiveTab] = useState<'tools' | 'keys' | 'scorm'>('tools');
 
-  // LTI Modal & postMessage Simulation states (S20-02, S20-03, S20-07)
-  const [launchingTool, setLaunchingTool] = useState<ExternalTool | null>(null);
-  const [ltiLogs, setLtiLogs] = useState<string[]>([]);
-  const [deepLinkSelections, setDeepLinkSelections] = useState<string[]>([]);
-
-  // Add App state & Placement states (S20-04)
+  // Add App state
   const [showAddModal, setShowAddModal] = useState(false);
   const [newToolName, setNewToolName] = useState('');
   const [newToolUrl, setNewToolUrl] = useState('');
+  const [newToolConsumerKey, setNewToolConsumerKey] = useState('');
+  const [newToolSharedSecret, setNewToolSharedSecret] = useState('');
+  const [newToolPrivacyLevel, setNewToolPrivacyLevel] = useState('anonymous');
   const [placements, setPlacements] = useState({
     course_navigation: true,
     editor_button: false,
     assignment_selection: false,
   });
+  const [addingTool, setAddingTool] = useState(false);
+  const [deletingToolId, setDeletingToolId] = useState<number | null>(null);
 
-  // Developer Keys Manager (S20-05)
-  const [developerKeys, setDeveloperKeys] = useState<DeveloperKey[]>([
-    {
-      id: 1,
-      name: 'Piazza Discussion Integration',
-      client_id: '10000000002829',
-      secret: '27ae8d2...82df391c',
-      contact_email: 'integrations@piazza.com',
-      status: 'active',
-      placements: ['course_navigation', 'editor_button']
-    },
-    {
-      id: 2,
-      name: 'Gradescope LTI 1.3 Connect',
-      client_id: '10000000009482',
-      secret: '8910fed...203fbda1',
-      contact_email: 'support@gradescope.com',
-      status: 'active',
-      placements: ['assignment_selection']
-    }
-  ]);
+  // Developer Keys state
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyEmail, setNewKeyEmail] = useState('');
-
-  // SCORM Player (S20-10)
-  const [scormPackages, setScormPackages] = useState<ScormPackage[]>([
-    { id: 'scorm-1', title: 'Biology Lab Safety Module', version: 'SCORM 2004 4th Ed', status: 'Completed', score: 100 },
-    { id: 'scorm-2', title: 'Calculus Introductory Diagnostics', version: 'SCORM 1.2', status: 'In Progress', score: 65 }
-  ]);
-  const [activeScorm, setActiveScorm] = useState<ScormPackage | null>(null);
-  const [scormLogs, setScormLogs] = useState<string[]>([]);
+  const [savingKey, setSavingKey] = useState(false);
+  const [togglingKeyId, setTogglingKeyId] = useState<number | null>(null);
+  const [deletingKeyId, setDeletingKeyId] = useState<number | null>(null);
 
   // Fetch course tools
-  const { data: toolsData, isLoading } = useCanvasQuery<ExternalTool[]>(
+  const {
+    data: toolsData,
+    isLoading: toolsLoading,
+    refetch: refetchTools
+  } = useCanvasQuery<ExternalTool[]>(
     courseId ? `/api/v1/courses/${courseId}/external_tools` : '',
     { per_page: 50 } as any
   );
-  
-  const initialTools = Array.isArray(toolsData) ? toolsData : [];
-  const [localTools, setLocalTools] = useState<ExternalTool[]>([]);
+  const tools = Array.isArray(toolsData) ? toolsData : [];
 
-  useEffect(() => {
-    if (initialTools.length > 0) {
-      setLocalTools(initialTools);
-    } else {
-      // Mock Fallbacks if empty
-      setLocalTools([
-        {
-          id: 101,
-          name: 'Piazza Q&A Forum',
-          description: 'Synchronized real-time student discussions and wiki boards.',
-          url: 'https://piazza.com/lti/launch',
-          domain: 'piazza.com',
-          privacy_level: 'public',
-          consumer_key: 'piazza-key-canvas-101',
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 102,
-          name: 'Vimeo Video Cartridge',
-          description: 'Embed secure premium educational videos directly inside pages.',
-          url: 'https://vimeo.com/lti/connect',
-          domain: 'vimeo.com',
-          privacy_level: 'anonymous',
-          consumer_key: 'vimeo-secure-key-99',
-          created_at: new Date().toISOString()
-        }
-      ]);
+  // Fetch developer keys
+  const {
+    data: keysData,
+    isLoading: keysLoading,
+    refetch: refetchKeys
+  } = useCanvasQuery<DeveloperKey[]>(
+    '/api/v1/accounts/1/developer_keys'
+  );
+  const developerKeys = Array.isArray(keysData) ? keysData : [];
+
+  const handleLaunchLti = useCallback((tool: ExternalTool) => {
+    if (courseId) {
+      navigate(`/courses/${courseId}/lti?tool_id=${tool.id}`);
     }
-  }, [initialTools]);
+  }, [courseId, navigate]);
 
-  // Simulate postMessage handler (S20-02, S20-03, S20-07)
-  const handleLaunchLti = (tool: ExternalTool) => {
-    setLaunchingTool(tool);
-    setLtiLogs([
-      `Initiating LTI 1.3 connection handshake to: ${tool.url}`,
-      'Constructing encrypted JWT login token...',
-      'Client Assertions status code: 200 OK',
-      'Target endpoint successfully launched in sandboxed container.'
-    ]);
-  };
-
-  const simulatePostMessage = (actionType: string) => {
-    if (actionType === 'grade') {
-      setLtiLogs(prev => [
-        ...prev,
-        'Incoming postMessage: {"type": "lti.gradeUpdate", "score": 95, "max": 100}',
-        'Canvas Assignment grade updated to 95/100 for student!'
-      ]);
-    } else if (actionType === 'deepLink') {
-      setLtiLogs(prev => [
-        ...prev,
-        'Incoming postMessage: {"type": "lti.deepLinkingResponse", "items": [{"title": "Lab 1 Assessment", "url": "..."}]}',
-        'Parsing deep linking response...',
-        'Deep linking successful: Aligned 1 item to assignment module. ✅'
-      ]);
-      setDeepLinkSelections(prev => [...prev, 'Lab 1 Assessment - Aligned from Piazza']);
-    }
-  };
-
-  // SCORM Player API Simulation (S20-10)
-  const handleLaunchScorm = (pkg: ScormPackage) => {
-    setActiveScorm(pkg);
-    setScormLogs([
-      `Initializing SCORM SCORM player frame for: ${pkg.title}`,
-      'Binding global window interface: window.API_1484_11',
-      'window.API_1484_11.Initialize("") -> 100% Success',
-      'cmi.core.entry = "resume"'
-    ]);
-  };
-
-  const triggerScormInteraction = (type: 'progress' | 'complete') => {
-    if (type === 'progress') {
-      setScormLogs(prev => [
-        ...prev,
-        'SCORM API Call: GetValue("cmi.core.lesson_location")',
-        'SCORM API Call: SetValue("cmi.core.lesson_location", "slide_4")',
-        'cmi.core.lesson_location set to slide_4. Status committed. 💾'
-      ]);
-    } else {
-      setScormLogs(prev => [
-        ...prev,
-        'SCORM API Call: SetValue("cmi.core.lesson_status", "completed")',
-        'SCORM API Call: SetValue("cmi.core.score.raw", "98")',
-        'SCORM API Call: Commit("")',
-        'SCORM successfully finished. Grade posted back to gradebook: 98%. ✅'
-      ]);
-      setScormPackages(prev =>
-        prev.map(p => p.id === activeScorm?.id ? { ...p, status: 'Completed', score: 98 } : p)
-      );
-    }
-  };
-
-  const handleAddTool = (e: React.FormEvent) => {
+  const handleAddTool = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newToolName || !newToolUrl) return;
+    if (!newToolName || !newToolUrl || !courseId) return;
 
-    const newTool: ExternalTool = {
-      id: Date.now(),
-      name: newToolName,
-      description: 'Custom external LTI integration tool.',
-      url: newToolUrl,
-      domain: new URL(newToolUrl).hostname,
-      privacy_level: 'public',
-      consumer_key: 'ckey-' + Math.random().toString(36).substring(4),
-      created_at: new Date().toISOString()
-    };
+    setAddingTool(true);
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/external_tools`, {
+        method: 'POST',
+        body: {
+          name: newToolName,
+          url: newToolUrl,
+          consumer_key: newToolConsumerKey,
+          shared_secret: newToolSharedSecret,
+          privacy_level: newToolPrivacyLevel,
+          course_navigation: { enabled: true, text: newToolName }
+        }
+      });
+      showToast({ title: 'Tool Added', message: `${newToolName} has been configured.`, type: 'success' });
+      setShowAddModal(false);
+      setNewToolName('');
+      setNewToolUrl('');
+      setNewToolConsumerKey('');
+      setNewToolSharedSecret('');
+      setNewToolPrivacyLevel('anonymous');
+      refetchTools();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to add external tool.', type: 'error' });
+    } finally {
+      setAddingTool(false);
+    }
+  }, [courseId, newToolName, newToolUrl, newToolConsumerKey, newToolSharedSecret, newToolPrivacyLevel, showToast, refetchTools]);
 
-    setLocalTools(prev => [...prev, newTool]);
-    setNewToolName('');
-    setNewToolUrl('');
-    setShowAddModal(false);
-  };
+  const handleDeleteTool = useCallback(async (tool: ExternalTool) => {
+    if (!courseId) return;
+    const confirmed = await showConfirm({
+      title: 'Delete External Tool',
+      message: `Are you sure you want to remove ${tool.name}?`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setDeletingToolId(tool.id);
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/external_tools/${tool.id}`, {
+        method: 'DELETE'
+      });
+      showToast({ title: 'Deleted', message: `${tool.name} has been removed.`, type: 'success' });
+      refetchTools();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to delete tool.', type: 'error' });
+    } finally {
+      setDeletingToolId(null);
+    }
+  }, [courseId, showConfirm, showToast, refetchTools]);
 
-  const handleAddKey = (e: React.FormEvent) => {
+  const handleAddKey = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKeyName || !newKeyEmail) return;
 
-    const newKey: DeveloperKey = {
-      id: Date.now(),
-      name: newKeyName,
-      client_id: '1000000000' + Math.floor(1000 + Math.random() * 9000),
-      secret: Math.random().toString(36).substring(2, 10) + '...' + Math.random().toString(36).substring(2, 10),
-      contact_email: newKeyEmail,
-      status: 'active',
-      placements: ['course_navigation']
-    };
+    setSavingKey(true);
+    try {
+      await canvasFetch('/api/v1/accounts/1/developer_keys', {
+        method: 'POST',
+        body: {
+          developer_key: {
+            name: newKeyName,
+            email: newKeyEmail,
+            redirect_uri: 'https://example.com',
+            tool_configuration: {}
+          }
+        }
+      });
+      showToast({ title: 'Key Created', message: 'Developer key successfully generated.', type: 'success' });
+      setNewKeyName('');
+      setNewKeyEmail('');
+      refetchKeys();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to create developer key.', type: 'error' });
+    } finally {
+      setSavingKey(false);
+    }
+  }, [newKeyName, newKeyEmail, showToast, refetchKeys]);
 
-    setDeveloperKeys(prev => [...prev, newKey]);
-    setNewKeyName('');
-    setNewKeyEmail('');
-  };
+  const handleToggleKey = useCallback(async (key: DeveloperKey) => {
+    const nextState = key.workflow_state === 'active' ? 'inactive' : 'active';
+    setTogglingKeyId(key.id);
+    try {
+      await canvasFetch(`/api/v1/accounts/1/developer_keys/${key.id}`, {
+        method: 'PUT',
+        body: {
+          developer_key: {
+            workflow_state: nextState
+          }
+        }
+      });
+      showToast({ title: 'Key Updated', message: `${key.name} is now ${nextState}.`, type: 'success' });
+      refetchKeys();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to update developer key.', type: 'error' });
+    } finally {
+      setTogglingKeyId(null);
+    }
+  }, [showToast, refetchKeys]);
+
+  const handleDeleteKey = useCallback(async (keyId: number) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Developer Key',
+      message: 'Are you sure you want to delete this developer key? This will break any integrations using it.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setDeletingKeyId(keyId);
+    try {
+      await canvasFetch(`/api/v1/accounts/1/developer_keys/${keyId}`, {
+        method: 'DELETE'
+      });
+      showToast({ title: 'Deleted', message: 'Developer key successfully deleted.', type: 'success' });
+      refetchKeys();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to delete developer key.', type: 'error' });
+    } finally {
+      setDeletingKeyId(null);
+    }
+  }, [showConfirm, showToast, refetchKeys]);
 
   return (
     <div className="cx-page">
@@ -267,9 +254,9 @@ export default function ExternalToolsPage() {
       {/* ── Tab 1: Course Tools ── */}
       {activeTab === 'tools' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {isLoading ? (
+          {toolsLoading ? (
             <div className="cx-loading"><div className="cx-loading__spinner" /></div>
-          ) : localTools.length === 0 ? (
+          ) : tools.length === 0 ? (
             <div className="cx-empty">
               <SettingsSvg />
               <h3>No External Tools</h3>
@@ -287,7 +274,7 @@ export default function ExternalToolsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {localTools.map(tool => (
+                  {tools.map(tool => (
                     <tr key={tool.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{tool.name}</div>
@@ -301,10 +288,12 @@ export default function ExternalToolsPage() {
                         <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleLaunchLti(tool)}>
                           🚀 Launch App
                         </button>
-                        <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => {
-                          setLocalTools(prev => prev.filter(t => t.id !== tool.id))
-                        }}>
-                          Delete
+                        <button
+                          className="cx-btn cx-btn--secondary cx-btn--sm"
+                          onClick={() => handleDeleteTool(tool)}
+                          disabled={deletingToolId === tool.id}
+                        >
+                          {deletingToolId === tool.id ? 'Deleting...' : 'Delete'}
                         </button>
                       </td>
                     </tr>
@@ -313,84 +302,10 @@ export default function ExternalToolsPage() {
               </table>
             </div>
           )}
-
-          {/* Deep Linking Results */}
-          {deepLinkSelections.length > 0 && (
-            <div className="cx-card" style={{ padding: 16, background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.2)' }}>
-              <h4 style={{ margin: '0 0 6px 0', fontSize: '0.8125rem', fontWeight: 600, color: '#059669' }}>
-                Deep Linked Content Items Imported
-              </h4>
-              <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.78rem', color: 'var(--cx-text-secondary)' }}>
-                {deepLinkSelections.map((item, idx) => <li key={idx}>{item}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* LTI Sandboxed Launch Overlay (S20-02, S20-03, S20-07) */}
-          {launchingTool && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-              background: 'rgba(0, 0, 0, 0.75)', zIndex: 100, display: 'flex',
-              alignItems: 'center', justifyContent: 'center', padding: 24
-            }}>
-              <div style={{
-                background: 'var(--cx-bg-surface)', width: '90%', maxWidth: '1000px',
-                height: '85vh', borderRadius: 12, overflow: 'hidden', display: 'grid',
-                gridTemplateRows: '56px 1fr',
-                border: '1px solid var(--cx-border-default)'
-              }}>
-                <div style={{ background: 'var(--cx-bg-surface-raised)', padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>LTI Launch Wrapper: {launchingTool.name}</span>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setLaunchingTool(null)}>✕ Close Player</button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', height: '100%' }}>
-                  {/* Simulated App Iframe Area */}
-                  <div style={{ background: 'var(--cx-bg-surface-sunken)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--cx-border-subtle)' }}>
-                    <div style={{
-                      background: 'var(--cx-bg-surface)', width: '100%', maxWidth: '600px', height: '280px',
-                      borderRadius: 8, boxShadow: 'var(--cx-shadow-md)', border: '1px solid var(--cx-border-subtle)',
-                      display: 'flex', flexDirection: 'column', overflow: 'hidden'
-                    }}>
-                      <div style={{ background: 'var(--cx-bg-surface-raised)', padding: '6px 12px', fontSize: '0.72rem', display: 'flex', gap: 6, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                        <span style={{ color: '#ef4444' }}>●</span><span style={{ color: '#eab308' }}>●</span><span style={{ color: '#22c55e' }}>●</span>
-                        <span style={{ marginLeft: 6, fontFamily: 'var(--cm-font-family-mono, monospace)', color: 'var(--cx-text-tertiary)' }}>{launchingTool.url}</span>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, textAlign: 'center' }}>
-                        <span style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚡</span>
-                        <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--cx-text-primary)' }}>Piazza LTI Deep Linker Provider</h4>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: 'var(--cx-text-secondary)', maxWidth: '360px' }}>
-                          Simulate external tool action events sending grade data or alignments back to ClassApex.
-                        </p>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="cx-btn cx-btn--sm cx-btn--primary" onClick={() => simulatePostMessage('grade')}>
-                            Post Grade back (95%)
-                          </button>
-                          <button className="cx-btn cx-btn--sm cx-btn--secondary" onClick={() => simulatePostMessage('deepLink')}>
-                            Return Deep Link Items
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Real-time postMessage handshake debugger console */}
-                  <div style={{ background: '#0f172a', color: '#38bdf8', padding: '16px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-                    <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold', borderBottom: '1px solid #1e293b', paddingBottom: 6, marginBottom: 10 }}>
-                      LTI postMessage Handshake Console
-                    </span>
-                    <div style={{ flex: 1, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {ltiLogs.map((log, index) => <div key={index}>&gt; {log}</div>)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Tab 2: Developer Keys (S20-05 Admin Management) ── */}
+      {/* ── Tab 2: Developer Keys ── */}
       {activeTab === 'keys' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Create Developer Key Form */}
@@ -419,112 +334,96 @@ export default function ExternalToolsPage() {
                 required
               />
             </div>
-            <button className="cx-btn cx-btn--primary" type="submit" style={{ height: '36px' }}>
-              Create Developer Key
+            <button className="cx-btn cx-btn--primary" type="submit" style={{ height: '36px' }} disabled={savingKey}>
+              {savingKey ? 'Creating...' : 'Create Developer Key'}
             </button>
           </form>
 
           {/* Developer Keys Table */}
-          <div className="cx-table-container">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead style={{ background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
-                <tr>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>App Client ID</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>Secret</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>Owner/Contact</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)', width: 100 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {developerKeys.map(key => (
-                  <tr key={key.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{key.name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', fontFamily: 'var(--cm-font-family-mono, monospace)', marginTop: 2 }}>
-                        Client ID: {key.client_id}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.75rem', color: 'var(--cx-text-primary)' }}>{key.secret}</td>
-                    <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>{key.contact_email}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className={`cx-badge ${key.status === 'active' ? 'cx-badge--success' : 'cx-badge--neutral'}`}>
-                        {key.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <button
-                        className="cx-btn cx-btn--ghost cx-btn--sm"
-                        onClick={() => {
-                          setDeveloperKeys(prev => prev.map(k => k.id === key.id ? { ...k, status: k.status === 'active' ? 'inactive' : 'active' } : k))
-                        }}
-                      >
-                        Toggle
-                      </button>
-                    </td>
+          {keysLoading ? (
+            <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+          ) : (
+            <div className="cx-table-container">
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead style={{ background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>App Name</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>Contact</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)' }}>Status</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid var(--cx-border-subtle)', width: 180 }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {developerKeys.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--cx-text-secondary)' }}>
+                        No developer keys found.
+                      </td>
+                    </tr>
+                  ) : (
+                    developerKeys.map(key => (
+                      <tr key={key.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{key.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', fontFamily: 'var(--cm-font-family-mono, monospace)', marginTop: 2 }}>
+                            Client ID: {key.id}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>{key.email || '-'}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span className={`cx-badge ${key.workflow_state === 'active' ? 'cx-badge--success' : 'cx-badge--neutral'}`}>
+                            {key.workflow_state}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
+                          <button
+                            className="cx-btn cx-btn--ghost cx-btn--sm"
+                            onClick={() => handleToggleKey(key)}
+                            disabled={togglingKeyId === key.id}
+                          >
+                            {togglingKeyId === key.id ? '...' : 'Toggle'}
+                          </button>
+                          <button
+                            className="cx-btn cx-btn--ghost cx-btn--sm"
+                            onClick={() => handleDeleteKey(key.id)}
+                            disabled={deletingKeyId === key.id}
+                            style={{ color: 'var(--cx-color-danger)' }}
+                          >
+                            {deletingKeyId === key.id ? '...' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Tab 3: SCORM Player (S20-10 launch wrapper) ── */}
+      {/* ── Tab 3: SCORM Player ── */}
       {activeTab === 'scorm' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          {/* SCORM List */}
+          {/* SCORM Info */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>SCORM 1.2 / 2004 Course Packages</h3>
-            {scormPackages.map(pkg => (
-              <div key={pkg.id} className="cx-card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{pkg.title}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
-                    Standards: {pkg.version} · Status: {pkg.status}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {pkg.status === 'Completed' && (
-                    <span className="cx-badge cx-badge--success">{pkg.score}% Score</span>
-                  )}
-                  <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => handleLaunchScorm(pkg)}>
-                    Play SCORM
-                  </button>
-                </div>
-              </div>
-            ))}
+            <div className="cx-card" style={{ padding: 16 }}>
+              <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>
+                SCORM packages are managed through Canvas Content Migrations. Use the Course Management page to import SCORM content.
+              </p>
+            </div>
           </div>
 
-          {/* SCORM API Monitor Console */}
+          {/* SCORM API Monitor Console (placeholder) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Simulated SCORM Runtime Stream</h3>
             <div style={{ flex: 1, background: '#0f172a', color: '#10b981', padding: '16px', borderRadius: 8, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', minHeight: '220px', overflowY: 'auto' }}>
               <div style={{ color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6, marginBottom: 10, fontWeight: 'bold' }}>
                 SCORM API_1484_11 bindings log
               </div>
-              {scormLogs.length === 0 ? (
-                <div style={{ color: '#475569', fontStyle: 'italic' }}>Awaiting SCORM Package Launch...</div>
-              ) : (
-                scormLogs.map((log, index) => <div key={index}>&gt; {log}</div>)
-              )}
+              <div style={{ color: '#475569', fontStyle: 'italic' }}>Awaiting SCORM Package Launch...</div>
             </div>
-
-            {activeScorm && (
-              <div className="cx-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--cx-text-primary)' }}>
-                  Active Module: {activeScorm.title}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="cx-btn cx-btn--sm cx-btn--primary" onClick={() => triggerScormInteraction('progress')}>
-                    Advance to slide 4
-                  </button>
-                  <button className="cx-btn cx-btn--sm cx-btn--success" onClick={() => triggerScormInteraction('complete')}>
-                    Complete Package with 98% Score
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -568,7 +467,45 @@ export default function ExternalToolsPage() {
                 />
               </div>
 
-              {/* Tool Placement checkboxes S20-04 */}
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 4 }}>Consumer Key</label>
+                <input
+                  type="text"
+                  className="cx-grading__comment-input"
+                  placeholder="e.g. canvas-lti-key"
+                  value={newToolConsumerKey}
+                  onChange={e => setNewToolConsumerKey(e.target.value)}
+                  style={{ width: '100%', height: '36px', border: '1px solid var(--cx-border-subtle)', borderRadius: 6, padding: '0 10px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 4 }}>Shared Secret</label>
+                <input
+                  type="text"
+                  className="cx-grading__comment-input"
+                  placeholder="e.g. secret123"
+                  value={newToolSharedSecret}
+                  onChange={e => setNewToolSharedSecret(e.target.value)}
+                  style={{ width: '100%', height: '36px', border: '1px solid var(--cx-border-subtle)', borderRadius: 6, padding: '0 10px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 4 }}>Privacy Level</label>
+                <select
+                  className="cx-grading__comment-input"
+                  value={newToolPrivacyLevel}
+                  onChange={e => setNewToolPrivacyLevel(e.target.value)}
+                  style={{ width: '100%', height: '36px', border: '1px solid var(--cx-border-subtle)', borderRadius: 6, padding: '0 10px' }}
+                >
+                  <option value="anonymous">Anonymous</option>
+                  <option value="name_only">Name Only</option>
+                  <option value="public">Public</option>
+                </select>
+              </div>
+
+              {/* Tool Placement checkboxes */}
               <div>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Tool Placements Rendering Selection</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8rem' }}>
@@ -602,7 +539,9 @@ export default function ExternalToolsPage() {
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="cx-btn cx-btn--ghost" type="button" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary" type="submit">Configure Tool</button>
+              <button className="cx-btn cx-btn--primary" type="submit" disabled={addingTool}>
+                {addingTool ? 'Saving...' : 'Configure Tool'}
+              </button>
             </div>
           </form>
         </div>

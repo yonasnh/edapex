@@ -78,6 +78,7 @@ const AdminSisImportsPage = React.lazy(() => import('./pages/admin/SisImports'))
 const AdminGradeChangeAuditPage = React.lazy(() => import('./pages/admin/GradeChangeAudit'))
 const AdminDeveloperKeysPage = React.lazy(() => import('./pages/admin/DeveloperKeys'))
 const AdminAssessmentPage = React.lazy(() => import('./pages/admin/Assessment'))
+const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'))
 const PagesPage = React.lazy(() => import('./pages/Pages'))
 const QuizzesPage = React.lazy(() => import('./pages/Quizzes'))
 const RubricsPage = React.lazy(() => import('./pages/Rubrics'))
@@ -651,11 +652,11 @@ const AppContent = () => {
             <Route path="/profile"       element={<SettingsPage />} />
             <Route path="/analytics"     element={<AnalyticsPage />} />
             <Route path="/reports"       element={<ReportsPage />} />
-            <Route path="/admin"        element={<Navigate to="/admin/users" replace />} />
+            <Route path="/admin"        element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/users"   element={<AdminUsersPage />} />
             <Route path="/admin/courses" element={<AdminCourseManagementPage />} />
             <Route path="/admin/settings" element={<AdminSystemSettingsPage />} />
-            <Route path="/admin/courses" element={<AdminCoursesPage />} />
             <Route path="/admin/roles" element={<AdminRolesPermissionsPage />} />
             <Route path="/admin/sub-accounts" element={<AdminSubAccountsPage />} />
             <Route path="/admin/terms" element={<AdminTermsPage />} />
