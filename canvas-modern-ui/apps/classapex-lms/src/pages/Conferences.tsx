@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
@@ -19,7 +19,7 @@ interface Conference {
 
 export default function ConferencesPage() {
   const { courseId } = useParams();
-  const { showToast } = useNotification();
+  const { showToast, showConfirm } = useNotification();
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -36,7 +36,7 @@ export default function ConferencesPage() {
     ? rawConferences 
     : (rawConferences?.conferences || []);
 
-  const handleCreateConference = async (e: React.FormEvent) => {
+  const handleCreateConference = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
@@ -61,18 +61,29 @@ export default function ConferencesPage() {
     } finally {
       setCreating(false);
     }
-  };
+  }, [courseId, newTitle, newDuration, showToast, refetch]);
 
-  const handleJoin = (conf: Conference) => {
+  const handleJoin = useCallback((conf: Conference) => {
     const url = conf.join_url || conf.user_settings?.join_url;
     if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        showToast({ title: 'Popup Blocked', message: 'Please allow popups to join the conference.', type: 'warning' });
+      }
     } else {
       showToast({ title: 'Join Error', message: 'No launch URL available for this conference.', type: 'error' });
     }
-  };
+  }, [showToast]);
 
-  const handleEnd = async (confId: number) => {
+  const handleEnd = useCallback(async (confId: number) => {
+    const confirmed = await showConfirm({
+      title: 'End Conference',
+      message: 'Are you sure you want to end this conference? Participants will be disconnected.',
+      confirmLabel: 'End Conference',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/conferences/${confId}/close`, {
         method: 'PUT'
@@ -82,7 +93,7 @@ export default function ConferencesPage() {
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to close conference.', type: 'error' });
     }
-  };
+  }, [courseId, showConfirm, showToast, refetch]);
 
   if (isLoading) {
     return (

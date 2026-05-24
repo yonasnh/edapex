@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import clsx from 'clsx';
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
@@ -103,6 +103,20 @@ const AdminUsersPage: React.FC = () => {
   const [accommodations, setAccommodations] = useState<UserAccommodations>({ timeMultiplier: '1', allowLate: false });
   const [savingAccommodations, setSavingAccommodations] = useState(false);
 
+  // Refs for cleanup and debounce
+  const mountedRef = useRef(true);
+  const accommodationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (accommodationDebounceRef.current) {
+        clearTimeout(accommodationDebounceRef.current);
+      }
+    };
+  }, []);
+
   const [users, setUsers] = useState<UserData[]>([]);
   const { data: canvasUsers, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/users', { include: ['email', 'last_login'], per_page: 50 } as any);
   const { data: canvasAdmins } = useCanvasQuery<any[]>('/api/v1/accounts/1/admins', {} as any);
@@ -174,20 +188,20 @@ const AdminUsersPage: React.FC = () => {
   }, [canvasUsers, canvasAdmins]);
 
   // Fetch communication channels
-  const fetchCommChannels = async (userId: string) => {
+  const fetchCommChannels = useCallback(async (userId: string) => {
     setLoadingChannels(true);
     try {
       const data = await canvasFetch(`/api/v1/users/${userId}/communication_channels`);
-      setCommChannels(data);
+      if (mountedRef.current) setCommChannels(data);
     } catch (err) {
       console.error('Error fetching communication channels:', err);
     } finally {
-      setLoadingChannels(false);
+      if (mountedRef.current) setLoadingChannels(false);
     }
-  };
+  }, []);
 
   // Fetch observer links
-  const fetchObserverLinks = async (user: UserData) => {
+  const fetchObserverLinks = useCallback(async (user: UserData) => {
     setLoadingLinks(true);
     try {
       const endpoint = user.role === 'student' 
@@ -195,46 +209,61 @@ const AdminUsersPage: React.FC = () => {
         : `/api/v1/users/${user.id}/observees`;
 
       const data = await canvasFetch(endpoint);
-      setLinkedUsers(data);
+      if (mountedRef.current) setLinkedUsers(data);
     } catch (err) {
       console.error('Error fetching observer links:', err);
     } finally {
-      setLoadingLinks(false);
+      if (mountedRef.current) setLoadingLinks(false);
     }
-  };
+  }, []);
 
-  const fetchAccommodations = async (userId: string) => {
+  const fetchAccommodations = useCallback(async (userId: string) => {
     try {
       const response = await canvasFetch(`/api/v1/users/${userId}/custom_data/classapex_accommodations`);
-      if (response && response.data) {
-        setAccommodations(response.data as UserAccommodations);
-      } else {
-        setAccommodations({ timeMultiplier: '1', allowLate: false });
+      if (mountedRef.current) {
+        if (response && response.data) {
+          setAccommodations(response.data as UserAccommodations);
+        } else {
+          setAccommodations({ timeMultiplier: '1', allowLate: false });
+        }
       }
     } catch {
-      // 404 or other error means no accommodations set yet
-      setAccommodations({ timeMultiplier: '1', allowLate: false });
+      if (mountedRef.current) {
+        setAccommodations({ timeMultiplier: '1', allowLate: false });
+      }
     }
-  };
+  }, []);
 
-  const handleSaveAccommodations = async (userId: string, updates: Partial<UserAccommodations>) => {
+  const handleSaveAccommodations = useCallback((userId: string, updates: Partial<UserAccommodations>) => {
     const next = { ...accommodations, ...updates };
     setAccommodations(next);
-    setSavingAccommodations(true);
-    try {
-      await canvasFetch(`/api/v1/users/${userId}/custom_data/classapex_accommodations`, {
-        method: 'PUT',
-        body: { data: next }
-      });
-      showToast({ title: 'Saved', message: 'Accommodations updated successfully.', type: 'success' });
-    } catch (err: any) {
-      showToast({ title: 'Error', message: err.message || 'Failed to save accommodations.', type: 'error' });
-    } finally {
-      setSavingAccommodations(false);
-    }
-  };
 
-  React.useEffect(() => {
+    // Debounce API call to avoid firing on every keystroke/checkbox toggle
+    if (accommodationDebounceRef.current) {
+      clearTimeout(accommodationDebounceRef.current);
+    }
+    accommodationDebounceRef.current = setTimeout(async () => {
+      if (!mountedRef.current) return;
+      setSavingAccommodations(true);
+      try {
+        await canvasFetch(`/api/v1/users/${userId}/custom_data/classapex_accommodations`, {
+          method: 'PUT',
+          body: { data: next }
+        });
+        if (mountedRef.current) {
+          showToast({ title: 'Saved', message: 'Accommodations updated successfully.', type: 'success' });
+        }
+      } catch (err: any) {
+        if (mountedRef.current) {
+          showToast({ title: 'Error', message: err.message || 'Failed to save accommodations.', type: 'error' });
+        }
+      } finally {
+        if (mountedRef.current) setSavingAccommodations(false);
+      }
+    }, 600);
+  }, [accommodations, showToast]);
+
+  useEffect(() => {
     if (selectedUser) {
       fetchCommChannels(selectedUser.id);
       fetchObserverLinks(selectedUser);
@@ -244,7 +273,7 @@ const AdminUsersPage: React.FC = () => {
       setNewChannelAddress('');
       setSelectedLinkUserId('');
     }
-  }, [selectedUser]);
+  }, [selectedUser, fetchCommChannels, fetchObserverLinks, fetchAccommodations]);
 
   const handleAddChannel = async (e: React.FormEvent) => {
     e.preventDefault();

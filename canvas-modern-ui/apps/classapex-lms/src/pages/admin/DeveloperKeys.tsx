@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
 
@@ -21,11 +21,13 @@ function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fi
 function TrashSvg() { return <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M3 4v10a1 1 0 001 1h8a1 1 0 001-1V4M5 4V2a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>; }
 
 const DeveloperKeysPage: React.FC = () => {
-  const { showToast } = useNotification();
+  const { showToast, showConfirm } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKey, setNewKey] = useState({ name: '', redirectUris: '', email: '' });
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Fetch developer keys from the root account (1)
   const { data: rawKeys, isLoading, isError, refetch } = useCanvasQuery<DeveloperKey[]>(
@@ -39,8 +41,9 @@ const DeveloperKeysPage: React.FC = () => {
     String(k.id).includes(searchTerm)
   );
 
-  const toggleState = async (key: DeveloperKey) => {
+  const toggleState = useCallback(async (key: DeveloperKey) => {
     const nextState = key.workflow_state === 'active' ? 'inactive' : 'active';
+    setTogglingId(key.id);
     try {
       await canvasFetch(`/api/v1/accounts/1/developer_keys/${key.id}`, {
         method: 'PUT',
@@ -54,10 +57,12 @@ const DeveloperKeysPage: React.FC = () => {
       refetch();
     } catch (err: any) {
       showToast({ title: 'Update Failed', message: err.message || 'Could not toggle developer key.', type: 'error' });
+    } finally {
+      setTogglingId(null);
     }
-  };
+  }, [showToast, refetch]);
 
-  const handleAddKey = async (e: React.FormEvent) => {
+  const handleAddKey = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKey.name.trim()) return;
 
@@ -82,10 +87,18 @@ const DeveloperKeysPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [newKey, showToast, refetch]);
 
-  const handleDeleteKey = async (keyId: number) => {
-    if (!confirm('Are you sure you want to delete this developer key?')) return;
+  const handleDeleteKey = useCallback(async (keyId: number) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Developer Key',
+      message: 'Are you sure you want to delete this developer key? This will break any integrations using it.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setDeletingId(keyId);
     try {
       await canvasFetch(`/api/v1/accounts/1/developer_keys/${keyId}`, {
         method: 'DELETE'
@@ -94,8 +107,10 @@ const DeveloperKeysPage: React.FC = () => {
       refetch();
     } catch (err: any) {
       showToast({ title: 'Delete Failed', message: err.message || 'Could not delete developer key.', type: 'error' });
+    } finally {
+      setDeletingId(null);
     }
-  };
+  }, [showConfirm, showToast, refetch]);
 
   if (isLoading) {
     return (
@@ -162,10 +177,10 @@ const DeveloperKeysPage: React.FC = () => {
                       </div>
                     </td>
                     <td>
-                      <label className="cx-toggle">
-                        <input type="checkbox" checked={key.workflow_state === 'active'} onChange={() => toggleState(key)} />
+                      <label className="cx-toggle" style={{ opacity: togglingId === key.id ? 0.6 : 1 }}>
+                        <input type="checkbox" checked={key.workflow_state === 'active'} onChange={() => toggleState(key)} disabled={togglingId === key.id} />
                         <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
-                        <span className="cx-toggle__label" style={{ fontSize: '0.75rem' }}>{key.workflow_state === 'active' ? 'ON' : 'OFF'}</span>
+                        <span className="cx-toggle__label" style={{ fontSize: '0.75rem' }}>{togglingId === key.id ? '...' : (key.workflow_state === 'active' ? 'ON' : 'OFF')}</span>
                       </label>
                     </td>
                     <td><code style={{ fontSize: '0.75rem', background: 'var(--cx-bg-hover)', padding: '2px 6px', borderRadius: 4 }}>{key.id}</code></td>
@@ -173,7 +188,7 @@ const DeveloperKeysPage: React.FC = () => {
                       <span style={{ fontSize: '0.8125rem' }}>{key.redirect_uris || key.redirect_uri || 'None'}</span>
                     </td>
                     <td>
-                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteKey(key.id)} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteKey(key.id)} disabled={deletingId === key.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
                     </td>
                   </tr>
                 ))

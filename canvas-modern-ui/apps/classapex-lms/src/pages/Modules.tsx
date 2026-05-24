@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
@@ -29,7 +29,7 @@ interface Module {
 
 export default function ModulesPage() {
   const { courseId } = useParams();
-  const { showToast } = useNotification();
+  const { showToast, showConfirm } = useNotification();
   const [expandedModules, setExpandedModules] = useState<Record<number, boolean>>({});
   
   // Modals state
@@ -42,6 +42,8 @@ export default function ModulesPage() {
   // Drag and Drop state
   const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
   const [draggingModuleId, setDraggingModuleId] = useState<number | null>(null);
+  const [mutatingModuleId, setMutatingModuleId] = useState<number | null>(null);
+  const [mutatingItemId, setMutatingItemId] = useState<number | null>(null);
 
   // Fetch modules with items
   const { data: modules, isLoading, isError, refetch } = useCanvasQuery<Module[]>(
@@ -53,7 +55,7 @@ export default function ModulesPage() {
     setExpandedModules(prev => ({ ...prev, [modId]: !prev[modId] }));
   };
 
-  const handleCreateModule = async (e: React.FormEvent) => {
+  const handleCreateModule = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newModuleName.trim()) return;
 
@@ -69,23 +71,35 @@ export default function ModulesPage() {
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to create module', type: 'error' });
     }
-  };
+  }, [courseId, newModuleName, showToast, refetch]);
 
-  const handleTogglePublishModule = async (mod: Module) => {
+  const handleTogglePublishModule = useCallback(async (mod: Module) => {
+    const nextPublished = !mod.published;
+    setMutatingModuleId(mod.id);
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/modules/${mod.id}`, {
         method: 'PUT',
-        body: { module: { published: !mod.published } }
+        body: { module: { published: nextPublished } }
       });
-      showToast({ title: 'Success', message: `Module ${!mod.published ? 'published' : 'unpublished'}`, type: 'success' });
+      showToast({ title: 'Success', message: `Module ${nextPublished ? 'published' : 'unpublished'}`, type: 'success' });
       refetch();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to update module', type: 'error' });
+    } finally {
+      setMutatingModuleId(null);
     }
-  };
+  }, [courseId, showToast, refetch]);
 
-  const handleDeleteModule = async (modId: number) => {
-    if (!confirm('Are you sure you want to delete this module?')) return;
+  const handleDeleteModule = useCallback(async (modId: number) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Module',
+      message: 'Are you sure you want to delete this module and all its items?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setMutatingModuleId(modId);
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/modules/${modId}`, {
         method: 'DELETE'
@@ -94,10 +108,12 @@ export default function ModulesPage() {
       refetch();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to delete module', type: 'error' });
+    } finally {
+      setMutatingModuleId(null);
     }
-  };
+  }, [courseId, showConfirm, showToast, refetch]);
 
-  const handleCreateItem = async (e: React.FormEvent, modId: number) => {
+  const handleCreateItem = useCallback(async (e: React.FormEvent, modId: number) => {
     e.preventDefault();
     if (!newItemTitle.trim()) return;
 
@@ -113,23 +129,35 @@ export default function ModulesPage() {
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to add item', type: 'error' });
     }
-  };
+  }, [courseId, newItemTitle, newItemType, showToast, refetch]);
 
-  const handleTogglePublishItem = async (modId: number, item: ModuleItem) => {
+  const handleTogglePublishItem = useCallback(async (modId: number, item: ModuleItem) => {
+    const nextPublished = !item.published;
+    setMutatingItemId(item.id);
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/modules/${modId}/items/${item.id}`, {
         method: 'PUT',
-        body: { module_item: { published: !item.published } }
+        body: { module_item: { published: nextPublished } }
       });
-      showToast({ title: 'Success', message: `Item ${!item.published ? 'published' : 'unpublished'}`, type: 'success' });
+      showToast({ title: 'Success', message: `Item ${nextPublished ? 'published' : 'unpublished'}`, type: 'success' });
       refetch();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to update item', type: 'error' });
+    } finally {
+      setMutatingItemId(null);
     }
-  };
+  }, [courseId, showToast, refetch]);
 
-  const handleDeleteItem = async (modId: number, itemId: number) => {
-    if (!confirm('Are you sure you want to remove this item?')) return;
+  const handleDeleteItem = useCallback(async (modId: number, itemId: number) => {
+    const confirmed = await showConfirm({
+      title: 'Remove Item',
+      message: 'Are you sure you want to remove this item from the module?',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setMutatingItemId(itemId);
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/modules/${modId}/items/${itemId}`, {
         method: 'DELETE'
@@ -138,20 +166,22 @@ export default function ModulesPage() {
       refetch();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to remove item', type: 'error' });
+    } finally {
+      setMutatingItemId(null);
     }
-  };
+  }, [courseId, showConfirm, showToast, refetch]);
 
   // Drag and Drop reordering handlers
-  const handleDragStart = (e: React.DragEvent, itemId: number) => {
+  const handleDragStart = useCallback((e: React.DragEvent, itemId: number) => {
     e.dataTransfer.setData('text/plain', String(itemId));
     setDraggingItemId(itemId);
-  };
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-  };
+  }, []);
 
-  const handleDropItem = async (e: React.DragEvent, targetModuleId: number, targetPosition: number) => {
+  const handleDropItem = useCallback(async (e: React.DragEvent, targetModuleId: number, targetPosition: number) => {
     e.preventDefault();
     const draggedId = Number(e.dataTransfer.getData('text/plain'));
     if (!draggedId || draggedId === draggingItemId) return;
@@ -168,21 +198,21 @@ export default function ModulesPage() {
     } finally {
       setDraggingItemId(null);
     }
-  };
+  }, [courseId, draggingItemId, showToast, refetch]);
 
   // Module-level drag and drop
-  const handleModuleDragStart = (e: React.DragEvent, moduleId: number) => {
+  const handleModuleDragStart = useCallback((e: React.DragEvent, moduleId: number) => {
     e.dataTransfer.setData('module/plain', String(moduleId));
     e.dataTransfer.effectAllowed = 'move';
     setDraggingModuleId(moduleId);
-  };
+  }, []);
 
-  const handleModuleDragOver = (e: React.DragEvent) => {
+  const handleModuleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  };
+  }, []);
 
-  const handleModuleDrop = async (e: React.DragEvent, targetPosition: number) => {
+  const handleModuleDrop = useCallback(async (e: React.DragEvent, targetPosition: number) => {
     e.preventDefault();
     const draggedId = Number(e.dataTransfer.getData('module/plain'));
     if (!draggedId || draggedId === draggingModuleId) return;
@@ -199,7 +229,7 @@ export default function ModulesPage() {
     } finally {
       setDraggingModuleId(null);
     }
-  };
+  }, [courseId, draggingModuleId, showToast, refetch]);
 
   const getIconForType = (type: string) => {
     switch (type.toLowerCase()) {
@@ -272,9 +302,9 @@ export default function ModulesPage() {
                 <div style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s', marginRight: 8, color: 'var(--cx-text-secondary)' }}><ChevronDownSvg /></div>
                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flex: 1, color: 'var(--cx-text-primary)' }}>{mod.name}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowAddItemModal(mod.id)}><PlusSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishModule(mod)} style={{ color: mod.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteModule(mod.id)} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowAddItemModal(mod.id)} disabled={mutatingModuleId === mod.id}><PlusSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishModule(mod)} disabled={mutatingModuleId === mod.id} style={{ color: mod.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteModule(mod.id)} disabled={mutatingModuleId === mod.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
                 </div>
               </div>
               
@@ -303,8 +333,8 @@ export default function ModulesPage() {
                         {item.completion_requirement && <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Must {item.completion_requirement.type}</div>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
-                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} disabled={mutatingItemId === item.id} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
+                        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} disabled={mutatingItemId === item.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
                       </div>
                     </div>
                   ))}

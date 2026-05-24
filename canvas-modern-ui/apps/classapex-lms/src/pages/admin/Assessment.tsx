@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
 
@@ -21,13 +21,14 @@ interface Outcome {
 }
 
 const AdminAssessmentPage: React.FC = () => {
-  const { showToast } = useNotification();
+  const { showToast, showConfirm } = useNotification();
   const [activeTab, setActiveTab] = useState<'banks' | 'outcomes'>('banks');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deletingBankId, setDeletingBankId] = useState<number | null>(null);
 
   // Fetch account question banks
   const { data: questionBanks, isLoading: loadingBanks, isError: banksError, refetch: refetchBanks } = useCanvasQuery<QuestionBank[]>(
@@ -39,7 +40,7 @@ const AdminAssessmentPage: React.FC = () => {
     '/api/v1/accounts/1/outcome_groups'
   );
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
 
@@ -71,10 +72,18 @@ const AdminAssessmentPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [activeTab, newName, newDesc, showToast, refetchBanks, refetchOutcomes, outcomes]);
 
-  const handleDeleteBank = async (bankId: number) => {
-    if (!confirm('Are you sure you want to delete this question bank?')) return;
+  const handleDeleteBank = useCallback(async (bankId: number) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Question Bank',
+      message: 'Are you sure you want to delete this question bank? All questions inside will be lost.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    setDeletingBankId(bankId);
     try {
       await canvasFetch(`/api/v1/accounts/1/question_banks/${bankId}`, {
         method: 'DELETE'
@@ -83,8 +92,10 @@ const AdminAssessmentPage: React.FC = () => {
       refetchBanks();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Delete failed.', type: 'error' });
+    } finally {
+      setDeletingBankId(null);
     }
-  };
+  }, [showConfirm, showToast, refetchBanks]);
 
   const banksList = questionBanks ?? [];
   const outcomesList = outcomes ?? [];
@@ -142,7 +153,7 @@ const AdminAssessmentPage: React.FC = () => {
                     <td>{bank.questions_count ?? 0}</td>
                     <td>{bank.updated_at ? new Date(bank.updated_at).toLocaleDateString() : 'N/A'}</td>
                     <td>
-                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteBank(bank.id)} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteBank(bank.id)} disabled={deletingBankId === bank.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
                     </td>
                   </tr>
                 ))}
