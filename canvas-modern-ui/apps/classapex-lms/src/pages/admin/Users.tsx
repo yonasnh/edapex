@@ -10,14 +10,10 @@ function EditSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill
 function EyeSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 7s2.5-4 6-4 6 4 6 4-2.5 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.5"/></svg>; }
 function TrashSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3h10M5 3V2a1 1 0 011-1h2a1 1 0 011 1v1M11 5v7a1 1 0 01-1 1H4a1 1 0 01-1-1V5"/></svg>; }
 function MailSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="2.5" width="12" height="9" rx="1"/><path d="M1 3.5l6 4.5 6-4.5"/></svg>; }
-function CalendarSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1.5" y="2.5" width="11" height="10" rx="1.5"/><path d="M1.5 5.5h11"/><path d="M4.5 1v3M9.5 1v3"/></svg>; }
 function CheckSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M5.5 8l2 2 3-4"/></svg>; }
 function AlertSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/></svg>; }
 function XCircleSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6l4 4M10 6l-4 4"/></svg>; }
-function DownloadSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 10V2M4 7l3 3 3-3"/><path d="M2 11v1h10v-1"/></svg>; }
-function SettingsSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="1.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.9 2.9l1.1 1.1M10 10l1.1 1.1M2.9 11.1L4 10M10 4l1.1-1.1"/></svg>; }
 function KeySvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="4.5" cy="9.5" r="2.5"/><path d="M6.5 7.5L12 2l1 1-5.5 5.5"/><path d="M10 4l1.5 1.5"/></svg>; }
-function UserBadgeSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function PeopleSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>; }
 function UserCheckSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/></svg>; }
 function ClockSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>; }
@@ -70,7 +66,7 @@ const AdminUsersPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, _setPageSize] = useState(20);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -98,6 +94,10 @@ const AdminUsersPage: React.FC = () => {
   const [messageSubject, setMessageSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+
+  // Accommodations states
+  const [_timeMultiplier, _setTimeMultiplier] = useState('1');
+  const [_allowLate, _setAllowLate] = useState(false);
 
   const [users, setUsers] = useState<UserData[]>([]);
   const { data: canvasUsers, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/users', { include: ['email', 'last_login'], per_page: 50 } as any);
@@ -551,11 +551,11 @@ const AdminUsersPage: React.FC = () => {
     });
   };
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = (_action: string) => {
     // Bulk actions omitted for MVP simplicity
     setSelectedUsers([]);
   };
-  const handleExport = () => console.log('Exporting user data...');
+  const _handleExport = () => console.log('Exporting user data...');
 
   const toggleUserSelection = (id: string) => {
     setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -568,7 +568,7 @@ const AdminUsersPage: React.FC = () => {
 
   const inpStyle: React.CSSProperties = { border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', padding: '8px 12px', width: '100%', background: 'var(--cx-bg-surface)', color: 'var(--cx-text-primary)', fontFamily: 'inherit' };
   const labelStyle: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 };
-  const selStyle: React.CSSProperties = { width: '100%', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', padding: '7px 8px', background: 'var(--cx-bg-surface)', color: 'var(--cx-text-primary)', fontFamily: 'inherit', fontSize: '0.8125rem' };
+  const _selStyle: React.CSSProperties = { width: '100%', border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', padding: '7px 8px', background: 'var(--cx-bg-surface)', color: 'var(--cx-text-primary)', fontFamily: 'inherit', fontSize: '0.8125rem' };
   const toggleLabelStyle: React.CSSProperties = { fontSize: '0.8125rem', color: 'var(--cx-text-primary)' };
 
   return (
@@ -970,6 +970,31 @@ const AdminUsersPage: React.FC = () => {
                       <PlusSvg /> Link New {selectedUser.role === 'student' ? 'Observer' : 'Student'}
                     </button>
                   )}
+                </div>
+              </div>
+
+              <div className="cx-detail-section">
+                <h4>Accommodations & Accessibility (IEP/504)</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                  <div style={{ padding: 12, background: 'var(--cx-bg-canvas)', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Quiz Time Multiplier</span>
+                      <select className="cx-select" style={{ padding: '2px 8px', fontSize: '0.75rem' }} defaultValue="1">
+                        <option value="1">None (1x)</option>
+                        <option value="1.5">Time and a half (1.5x)</option>
+                        <option value="2">Double time (2x)</option>
+                        <option value="unlimited">Unlimited</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Due Date Extensions</span>
+                      <label className="cx-toggle" style={{ margin: 0 }}>
+                        <input type="checkbox" defaultChecked={false} />
+                        <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                        <span className="cx-toggle__label" style={{ fontSize: '0.75rem' }}>Allow Late</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 

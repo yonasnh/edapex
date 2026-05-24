@@ -607,6 +607,10 @@ const Analytics: React.FC = () => {
                     <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 12, fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>
                       <strong>Recommendations:</strong> Send auto-nudge email reminder, offer virtual tutoring session.
                     </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => alert('Intervention workflow initiated for Noah Smith.')}>Launch Intervention</button>
+                      <button className="cx-btn cx-btn--secondary cx-btn--sm">Send Message</button>
+                    </div>
                   </div>
                 </div>
               ) : (

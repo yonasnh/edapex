@@ -15,7 +15,7 @@ interface CourseSidebarProps {
 
 export function CourseSidebar({
   courseId,
-  courseName,
+  _courseName,
   courseCode,
   peopleCount,
   modulesCount,
@@ -70,7 +70,11 @@ export function CourseSidebar({
         <h3 className="cx-course-sidebar__heading">Quick Links</h3>
         <nav className="cx-course-sidebar__nav">
           <Link to={`/courses/${courseId}`} className="cx-course-sidebar__link">Home</Link>
+          <Link to={`/courses/${courseId}/syllabus`} className="cx-course-sidebar__link">Syllabus</Link>
+          <Link to={`/courses/${courseId}/modules`} className="cx-course-sidebar__link">Modules</Link>
           <Link to={`/courses/${courseId}/assignments`} className="cx-course-sidebar__link">Assignments</Link>
+          <Link to={`/courses/${courseId}/attendance`} className="cx-course-sidebar__link">Attendance</Link>
+          <Link to={`/courses/${courseId}/conferences`} className="cx-course-sidebar__link">Conferences</Link>
           <Link to="/discussions" className="cx-course-sidebar__link">Discussions</Link>
           <Link to="/files" className="cx-course-sidebar__link">Files</Link>
           <Link to={`/grades?courseId=${courseId}`} className="cx-course-sidebar__link">Grades</Link>

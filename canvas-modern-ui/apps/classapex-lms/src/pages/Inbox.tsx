@@ -12,7 +12,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
-import { SearchIcon, InboxIcon } from '../navigation'
+import { SearchIcon } from '../navigation'
 import './inbox.css'
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
@@ -44,6 +44,18 @@ const TrashSvg = () => (
 const ChatBubbleSvg = () => (
   <svg width="48" height="48" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.2">
     <path d="M3 1h14a2 2 0 012 2v10a2 2 0 01-2 2H7l-4 4V3a2 2 0 012-2z"/><path d="M6 7h8M6 10h6"/>
+  </svg>
+)
+
+const PaperclipSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M10.5 4.5l-4 4a2 2 0 002.8 2.8l4-4a4 4 0 10-5.6-5.6l-4 4a6 6 0 108.5 8.5l4-4"/>
+  </svg>
+)
+
+const VideoSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="2" y="5" width="12" height="10" rx="2"/><path d="M14 8l4-2v8l-4-2"/>
   </svg>
 )
 
@@ -134,7 +146,8 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
   const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
+  const [, setIsSearching] = useState(false)
+  const [sendAsBcc, setSendAsBcc] = useState(false)
 
   // Build unique participants fallback from loaded conversations
   const localParticipants = useMemo(() => {
@@ -248,7 +261,14 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
             </div>
           </div>
           <div className="cx-compose__field">
-            <label className="cx-compose__label">Subject</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label className="cx-compose__label" style={{ margin: 0 }}>Subject</label>
+              <label className="cx-toggle" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={sendAsBcc} onChange={e => setSendAsBcc(e.target.checked)} />
+                <span className="cx-toggle__track" style={{ transform: 'scale(0.8)' }}><span className="cx-toggle__thumb" /></span>
+                <span className="cx-toggle__label" style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--cx-text-secondary)' }}>Send as individual messages (BCC)</span>
+              </label>
+            </div>
             <input
               className="cx-compose__input"
               placeholder="Message subject"
@@ -266,11 +286,17 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
             />
           </div>
         </div>
-        <div className="cx-compose__footer">
-          <button className="cx-compose__cancel" onClick={onClose}>Cancel</button>
-          <button className="cx-compose__send" disabled={selectedRecipients.length === 0 || !body.trim()} onClick={handleSend}>
-            Send Message
-          </button>
+        <div className="cx-compose__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment"><PaperclipSvg /></button>
+            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="cx-compose__cancel" onClick={onClose}>Cancel</button>
+            <button className="cx-compose__send" disabled={selectedRecipients.length === 0 || !body.trim()} onClick={handleSend}>
+              Send Message
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -642,13 +668,17 @@ export default function InboxPage() {
                   onKeyDown={handleKeyDown}
                   rows={1}
                 />
-                <button
-                  className="cx-inbox__reply-send"
-                  onClick={handleReply}
-                  disabled={!replyText.trim()}
-                >
-                  Send
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment"><PaperclipSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
+                  <button
+                    className="cx-inbox__reply-send"
+                    onClick={handleReply}
+                    disabled={!replyText.trim()}
+                  >
+                    Send
+                  </button>
+                </div>
               </div>
             </>
           )}

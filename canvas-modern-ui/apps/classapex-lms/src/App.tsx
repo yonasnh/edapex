@@ -24,9 +24,8 @@ import {
 import { AppShell } from '../../../packages/components/src/ui/layout/AppShell'
 import { TopBar } from '../../../packages/components/src/ui/layout/TopBar'
 import { NotificationDropdown } from '../../../packages/components/src/ui/layout/NotificationDropdown'
-import { Breadcrumb, generateBreadcrumbs } from '../../../packages/components/src/navigation/Breadcrumb'
+import { generateBreadcrumbs } from '../../../packages/components/src/navigation/Breadcrumb'
 import { NavigationSidebar } from '@schoolapex/components'
-import { TopBarSkeleton } from '../../../packages/components/src/ui/loading/ShellSkeletons'
 import { AIAssistantDrawer } from './components/AIAssistantDrawer'
 
 // Canvas API hooks
@@ -48,11 +47,14 @@ const DashboardV2 = React.lazy(() => import('./pages/DashboardV2'))
 const ObserverDashboard = React.lazy(() => import('./pages/ObserverDashboard'))
 const Courses     = React.lazy(() => import('./pages/Courses'))
 const AssignmentListPage = React.lazy(() => import('./pages/AssignmentList'))
-const AssignmentDetailPage = React.lazy(() => import('./pages/AssignmentDetail'))
 const GradesPage  = React.lazy(() => import('./pages/Grades'))
 const CalendarPage  = React.lazy(() => import('./pages/Calendar'))
 const DiscussionsPage = React.lazy(() => import('./pages/Discussions'))
 const FilesPage   = React.lazy(() => import('./pages/Files'))
+const ModulesPage = React.lazy(() => import('./pages/Modules'))
+const SyllabusPage = React.lazy(() => import('./pages/Syllabus'))
+const AttendancePage = React.lazy(() => import('./pages/Attendance'))
+const ConferencesPage = React.lazy(() => import('./pages/Conferences'))
 const GroupsPage  = React.lazy(() => import('./pages/Groups'))
 const NotificationsPage = React.lazy(() => import('./pages/Notifications'))
 const SettingsPage = React.lazy(() => import('./pages/Settings'))
@@ -86,7 +88,7 @@ const EPortfolioPage = React.lazy(() => import('./pages/ePortfolio'))
 const AccessibilityStatementPage = React.lazy(() => import('./pages/AccessibilityStatement'))
 
 // Premium Accessibility, Localization, & Error Boundary (Sprint 22-24)
-import { I18nProvider, useI18n } from './contexts/I18nContext'
+import { I18nProvider } from './contexts/I18nContext'
 import { PremiumErrorBoundary } from './components/PremiumErrorBoundary'
 import { MobileTabBar } from './components/MobileTabBar'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -315,7 +317,7 @@ const AppContent = () => {
   // Canvas data — real user from API
   const { items: notifications, unreadCount, isLoading: notifLoading, markAllRead } = useActivityStream()
   const { user: canvasUser, displayName: canvasDisplayName, avatarUrl: canvasAvatarUrl } = useCurrentUser()
-  const { results: searchResults, isSearching, search, clearResults } = useGlobalSearch()
+  const { results: searchResults, isSearching, search } = useGlobalSearch()
   const { notifications: accountNotifs, dismissNotification } = useAccountNotifications()
 
   // Fetch account-level LTI placements
@@ -428,7 +430,7 @@ const AppContent = () => {
     navigate('/settings')
   }, [navigate])
 
-  const breadcrumbItems = generateBreadcrumbs(location.pathname)
+  const _breadcrumbItems = generateBreadcrumbs(location.pathname)
 
   const dynamicNavItems = React.useMemo(() => {
     let items = filterNavItemsByRole(navItems, role);
@@ -666,6 +668,10 @@ const AppContent = () => {
             <Route path="/admin/assessment" element={<AdminAssessmentPage />} />
             <Route path="/admin/grade-change-audit" element={<AdminGradeChangeAuditPage />} />
             <Route path="/courses/:courseId/pages" element={<PagesPage />} />
+            <Route path="/courses/:courseId/modules" element={<ModulesPage />} />
+            <Route path="/courses/:courseId/syllabus" element={<SyllabusPage />} />
+            <Route path="/courses/:courseId/attendance" element={<AttendancePage />} />
+            <Route path="/courses/:courseId/conferences" element={<ConferencesPage />} />
             <Route path="/courses/:courseId/quizzes" element={<QuizzesPage />} />
             <Route path="/courses/:courseId/rubrics" element={<RubricsPage />} />
             <Route path="/courses/:courseId/outcomes" element={<OutcomesPage />} />
