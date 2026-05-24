@@ -59,7 +59,7 @@ export default function CourseSettingsPage() {
   const [settings, setSettings] = useState<CourseSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
   const [activeSection, setActiveSection] = useState(0)
-  const [sections, setSections] = useState(['General', 'Course Content', 'Enrollment', 'Grading', 'Blueprint Settings', 'Navigation Tabs', 'System'])
+  const [sections, setSections] = useState(['General', 'Course Content', 'Enrollment', 'Grading', 'Blueprint Settings', 'Navigation Tabs', 'Sections & Cross-Listing', 'System'])
   const [dragIndex, setDragIndex] = useState<number | null>(null)
 
   // Blueprint states (S15-06)
@@ -100,6 +100,39 @@ export default function CourseSettingsPage() {
       return updated
     })
     setDragTabIdx(null)
+  }
+
+  // Sections & Cross-Listing states
+  const [courseSections, setCourseSections] = useState([
+    { id: '1', name: 'Section A - Morning', students: 25, waitlist: 2, crossListedTo: null },
+    { id: '2', name: 'Section B - Afternoon', students: 30, waitlist: 0, crossListedTo: null },
+    { id: '3', name: 'Section C - Evening', students: 15, waitlist: 0, crossListedTo: '105' }
+  ])
+  const [showCrossListModal, setShowCrossListModal] = useState<string | null>(null)
+  const [crossListTarget, setCrossListTarget] = useState('')
+
+  const handleCrossListSubmit = async (sectionId: string) => {
+    try {
+      // Simulate API call to POST /api/v1/sections/:id/crosslist/:new_course_id
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setCourseSections(prev => prev.map(s => s.id === sectionId ? { ...s, crossListedTo: crossListTarget } : s));
+      setShowCrossListModal(null);
+      setCrossListTarget('');
+      showToast({ title: 'Section Cross-Listed', message: 'Successfully cross-listed section to course ' + crossListTarget, type: 'success' });
+    } catch (err) {
+      showToast({ title: 'Cross-Listing Failed', message: 'Failed to cross-list section.', type: 'error' });
+    }
+  }
+
+  const handleDecrossList = async (sectionId: string) => {
+    try {
+      // Simulate API call to DELETE /api/v1/sections/:id/crosslist
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setCourseSections(prev => prev.map(s => s.id === sectionId ? { ...s, crossListedTo: null } : s));
+      showToast({ title: 'Section De-Cross-Listed', message: 'Successfully restored section to original course.', type: 'success' });
+    } catch (err) {
+      showToast({ title: 'De-Cross-Listing Failed', message: 'Failed to de-cross-list section.', type: 'error' });
+    }
   }
 
   const update = (key: keyof CourseSettings, value: any) => setSettings(p => ({ ...p, [key]: value }))
@@ -424,6 +457,76 @@ export default function CourseSettingsPage() {
           )}
 
           {activeSection === 6 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 6px' }}>Sections & Cross-Listing</h3>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>
+                  Manage course sections, view waitlist counts, and cross-list sections into other courses.
+                </p>
+              </div>
+
+              <div className="cx-table-container">
+                <table className="cx-table">
+                  <thead>
+                    <tr>
+                      <th>Section Name</th>
+                      <th>Enrolled Students</th>
+                      <th>Waitlist</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {courseSections.map(s => (
+                      <tr key={s.id} className="cx-table__row">
+                        <td className="cx-table__cell cx-table__cell--name">{s.name}</td>
+                        <td className="cx-table__cell cx-table__cell--muted">{s.students}</td>
+                        <td className="cx-table__cell cx-table__cell--muted">{s.waitlist}</td>
+                        <td className="cx-table__cell">
+                          {s.crossListedTo ? (
+                            <span className="cx-badge cx-badge--warning" style={{ fontSize: '0.6875rem' }}>Cross-Listed to {s.crossListedTo}</span>
+                          ) : (
+                            <span className="cx-badge cx-badge--success" style={{ fontSize: '0.6875rem' }}>Active here</span>
+                          )}
+                        </td>
+                        <td className="cx-table__cell cx-table__cell--actions">
+                          {s.crossListedTo ? (
+                            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDecrossList(s.id)}>De-Cross-List</button>
+                          ) : (
+                            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowCrossListModal(s.id)}>Cross-List</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {showCrossListModal && (
+                <div className="cx-modal-overlay" onClick={() => setShowCrossListModal(null)}>
+                  <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+                    <div className="cx-modal__header">
+                      <h2 className="cx-modal__title">Cross-List Section</h2>
+                      <button className="cx-btn cx-btn--ghost" onClick={() => setShowCrossListModal(null)}><svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" strokeWidth="1.5"><path d="M1 1l12 12M13 1L1 13"/></svg></button>
+                    </div>
+                    <div className="cx-modal__body">
+                      <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', marginBottom: 16 }}>
+                        Cross-listing moves this section to another course. Enter the ID of the destination course.
+                      </p>
+                      <label style={labelStyle}>Destination Course ID</label>
+                      <input type="text" style={inpStyle} value={crossListTarget} onChange={e => setCrossListTarget(e.target.value)} placeholder="e.g. 104" autoFocus />
+                    </div>
+                    <div className="cx-modal__footer">
+                      <button className="cx-btn cx-btn--secondary" onClick={() => setShowCrossListModal(null)}>Cancel</button>
+                      <button className="cx-btn cx-btn--primary" disabled={!crossListTarget} onClick={() => handleCrossListSubmit(showCrossListModal)}>Cross-List</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSection === 7 && (
             <div style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem' }}>
               <p>System settings for this course are managed in <strong>Account &gt; System Settings</strong>.</p>
               <p style={{ marginTop: 8 }}>Course-level settings include:</p>

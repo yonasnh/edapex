@@ -44,6 +44,7 @@ import { ClassApexLogo } from './components/ClassApexLogo'
 // Pages (lazy-loaded)
 const Dashboard   = React.lazy(() => import('./Dashboard'))
 const DashboardV2 = React.lazy(() => import('./pages/DashboardV2'))
+const ObserverDashboard = React.lazy(() => import('./pages/ObserverDashboard'))
 const Courses     = React.lazy(() => import('./pages/Courses'))
 const AssignmentListPage = React.lazy(() => import('./pages/AssignmentList'))
 const AssignmentDetailPage = React.lazy(() => import('./pages/AssignmentDetail'))
@@ -68,9 +69,11 @@ const AdminTermsPage = React.lazy(() => import('./pages/admin/Terms'))
 const AdminFeatureFlagsPage = React.lazy(() => import('./pages/admin/FeatureFlags'))
 const AdminCourseSettingsPage = React.lazy(() => import('./pages/admin/CourseSettings'))
 const AdminAccountNotificationsPage = React.lazy(() => import('./pages/admin/AccountNotifications'))
+const AdminRolesPermissionsPage = React.lazy(() => import('./pages/admin/RolesPermissions'))
 const AdminBrandConfigsPage = React.lazy(() => import('./pages/admin/BrandConfigs'))
 const AdminSisImportsPage = React.lazy(() => import('./pages/admin/SisImports'))
 const AdminGradeChangeAuditPage = React.lazy(() => import('./pages/admin/GradeChangeAudit'))
+const AdminDeveloperKeysPage = React.lazy(() => import('./pages/admin/DeveloperKeys'))
 const PagesPage = React.lazy(() => import('./pages/Pages'))
 const QuizzesPage = React.lazy(() => import('./pages/Quizzes'))
 const RubricsPage = React.lazy(() => import('./pages/Rubrics'))
@@ -604,7 +607,7 @@ const AppContent = () => {
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/"              element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard"     element={<DashboardV2 />} />
+            <Route path="/dashboard"     element={role === 'observer' ? <ObserverDashboard /> : <DashboardV2 />} />
             <Route path="/dashboard/v1"  element={<Dashboard />} />
             <Route path="/courses/*"     element={<Courses />} />
             <Route path="/assignments"   element={<AssignmentListPage />} />
@@ -625,6 +628,8 @@ const AppContent = () => {
             <Route path="/admin/users"   element={<AdminUsersPage />} />
             <Route path="/admin/courses" element={<AdminCourseManagementPage />} />
             <Route path="/admin/settings" element={<AdminSystemSettingsPage />} />
+            <Route path="/admin/courses" element={<AdminCoursesPage />} />
+            <Route path="/admin/roles" element={<AdminRolesPermissionsPage />} />
             <Route path="/admin/sub-accounts" element={<AdminSubAccountsPage />} />
             <Route path="/admin/terms" element={<AdminTermsPage />} />
             <Route path="/admin/feature-flags" element={<AdminFeatureFlagsPage />} />
@@ -632,6 +637,7 @@ const AppContent = () => {
             <Route path="/admin/notifications" element={<AdminAccountNotificationsPage />} />
             <Route path="/admin/branding" element={<AdminBrandConfigsPage />} />
             <Route path="/admin/sis-imports" element={<AdminSisImportsPage />} />
+            <Route path="/admin/developer-keys" element={<AdminDeveloperKeysPage />} />
             <Route path="/admin/grade-change-audit" element={<AdminGradeChangeAuditPage />} />
             <Route path="/courses/:courseId/pages" element={<PagesPage />} />
             <Route path="/courses/:courseId/quizzes" element={<QuizzesPage />} />

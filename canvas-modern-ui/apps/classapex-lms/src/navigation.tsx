@@ -30,6 +30,7 @@ export function BuildingIcon(props: any) { return <Icon {...props}><svg><rect x=
 export function FlagIcon(props: any) { return <Icon {...props}><svg><path d="M4 17V3h8l1 2h4v9H9l-1-2H4z"/></svg></Icon>; }
 export function ShieldIcon(props: any) { return <Icon {...props}><svg><path d="M10 1l7 3v5c0 4.5-3.5 7.5-7 8-3.5-.5-7-3.5-7-8V4l7-3z"/></svg></Icon>; }
 export function SearchIcon(props: any) { return <Icon {...props}><svg><circle cx="7.5" cy="7.5" r="4.5"/><path d="M11 11l4 4"/></svg></Icon>; }
+export function KeyIcon(props: any) { return <Icon {...props}><svg><path d="M12 7a4 4 0 11-4-4v12l-2-2-2 2-2-2V8a4 4 0 0110-1z"/><circle cx="15" cy="5" r="1.5" fill="currentColor"/></svg></Icon>; }
  
 export interface NavigationItem {
   id: string;
@@ -68,14 +69,16 @@ export const navItems: NavigationItem[] = [
   {
     id: 'admin', label: 'Administration', icon: AdminIcon, href: '/admin', description: 'System administration', roles: ['admin'],
     children: [
-      { id: 'users', label: 'Users', icon: UserIcon, href: '/admin/users', description: 'Manage users and permissions', roles: ['admin'] },
-      { id: 'sub-accounts', label: 'Sub-Accounts', icon: BuildingIcon, href: '/admin/sub-accounts', description: 'Manage institutional structure and sub-departments', roles: ['admin'] },
+      { id: 'users', label: 'Users', icon: UserIcon, href: '/admin/users', description: 'Manage accounts and access', roles: ['admin'] },
+      { id: 'roles', label: 'Roles & Permissions', icon: ShieldIcon, href: '/admin/roles', description: 'Configure system roles and capabilities', roles: ['admin'] },
+      { id: 'sub-accounts', label: 'Sub-Accounts', icon: BuildingIcon, href: '/admin/sub-accounts', description: 'Manage organizational hierarchy', roles: ['admin'] },
       { id: 'courses-admin', label: 'Course Management', icon: EducationIcon, href: '/admin/courses', description: 'Manage courses and enrollments', roles: ['admin'] },
       { id: 'terms', label: 'Academic Terms', icon: CalendarIcon, href: '/admin/terms', description: 'Configure semesters and active periods', roles: ['admin'] },
       { id: 'sis-imports', label: 'SIS Imports', icon: CloudIcon, href: '/admin/sis-imports', description: 'Sync database records using SIS data', roles: ['admin'] },
       { id: 'feature-flags', label: 'Feature Flags', icon: FlagIcon, href: '/admin/feature-flags', description: 'Toggle experimental system capabilities', roles: ['admin'] },
       { id: 'course-settings', label: 'Course Settings Defaults', icon: SettingsIcon, href: '/admin/course-settings', description: 'Establish global classroom configurations', roles: ['admin'] },
       { id: 'system-settings', label: 'System Settings', icon: SlidersIcon, href: '/admin/settings', description: 'Configure system settings', roles: ['admin'] },
+      { id: 'developer-keys', label: 'Developer Keys', icon: KeyIcon, href: '/admin/developer-keys', description: 'Manage LTI and API keys', roles: ['admin'] },
       { id: 'theme-branding', label: 'Theme & Branding', icon: PaletteIcon, href: '/admin/branding', description: 'Configure platform visual appearance', roles: ['admin'] },
       { id: 'grade-change-audit', label: 'Grade Change Audit', icon: ShieldIcon, href: '/admin/grade-change-audit', description: 'Review grader modification history', roles: ['admin'] },
       { id: 'global-notifications', label: 'Global Notifications', icon: NotificationIcon, href: '/admin/notifications', description: 'Broadcast global system announcements', roles: ['admin'] },

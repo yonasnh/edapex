@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
 import './course-catalog.css'
 
 interface CourseData {
@@ -52,12 +53,28 @@ function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'grid'
           {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
           <span className="cx-catalog-card__students">{course.total_students ?? 0} enrolled</span>
         </div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+          <button 
+            className="cx-btn cx-btn--primary cx-btn--sm" 
+            style={{ flex: 1 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if ((window as any).handleEnrollCourse) {
+                (window as any).handleEnrollCourse(course.id);
+              }
+            }}
+          >
+            Enroll Now
+          </button>
+        </div>
       </div>
     </Link>
   )
 }
 
 export default function CourseCatalog() {
+  const { showToast } = useNotification()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterTerm, setFilterTerm] = useState<string>('all')
@@ -104,6 +121,27 @@ export default function CourseCatalog() {
 
     return result
   }, [courses, searchQuery, filterTerm, sortBy])
+
+  const handleEnrollCourse = async (courseId: number) => {
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/enrollments`, {
+        method: 'POST',
+        body: {
+          enrollment: {
+            user_id: 'self',
+            type: 'StudentEnrollment',
+            enrollment_state: 'active'
+          }
+        }
+      });
+      showToast({ title: 'Enrolled successfully!', message: 'You have been enrolled in the course.', type: 'success' });
+    } catch (err: any) {
+      showToast({ title: 'Enrollment Failed', message: err.message || 'Could not enroll in course.', type: 'error' });
+    }
+  }
+
+  // Attach to window so card can call it easily without prop drilling
+  (window as any).handleEnrollCourse = handleEnrollCourse;
 
   return (
     <div className="cx-catalog">
