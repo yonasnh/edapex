@@ -53,19 +53,14 @@ const AdminAssessmentPage: React.FC = () => {
         showToast({ title: 'Success', message: 'Question bank created.', type: 'success' });
         refetchBanks();
       } else {
-        // Find root group first
-        let rootGroupId = 1;
-        if (outcomes && outcomes.length > 0) {
-          rootGroupId = outcomes[0].id;
-        }
-        await canvasFetch(`/api/v1/accounts/1/outcome_groups/${rootGroupId}/outcomes`, {
+        await canvasFetch('/api/v1/accounts/1/outcome_groups', {
           method: 'POST',
           body: {
             title: newName,
             description: newDesc
           }
         });
-        showToast({ title: 'Success', message: 'Learning outcome created.', type: 'success' });
+        showToast({ title: 'Success', message: 'Outcome group created.', type: 'success' });
         refetchOutcomes();
       }
       setShowAddModal(false);

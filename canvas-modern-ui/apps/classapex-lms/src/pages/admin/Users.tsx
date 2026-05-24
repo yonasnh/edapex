@@ -96,8 +96,12 @@ const AdminUsersPage: React.FC = () => {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   // Accommodations states
-  const [_timeMultiplier, _setTimeMultiplier] = useState('1');
-  const [_allowLate, _setAllowLate] = useState(false);
+  interface UserAccommodations {
+    timeMultiplier: string;
+    allowLate: boolean;
+  }
+  const [accommodations, setAccommodations] = useState<UserAccommodations>({ timeMultiplier: '1', allowLate: false });
+  const [savingAccommodations, setSavingAccommodations] = useState(false);
 
   const [users, setUsers] = useState<UserData[]>([]);
   const { data: canvasUsers, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/users', { include: ['email', 'last_login'], per_page: 50 } as any);
@@ -199,10 +203,42 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const fetchAccommodations = async (userId: string) => {
+    try {
+      const response = await canvasFetch(`/api/v1/users/${userId}/custom_data/classapex_accommodations`);
+      if (response && response.data) {
+        setAccommodations(response.data as UserAccommodations);
+      } else {
+        setAccommodations({ timeMultiplier: '1', allowLate: false });
+      }
+    } catch {
+      // 404 or other error means no accommodations set yet
+      setAccommodations({ timeMultiplier: '1', allowLate: false });
+    }
+  };
+
+  const handleSaveAccommodations = async (userId: string, updates: Partial<UserAccommodations>) => {
+    const next = { ...accommodations, ...updates };
+    setAccommodations(next);
+    setSavingAccommodations(true);
+    try {
+      await canvasFetch(`/api/v1/users/${userId}/custom_data/classapex_accommodations`, {
+        method: 'PUT',
+        body: { data: next }
+      });
+      showToast({ title: 'Saved', message: 'Accommodations updated successfully.', type: 'success' });
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to save accommodations.', type: 'error' });
+    } finally {
+      setSavingAccommodations(false);
+    }
+  };
+
   React.useEffect(() => {
     if (selectedUser) {
       fetchCommChannels(selectedUser.id);
       fetchObserverLinks(selectedUser);
+      fetchAccommodations(selectedUser.id);
       setShowAddChannelForm(false);
       setShowAddObserverForm(false);
       setNewChannelAddress('');
@@ -979,7 +1015,13 @@ const AdminUsersPage: React.FC = () => {
                   <div style={{ padding: 12, background: 'var(--cx-bg-canvas)', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Quiz Time Multiplier</span>
-                      <select className="cx-select" style={{ padding: '2px 8px', fontSize: '0.75rem' }} defaultValue="1">
+                      <select 
+                        className="cx-select" 
+                        style={{ padding: '2px 8px', fontSize: '0.75rem' }} 
+                        value={accommodations.timeMultiplier}
+                        disabled={savingAccommodations}
+                        onChange={(e) => selectedUser && handleSaveAccommodations(selectedUser.id, { timeMultiplier: e.target.value })}
+                      >
                         <option value="1">None (1x)</option>
                         <option value="1.5">Time and a half (1.5x)</option>
                         <option value="2">Double time (2x)</option>
@@ -989,7 +1031,12 @@ const AdminUsersPage: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Due Date Extensions</span>
                       <label className="cx-toggle" style={{ margin: 0 }}>
-                        <input type="checkbox" defaultChecked={false} />
+                        <input 
+                          type="checkbox" 
+                          checked={accommodations.allowLate}
+                          disabled={savingAccommodations}
+                          onChange={(e) => selectedUser && handleSaveAccommodations(selectedUser.id, { allowLate: e.target.checked })}
+                        />
                         <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
                         <span className="cx-toggle__label" style={{ fontSize: '0.75rem' }}>Allow Late</span>
                       </label>

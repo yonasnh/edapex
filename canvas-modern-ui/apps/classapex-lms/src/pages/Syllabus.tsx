@@ -19,6 +19,7 @@ interface SyllabusEvent {
   time: string;
   type: 'assignment' | 'event';
   html_url?: string;
+  timestamp: number;
 }
 
 export default function SyllabusPage() {
@@ -80,13 +81,15 @@ export default function SyllabusPage() {
       assignments.forEach(a => {
         if (a.due_at) {
           const dateObj = new Date(a.due_at);
+          const timestamp = dateObj.getTime();
           summary.push({
             id: `assignment_${a.id}`,
             title: a.name,
             date: dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
             time: dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
             type: 'assignment',
-            html_url: a.html_url
+            html_url: a.html_url,
+            timestamp
           });
         }
       });
@@ -96,20 +99,22 @@ export default function SyllabusPage() {
       events.forEach(e => {
         if (e.start_at) {
           const dateObj = new Date(e.start_at);
+          const timestamp = dateObj.getTime();
           summary.push({
             id: `event_${e.id}`,
             title: e.title,
             date: dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
             time: dateObj.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
             type: 'event',
-            html_url: e.html_url
+            html_url: e.html_url,
+            timestamp
           });
         }
       });
     }
 
-    // Sort by date/time (simple sort using chronological timestamps)
-    // For proper sorting we can store timestamp in our mapping logic
+    // Sort chronologically by timestamp
+    summary.sort((a, b) => a.timestamp - b.timestamp);
     return summary;
   }, [assignments, events]);
 

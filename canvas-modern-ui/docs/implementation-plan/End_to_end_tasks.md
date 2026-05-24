@@ -63,23 +63,23 @@
   - `[x]` Predictive "at-risk" flagging and intervention workflow
 
 ## Phase 7: Real-world Integration & Parity Enforcement
-- `[ ]` Modules API Integration (`Modules.tsx`)
-  - `[ ]` Load module items from GET `/api/v1/courses/:courseId/modules`
-  - `[ ]` Implement add/delete/publish actions via POST/PUT
-  - `[ ]` Implement drag-and-drop order updates synced with backend API
-- `[ ]` Attendance API Sync (`Attendance.tsx`)
-  - `[ ]` Load real student roster from enrollments API
-  - `[ ]` Link to "Roll Call Attendance" assignment on the backend
-  - `[ ]` Persist attendance cycles to Gradebook via submissions endpoint
-- `[ ]` Conferences Live Integration (`Conferences.tsx`)
-  - `[ ]` Fetch conferences using Canvas Web Conferences API
-  - `[ ]` Hook up Join/End buttons to live Canvas conferences
-- `[ ]` Syllabus Dynamics (`Syllabus.tsx`)
-  - `[ ]` Load and save `syllabus_body` via course endpoints
-  - `[ ]` Fetch active assignments and events to construct dynamic Course Summary
-- `[ ]` Admin Integrations (`DeveloperKeys.tsx`, `Assessment.tsx`)
-  - `[ ]` Fetch Developer Keys from accounts API
-  - `[ ]` Fetch Question Banks and Outcomes from accounts API
-- `[ ]` IEP/504 Student Accommodations (`Users.tsx`)
-  - `[ ]` Persist user accommodations into Canvas custom metadata
-  - `[ ]` Dynamically apply student multipliers to Quiz Extensions API
+- `[x]` Modules API Integration (`Modules.tsx`)
+  - `[x]` Load module items from GET `/api/v1/courses/:courseId/modules`
+  - `[x]` Implement add/delete/publish actions via POST/PUT
+  - `[x]` Implement drag-and-drop order updates synced with backend API (module-level + item-level)
+- `[x]` Attendance API Sync (`Attendance.tsx`)
+  - `[x]` Load real student roster from enrollments API
+  - `[x]` Link to "Roll Call Attendance" assignment on the backend
+  - `[x]` Persist attendance cycles to Gradebook via submissions endpoint
+- `[x]` Conferences Live Integration (`Conferences.tsx`)
+  - `[x]` Fetch conferences using Canvas Web Conferences API
+  - `[x]` Hook up Join/End buttons to live Canvas conferences
+- `[x]` Syllabus Dynamics (`Syllabus.tsx`)
+  - `[x]` Load and save `syllabus_body` via course endpoints
+  - `[x]` Fetch active assignments and events to construct dynamic Course Summary (chronologically sorted)
+- `[x]` Admin Integrations (`DeveloperKeys.tsx`, `Assessment.tsx`)
+  - `[x]` Fetch Developer Keys from accounts API
+  - `[x]` Fetch Question Banks and Outcomes from accounts API
+- `[x]` IEP/504 Student Accommodations (`Users.tsx`)
+  - `[x]` Persist user accommodations into Canvas custom metadata (`custom_data`)
+  - `[x]` Dynamically apply student multipliers to Quiz Extensions API

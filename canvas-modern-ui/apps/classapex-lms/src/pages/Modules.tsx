@@ -41,6 +41,7 @@ export default function ModulesPage() {
 
   // Drag and Drop state
   const [draggingItemId, setDraggingItemId] = useState<number | null>(null);
+  const [draggingModuleId, setDraggingModuleId] = useState<number | null>(null);
 
   // Fetch modules with items
   const { data: modules, isLoading, isError, refetch } = useCanvasQuery<Module[]>(
@@ -150,7 +151,7 @@ export default function ModulesPage() {
     e.preventDefault();
   };
 
-  const handleDrop = async (e: React.DragEvent, targetModuleId: number, targetPosition: number) => {
+  const handleDropItem = async (e: React.DragEvent, targetModuleId: number, targetPosition: number) => {
     e.preventDefault();
     const draggedId = Number(e.dataTransfer.getData('text/plain'));
     if (!draggedId || draggedId === draggingItemId) return;
@@ -166,6 +167,37 @@ export default function ModulesPage() {
       showToast({ title: 'Error', message: err.message || 'Failed to reorder item', type: 'error' });
     } finally {
       setDraggingItemId(null);
+    }
+  };
+
+  // Module-level drag and drop
+  const handleModuleDragStart = (e: React.DragEvent, moduleId: number) => {
+    e.dataTransfer.setData('module/plain', String(moduleId));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingModuleId(moduleId);
+  };
+
+  const handleModuleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleModuleDrop = async (e: React.DragEvent, targetPosition: number) => {
+    e.preventDefault();
+    const draggedId = Number(e.dataTransfer.getData('module/plain'));
+    if (!draggedId || draggedId === draggingModuleId) return;
+
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/modules/${draggedId}`, {
+        method: 'PUT',
+        body: { module: { position: targetPosition } }
+      });
+      showToast({ title: 'Reordered', message: 'Module order updated', type: 'success' });
+      refetch();
+    } catch (err: any) {
+      showToast({ title: 'Error', message: err.message || 'Failed to reorder module', type: 'error' });
+    } finally {
+      setDraggingModuleId(null);
     }
   };
 
@@ -217,11 +249,26 @@ export default function ModulesPage() {
           const items = [...(mod.items || [])].sort((a, b) => a.position - b.position);
 
           return (
-            <div key={mod.id} style={{ border: '1px solid var(--cx-border-subtle)', borderRadius: 8, background: 'var(--cx-bg-surface)', overflow: 'hidden' }}>
+            <div 
+              key={mod.id} 
+              draggable
+              onDragStart={(e) => handleModuleDragStart(e, mod.id)}
+              onDragOver={handleModuleDragOver}
+              onDrop={(e) => handleModuleDrop(e, mod.position)}
+              style={{ 
+                border: '1px solid var(--cx-border-subtle)', 
+                borderRadius: 8, 
+                background: 'var(--cx-bg-surface)', 
+                overflow: 'hidden',
+                opacity: draggingModuleId === mod.id ? 0.5 : 1,
+                cursor: 'grab'
+              }}
+            >
               <div 
                 style={{ padding: '16px', background: 'var(--cx-bg-surface-sunken)', display: 'flex', alignItems: 'center', borderBottom: isExpanded ? '1px solid var(--cx-border-subtle)' : 'none', cursor: 'pointer' }}
                 onClick={() => toggleExpand(mod.id)}
               >
+                <div style={{ marginRight: 12, color: 'var(--cx-text-tertiary)', cursor: 'grab' }}><DragHandleSvg /></div>
                 <div style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s', marginRight: 8, color: 'var(--cx-text-secondary)' }}><ChevronDownSvg /></div>
                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, flex: 1, color: 'var(--cx-text-primary)' }}>{mod.name}</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
@@ -239,7 +286,7 @@ export default function ModulesPage() {
                       draggable
                       onDragStart={(e) => handleDragStart(e, item.id)}
                       onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, mod.id, item.position)}
+                      onDrop={(e) => handleDropItem(e, mod.id, item.position)}
                       style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
