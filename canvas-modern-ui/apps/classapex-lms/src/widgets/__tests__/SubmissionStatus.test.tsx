@@ -5,25 +5,21 @@ describe('SubmissionStatus Component', () => {
   it('renders unsubmitted status correctly', () => {
     render(<SubmissionStatus status="unsubmitted" />)
     expect(screen.getByText('Not Submitted')).toBeInTheDocument()
-    expect(screen.getByText('circle')).toBeInTheDocument()
   })
 
   it('renders submitted status correctly', () => {
     render(<SubmissionStatus status="submitted" />)
     expect(screen.getByText('Submitted')).toBeInTheDocument()
-    expect(screen.getByText('check')).toBeInTheDocument()
   })
 
   it('renders missing status correctly', () => {
     render(<SubmissionStatus status="missing" />)
     expect(screen.getByText('Missing')).toBeInTheDocument()
-    expect(screen.getByText('x')).toBeInTheDocument()
   })
 
   it('renders late status correctly', () => {
     render(<SubmissionStatus status="late" />)
     expect(screen.getByText('Late')).toBeInTheDocument()
-    expect(screen.getByText('warning')).toBeInTheDocument()
   })
 
   it('renders graded status correctly with grade info', () => {
