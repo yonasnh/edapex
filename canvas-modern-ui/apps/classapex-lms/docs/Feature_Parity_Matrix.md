@@ -93,7 +93,7 @@
 | **Settings — Notification Preferences** | ✅ | ✅ | Full matrix UI with rows (Due Date, Grading, Invitation, Announcement, Discussion, Conversation, Submission Comment) and columns (communication channels) with frequency dropdowns (immediately / daily / weekly / never). |
 | **Settings — Communication Channels** | ✅ | ✅ | Email and SMS channel management. |
 | **Settings — Pairing Codes** | ✅ | ✅ | Observer pairing code generation supported. |
-| **Settings — Feature Options** | ✅ | ❌ | No course-level feature option toggles. |
+| **Settings — Feature Options** | ✅ | ✅ | `CourseFeatureFlags.tsx` lists and toggles course-level features via Canvas API. Respects locked states and inherited settings. |
 | **ePortfolios — Pages & Sections** | ✅ | 🟡 | ePortfolio creation and page management exist. Public sharing controls and section-level editing are partial. |
 | **LTI — Tool Launch** | ✅ | ✅ | LtiPlayer page handles tool launches in iframe. |
 | **LTI — Global Navigation Placements** | ✅ | ✅ | Dynamic sidebar items injected from `/api/v1/accounts/1/external_tools`. |
@@ -162,8 +162,8 @@
 | **Files — Usage Rights (Teacher)** | ✅ | ✅ | Usage rights editing in preview modal and bulk operations bar. |
 | **Files — Bulk Upload / Zip** | ✅ | 🟡 | Multi-file upload supported; zip extraction is not. |
 | **Course Settings — Navigation** | ✅ | ✅ | Drag-and-drop tab reordering and visibility toggle at `/courses/:courseId/settings/navigation`. |
-| **Course Settings — App Integrations** | ✅ | ❌ | No course-level app placement management. |
-| **Course Settings — Feature Options** | ✅ | ❌ | No course-level feature flag toggles. |
+| **Course Settings — App Integrations** | ✅ | 🟡 | `ExternalToolsPage.tsx` manages LTI tools. Course-level placement configuration is partial (view only). |
+| **Course Settings — Feature Options** | ✅ | ✅ | `CourseFeatureFlags.tsx` at `/courses/:id/features`. Search, filter by state, toggle with locked detection. |
 | **Rich Content Editor** | ✅ | ✅ | `NewRceWrapper.tsx` provides inline equation editor, table insertion, media embed, and Studio placeholder. `CanvasNativeRceModal.tsx` opens the full Canvas New RCE in an iframe for pages, assignments, discussions, announcements, and quizzes. |
 | **Course Home — Customization** | ✅ | ✅ | `CourseHome.tsx` allows teachers to set the course default_view (modules, syllabus, assignments, activity feed). Selection is persisted to Canvas API and synced on load. |
 | **Sections — Cross-Listing** | ✅ | 🟡 | Cross-listing UI exists; validation is partial. |
