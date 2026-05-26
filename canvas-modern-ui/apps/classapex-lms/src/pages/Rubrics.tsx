@@ -1,15 +1,19 @@
 /**
- * Rubrics — ClassApex LMS (S18)
+ * Rubrics — ClassApex LMS (S14)
  * ================================
  * Canvas REST API integration:
- *  GET /api/v1/courses/:id/rubrics              — list course rubrics
- *  GET /api/v1/courses/:id/rubrics/:id          — rubric detail
- *  GET /api/v1/courses/:id/assignments/:aid/rubric_assessments — live scores
+ *  GET    /api/v1/courses/:id/rubrics              — list course rubrics
+ *  GET    /api/v1/courses/:id/rubrics/:id          — rubric detail
+ *  DELETE /api/v1/courses/:id/rubrics/:id          — delete rubric
+ *  GET    /api/v1/courses/:id/assignments/:aid/rubric_assessments — live scores
  */
 
 import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import { useRole } from '../contexts/RoleContext'
+import { useNotification } from '../hooks/useNotification'
+import RubricEditModal from './RubricEditModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,11 +54,15 @@ function RubricDetail({
   courseId,
   rubricId,
   onBack,
+  onEdit,
 }: {
   courseId: string
   rubricId: number
   onBack: () => void
+  onEdit: () => void
 }) {
+  const { role } = useRole()
+  const isTeacher = role === 'teacher' || role === 'admin'
   const { data: rubric, isLoading } = useCanvasQuery<Rubric>(
     `/api/v1/courses/${courseId}/rubrics/${rubricId}`,
     { include: ['assessments'] } as any
@@ -77,6 +85,9 @@ function RubricDetail({
         <span style={{ marginLeft: 'auto', fontWeight: 600, color: 'var(--cx-text-secondary)', fontSize: '0.875rem' }}>
           {rubric.points_possible} pts total
         </span>
+        {isTeacher && (
+          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={onEdit}>Edit</button>
+        )}
       </div>
 
       {/* Rubric table */}
@@ -146,25 +157,62 @@ function RubricDetail({
 
 export default function RubricsPage() {
   const { courseId } = useParams<{ courseId: string }>()
+  const { role } = useRole()
+  const isTeacher = role === 'teacher' || role === 'admin'
+  const { showToast, showConfirm } = useNotification()
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [editingRubric, setEditingRubric] = useState<any | null>(null)
 
-  const { data: rubrics, isLoading } = useCanvasQuery<Rubric[]>(
+  const { data: rubrics, isLoading, refetch } = useCanvasQuery<Rubric[]>(
     courseId ? `/api/v1/courses/${courseId}/rubrics` : '',
     { per_page: 50 } as any
   )
 
+  const handleDelete = async (id: number, title: string) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Rubric?',
+      message: `This will permanently delete "${title}". This action cannot be undone.`,
+      type: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/rubrics/${id}`, { method: 'DELETE' })
+      showToast({ title: 'Rubric deleted', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Delete failed', message: err.message || 'Unknown error', type: 'error' })
+    }
+  }
+
   if (selectedId && courseId) {
+    const selectedRubric = rubrics?.find(r => r.id === selectedId)
     return (
       <div className="cx-page">
-        <RubricDetail courseId={courseId} rubricId={selectedId} onBack={() => setSelectedId(null)} />
+        <RubricDetail
+          courseId={courseId}
+          rubricId={selectedId}
+          onBack={() => setSelectedId(null)}
+          onEdit={() => setEditingRubric(selectedRubric)}
+        />
+        {editingRubric && (
+          <RubricEditModal
+            rubric={editingRubric}
+            courseId={courseId}
+            onClose={() => setEditingRubric(null)}
+            onSave={() => { setEditingRubric(null); refetch() }}
+          />
+        )}
       </div>
     )
   }
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header" style={{ paddingTop: 0 }}>
+      <div className="cx-page__header" style={{ paddingTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)' }}>Rubrics</h2>
+        {isTeacher && (
+          <button className="cx-btn cx-btn--primary" onClick={() => setEditingRubric({})}>+ New Rubric</button>
+        )}
       </div>
 
       {isLoading ? (
@@ -175,6 +223,11 @@ export default function RubricsPage() {
         <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--cx-text-tertiary)' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
           <p>No rubrics found for this course.</p>
+          {isTeacher && (
+            <button className="cx-btn cx-btn--primary" style={{ marginTop: 12 }} onClick={() => setEditingRubric({})}>
+              Create your first rubric
+            </button>
+          )}
         </div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -193,10 +246,40 @@ export default function RubricsPage() {
                   {rubric.reusable ? ' · Reusable' : ''}
                 </div>
               </div>
+              {isTeacher && (
+                <div style={{ display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
+                  <button
+                    className="cx-btn cx-btn--ghost cx-btn--sm"
+                    onClick={() => setEditingRubric(rubric)}
+                    title="Edit"
+                    aria-label="Edit rubric"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="cx-btn cx-btn--ghost cx-btn--sm"
+                    onClick={() => handleDelete(rubric.id, rubric.title)}
+                    title="Delete"
+                    aria-label="Delete rubric"
+                    style={{ color: 'var(--cx-color-danger, #dc2626)' }}
+                  >
+                    🗑
+                  </button>
+                </div>
+              )}
               <span style={{ color: 'var(--cx-text-tertiary)', fontSize: '1.2rem' }}>›</span>
             </li>
           ))}
         </ul>
+      )}
+
+      {editingRubric && courseId && (
+        <RubricEditModal
+          rubric={editingRubric.id ? editingRubric : null}
+          courseId={courseId}
+          onClose={() => setEditingRubric(null)}
+          onSave={() => { setEditingRubric(null); refetch() }}
+        />
       )}
     </div>
   )

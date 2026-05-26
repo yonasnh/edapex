@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
@@ -38,6 +38,19 @@ interface CourseInfo {
 export default function CourseHome() {
   const { courseId } = useParams<{ courseId: string }>()
   const [activeTab, setActiveTab] = useState<Tab>('modules')
+  const [studentView] = useState(() => localStorage.getItem('classapex-student-view-course') === courseId)
+
+  const enterStudentView = () => {
+    localStorage.setItem('classapex-student-view-course', courseId || '')
+    localStorage.setItem('classapex-demo-role', 'student')
+    window.location.reload()
+  }
+
+  const exitStudentView = () => {
+    localStorage.removeItem('classapex-student-view-course')
+    localStorage.setItem('classapex-demo-role', 'teacher')
+    window.location.reload()
+  }
   const [showCustomize, setShowCustomize] = useState(false)
   const { role } = useRole()
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -70,7 +83,7 @@ export default function CourseHome() {
         list.unshift(String(courseId))
         list = list.slice(0, 10)
         localStorage.setItem(key, JSON.stringify(list))
-      } catch (e) {
+      } catch {
         // Silently ignore storage or private mode issues
       }
     }
@@ -120,6 +133,13 @@ export default function CourseHome() {
 
   return (
     <div className="cx-course-home">
+      {studentView && (
+        <div style={{ background: 'rgba(241,194,27,0.15)', border: '1px solid rgba(241,194,27,0.4)', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#b45309' }}>👁 Student View — You are previewing this course as a student</span>
+          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={exitStudentView}>Exit Student View</button>
+        </div>
+      )}
+
       <div
         className="cx-course-home__banner"
         style={{
@@ -146,6 +166,11 @@ export default function CourseHome() {
               )}
             </div>
           </div>
+          {isTeacher && !studentView && (
+            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={enterStudentView} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}>
+              👁 Student View
+            </button>
+          )}
         </div>
       </div>
 
@@ -165,13 +190,15 @@ export default function CourseHome() {
           <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', whiteSpace: 'nowrap' }}>
             Home: {customLabel}
           </span>
-          <button
-            className="cx-btn cx-btn--ghost cx-btn--sm"
-            onClick={() => setShowCustomize(p => !p)}
-            aria-label="Customize course home page"
-          >
-            {showCustomize ? 'Done' : 'Customize'}
-          </button>
+          {isTeacher && (
+            <button
+              className="cx-btn cx-btn--ghost cx-btn--sm"
+              onClick={() => setShowCustomize(p => !p)}
+              aria-label="Customize course home page"
+            >
+              {showCustomize ? 'Done' : 'Customize'}
+            </button>
+          )}
         </div>
       </div>
 

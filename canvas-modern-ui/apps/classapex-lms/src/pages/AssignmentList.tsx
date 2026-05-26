@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
+import { useRole } from '../contexts/RoleContext'
 import { SubmissionStatus } from '../widgets/SubmissionStatus'
+import AssignmentEditModal from './AssignmentEditModal'
 import './assignment.css'
 
 type SortKey = 'due_at' | 'name' | 'points_possible'
@@ -10,10 +13,16 @@ type FilterStatus = 'all' | 'open' | 'due_soon' | 'overdue' | 'submitted' | 'gra
 
 export default function AssignmentList() {
   const { courseId } = useParams<{ courseId: string }>()
+  const { role } = useRole()
+  const isTeacher = role === 'teacher' || role === 'admin'
+  const { showToast, showConfirm } = useNotification()
+
   const [selectedCourseId, setSelectedCourseId] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [sortBy, setSortBy] = useState<SortKey>('due_at')
+  const [editingAssignment, setEditingAssignment] = useState<any | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Fetch active courses if we are on the global assignments page (no courseId in route)
   const { data: coursesData, isLoading: coursesLoading } = useCanvasQuery<any[]>(
@@ -33,7 +42,7 @@ export default function AssignmentList() {
 
   const activeCourseId = courseId || selectedCourseId
 
-  const { data: assignments, isLoading: assignmentsLoading } = useCanvasQuery<any[]>(
+  const { data: assignments, isLoading: assignmentsLoading, refetch } = useCanvasQuery<any[]>(
     activeCourseId ? `/api/v1/courses/${activeCourseId}/assignments` : '',
     { per_page: 50, include: ['submission', 'score_statistics'] } as any,
     { enabled: !!activeCourseId }
@@ -89,6 +98,47 @@ export default function AssignmentList() {
     return result
   }, [assignments, searchQuery, filterStatus, sortBy])
 
+  const handleDelete = async (assignment: any) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Assignment?',
+      message: `This will permanently remove "${assignment.name}". Students will lose access to any submissions.`,
+      type: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!confirmed) return
+    try {
+      await canvasFetch(`/api/v1/courses/${activeCourseId}/assignments/${assignment.id}`, { method: 'DELETE' })
+      showToast({ title: 'Assignment deleted', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Failed to delete', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }
+
+  const handleDuplicate = async (assignment: any) => {
+    try {
+      const payload: Record<string, any> = {
+        assignment: {
+          name: `${assignment.name} (Copy)`,
+          description: assignment.description || '',
+          points_possible: assignment.points_possible ?? 0,
+          grading_type: assignment.grading_type || 'points',
+          submission_types: Array.isArray(assignment.submission_types) ? assignment.submission_types : ['none'],
+          published: false,
+        }
+      }
+      if (assignment.due_at) payload.assignment.due_at = assignment.due_at
+      if (assignment.lock_at) payload.assignment.lock_at = assignment.lock_at
+      if (assignment.unlock_at) payload.assignment.unlock_at = assignment.unlock_at
+      if (assignment.assignment_group_id) payload.assignment.assignment_group_id = String(assignment.assignment_group_id)
+      await canvasFetch(`/api/v1/courses/${activeCourseId}/assignments`, { method: 'POST', body: payload })
+      showToast({ title: 'Assignment duplicated', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Failed to duplicate', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="cx-assignment-list" data-testid="loading-container">
@@ -106,8 +156,6 @@ export default function AssignmentList() {
 
   return (
     <div className="cx-assignment-list">
-
-
       <div className="cx-assignment-list__controls">
         {!courseId && courses.length > 0 && (
           <select
@@ -157,6 +205,16 @@ export default function AssignmentList() {
           <option value="name">Name</option>
           <option value="points_possible">Points</option>
         </select>
+
+        {isTeacher && activeCourseId && (
+          <button
+            className="cx-btn cx-btn--primary"
+            onClick={() => setShowCreateModal(true)}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            + New Assignment
+          </button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -184,34 +242,81 @@ export default function AssignmentList() {
               const courseCode = courseId ? '' : (courseInfo?.course_code || a.course_code || '')
 
               return (
-                <Link
+                <div
                   key={a.id}
-                  to={`/courses/${courseId || a.course_id}/assignments/${a.id}`}
                   className="cx-assignment-card"
+                  style={{ position: 'relative' }}
                 >
-                  <div className="cx-assignment-card__top">
-                    <h3 className="cx-assignment-card__name">{a.name}</h3>
-                    <Badge variant={statusBadge} size="sm">{statusLabel}</Badge>
-                  </div>
-                  <div className="cx-assignment-card__meta">
-                    <span className="cx-assignment-card__points">{a.points_possible} pts</span>
-                    {due && (
-                      <span className="cx-assignment-card__due">
-                        Due: {due.toLocaleDateString()}
-                      </span>
+                  <Link
+                    to={`/courses/${courseId || a.course_id}/assignments/${a.id}`}
+                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', flex: 1 }}
+                  >
+                    <div className="cx-assignment-card__top">
+                      <h3 className="cx-assignment-card__name">{a.name}</h3>
+                      <Badge variant={statusBadge} size="sm">{statusLabel}</Badge>
+                    </div>
+                    <div className="cx-assignment-card__meta">
+                      <span className="cx-assignment-card__points">{a.points_possible} pts</span>
+                      {due && (
+                        <span className="cx-assignment-card__due">
+                          Due: {due.toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    {courseCode && (
+                      <span className="cx-assignment-card__course">{courseCode}</span>
                     )}
-                  </div>
-                  {courseCode && (
-                    <span className="cx-assignment-card__course">{courseCode}</span>
+                    <div className="cx-assignment-card__footer">
+                      <SubmissionStatus status={subStatus} grade={a.submission?.score} pointsPossible={a.points_possible} size="sm" />
+                    </div>
+                  </Link>
+
+                  {isTeacher && (
+                    <div style={{
+                      display: 'flex',
+                      gap: 6,
+                      paddingTop: 10,
+                      marginTop: 'auto',
+                      borderTop: '1px solid var(--cx-border-subtle)',
+                    }}>
+                      <button
+                        className="cx-btn cx-btn--ghost cx-btn--sm"
+                        onClick={e => { e.stopPropagation(); setEditingAssignment(a) }}
+                        title="Edit"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button
+                        className="cx-btn cx-btn--ghost cx-btn--sm"
+                        onClick={e => { e.stopPropagation(); handleDuplicate(a) }}
+                        title="Duplicate"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                      </button>
+                      <button
+                        className="cx-btn cx-btn--ghost cx-btn--sm"
+                        onClick={e => { e.stopPropagation(); handleDelete(a) }}
+                        title="Delete"
+                        style={{ color: 'var(--cx-color-danger)' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                      </button>
+                    </div>
                   )}
-                  <div className="cx-assignment-card__footer">
-                    <SubmissionStatus status={subStatus} grade={a.submission?.score} pointsPossible={a.points_possible} size="sm" />
-                  </div>
-                </Link>
+                </div>
               )
             })}
           </div>
         </>
+      )}
+
+      {(showCreateModal || editingAssignment) && (
+        <AssignmentEditModal
+          courseId={activeCourseId}
+          assignment={editingAssignment}
+          onClose={() => { setShowCreateModal(false); setEditingAssignment(null) }}
+          onSaved={refetch}
+        />
       )}
     </div>
   )

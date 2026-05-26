@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 import FileCard from '../components/FileCard';
-import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
+import { useNotification } from '../hooks/useNotification';
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 interface FileItem {
@@ -17,6 +18,12 @@ interface FileItem {
   thumbnail_url?: string;
   content_type?: string;
   rawFolderId?: number; // numeric Canvas folder ID, for drill-down
+  usage_rights?: {
+    use_justification: 'own_copyright' | 'used_by_permission' | 'fair_use' | 'public_domain' | 'creative_commons';
+    license?: string;
+    legal_copyright?: string;
+    message?: string;
+  };
 }
 
 interface BreadcrumbEntry { id: number; name: string; }
@@ -92,13 +99,46 @@ const BreadcrumbBar: React.FC<BreadcrumbBarProps> = ({ crumbs, onNavigate }) => 
 );
 
 /* ─── File Preview Modal ─────────────────────────────────────────────── */
-interface PreviewModalProps { file: FileItem; onClose: () => void; onDownload: () => void; }
-const FilePreviewModal: React.FC<PreviewModalProps> = ({ file, onClose, onDownload }) => {
+interface PreviewModalProps { file: FileItem; onClose: () => void; onDownload: () => void; onSaved?: () => void; }
+const FilePreviewModal: React.FC<PreviewModalProps> = ({ file, onClose, onDownload, onSaved }) => {
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
+
+  const { showToast } = useNotification();
+  const [usageJustification, setUsageJustification] = useState(file.usage_rights?.use_justification || '');
+  const [usageLicense, setUsageLicense] = useState(file.usage_rights?.license || '');
+  const [savingUsage, setSavingUsage] = useState(false);
+
+  useEffect(() => {
+    setUsageJustification(file.usage_rights?.use_justification || '');
+    setUsageLicense(file.usage_rights?.license || '');
+  }, [file.id]);
+
+  const handleSaveUsageRights = async () => {
+    if (!usageJustification) return;
+    setSavingUsage(true);
+    try {
+      const body: Record<string, any> = {
+        usage_rights: {
+          use_justification: usageJustification,
+        },
+      };
+      if (usageJustification === 'creative_commons' && usageLicense) {
+        body.usage_rights.license = usageLicense;
+      }
+      await canvasFetch(`/api/v1/files/${file.id}`, { method: 'PUT', body });
+      showToast({ title: 'Usage rights updated', type: 'success' });
+      onSaved?.();
+    } catch (err) {
+      console.error('[Files] save usage rights failed:', err);
+      showToast({ title: 'Failed to update usage rights', type: 'error' });
+    } finally {
+      setSavingUsage(false);
+    }
+  };
 
   const fmt = (b?: number) => {
     if (!b) return '—';
@@ -167,7 +207,60 @@ const FilePreviewModal: React.FC<PreviewModalProps> = ({ file, onClose, onDownlo
             <button className="cx-btn cx-btn--ghost" onClick={onClose} aria-label="Close preview"><XSvg /></button>
           </div>
         </div>
-        <div className="cx-modal__body" style={{ flex: 1, overflow: 'auto', padding: 0 }}>{body()}</div>
+        <div className="cx-modal__body" style={{ flex: 1, overflow: 'auto', padding: 0 }}>
+          {body()}
+          {file.type !== 'folder' && (
+            <div style={{ padding: '16px 20px', borderTop: '1px solid var(--cx-border-subtle)' }}>
+              <h4 style={{ margin: '0 0 10px', fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Usage Rights</h4>
+              {file.usage_rights ? (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 10 }}>
+                  <span className="cx-badge cx-badge--info" style={{ textTransform: 'capitalize' }}>{file.usage_rights.use_justification.replace(/_/g, ' ')}</span>
+                  {file.usage_rights.license && <span style={{ marginLeft: 8 }}>License: {file.usage_rights.license}</span>}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)', marginBottom: 10 }}>No usage rights set.</div>
+              )}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select
+                  className="cx-select"
+                  style={{ fontSize: '0.8125rem', minWidth: 160 }}
+                  value={usageJustification}
+                  onChange={e => setUsageJustification(e.target.value)}
+                >
+                  <option value="">Select justification…</option>
+                  <option value="own_copyright">I hold the copyright</option>
+                  <option value="used_by_permission">Used with permission</option>
+                  <option value="fair_use">Fair use</option>
+                  <option value="public_domain">Public domain</option>
+                  <option value="creative_commons">Creative Commons</option>
+                </select>
+                {usageJustification === 'creative_commons' && (
+                  <select
+                    className="cx-select"
+                    style={{ fontSize: '0.8125rem', minWidth: 160 }}
+                    value={usageLicense}
+                    onChange={e => setUsageLicense(e.target.value)}
+                  >
+                    <option value="">Select license…</option>
+                    <option value="cc_by">CC BY</option>
+                    <option value="cc_by_sa">CC BY-SA</option>
+                    <option value="cc_by_nc">CC BY-NC</option>
+                    <option value="cc_by_nc_sa">CC BY-NC-SA</option>
+                    <option value="cc_by_nd">CC BY-ND</option>
+                    <option value="cc_by_nc_nd">CC BY-NC-ND</option>
+                  </select>
+                )}
+                <button
+                  className="cx-btn cx-btn--primary cx-btn--sm"
+                  disabled={!usageJustification || savingUsage}
+                  onClick={handleSaveUsageRights}
+                >
+                  {savingUsage ? 'Saving…' : 'Save Usage Rights'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -244,6 +337,7 @@ function getTypeIcon(type: FileItem['type']) {
 
 /* ─── Main Page ──────────────────────────────────────────────────────── */
 const FilesPage: React.FC = () => {
+  const { showToast } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +360,11 @@ const FilesPage: React.FC = () => {
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [renameFile, setRenameFile] = useState<FileItem | null>(null);
   const [deleteFile, setDeleteFile] = useState<FileItem | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [showBulkUsageModal, setShowBulkUsageModal] = useState(false);
+  const [bulkJustification, setBulkJustification] = useState('');
+  const [bulkLicense, setBulkLicense] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   // ── Dynamic API endpoints based on current folder ──
   // When at root (currentFolderId == null): use user self endpoints
@@ -325,6 +424,7 @@ const FilesPage: React.FC = () => {
       url: f.url,
       thumbnail_url: f.thumbnail_url,
       content_type: f.content_type,
+      usage_rights: f.usage_rights,
     })) : [];
 
     return [...folders, ...files];
@@ -390,7 +490,7 @@ const FilesPage: React.FC = () => {
       setShowUploadModal(false);
     } catch (err) {
       console.error('[Files] Upload failed:', err);
-      alert('Upload failed. Check console for details.');
+      showToast({ title: 'Upload failed', message: 'Check console for details.', type: 'error' });
     } finally {
       setIsUploading(false);
     }
@@ -419,13 +519,13 @@ const FilesPage: React.FC = () => {
       setShowCreateFolderModal(false);
     } catch (err) {
       console.error('[Files] Create folder failed:', err);
-      alert('Failed to create folder.');
+      showToast({ title: 'Failed to create folder', type: 'error' });
     }
   };
 
   // ── Download ──
   const handleDownload = (file: FileItem) => {
-    if (!file.url) { alert('No download URL available.'); return; }
+    if (!file.url) { showToast({ title: 'No download URL available', type: 'warning' }); return; }
     const a = document.createElement('a');
     a.href = file.url;
     a.download = file.name;
@@ -451,7 +551,7 @@ const FilesPage: React.FC = () => {
       setRenameFile(null);
     } catch (err) {
       console.error('[Files] Rename failed:', err);
-      alert('Failed to rename.');
+      showToast({ title: 'Failed to rename', type: 'error' });
     }
   };
 
@@ -470,7 +570,7 @@ const FilesPage: React.FC = () => {
       setDeleteFile(null);
     } catch (err) {
       console.error('[Files] Delete failed:', err);
-      alert('Failed to delete.');
+      showToast({ title: 'Failed to delete', type: 'error' });
     }
   };
 
@@ -514,6 +614,43 @@ const FilesPage: React.FC = () => {
   const formatDate = (s: string) => new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const handleClearFilters = () => { setSearchTerm(''); setFilterType('all'); setPage(1); };
 
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  };
+
+  const handleBulkUsageRights = async () => {
+    if (!bulkJustification || selectedFiles.size === 0) return;
+    setBulkSaving(true);
+    try {
+      const promises = Array.from(selectedFiles).map(fileId => {
+        const body: Record<string, any> = {
+          usage_rights: { use_justification: bulkJustification },
+        };
+        if (bulkJustification === 'creative_commons' && bulkLicense) {
+          body.usage_rights.license = bulkLicense;
+        }
+        return canvasFetch(`/api/v1/files/${fileId}`, { method: 'PUT', body });
+      });
+      await Promise.all(promises);
+      showToast({ title: `Updated usage rights for ${selectedFiles.size} file(s)`, type: 'success' });
+      setSelectedFiles(new Set());
+      setShowBulkUsageModal(false);
+      setBulkJustification('');
+      setBulkLicense('');
+      refetchFiles();
+    } catch (err) {
+      console.error('[Files] bulk usage rights failed:', err);
+      showToast({ title: 'Failed to update usage rights for some files', type: 'error' });
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   // Current folder permission context label
   const locationLabel = currentFolderId
     ? `"${folderStack[folderStack.length - 1]?.name}"`
@@ -548,6 +685,22 @@ const FilesPage: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* ── Bulk Operations Bar ── */}
+      {selectedFiles.size > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 14px', background: 'var(--cx-color-primary-subtle, rgba(99,102,241,0.08))',
+          border: '1px solid var(--cx-color-primary)', borderRadius: 'var(--radius-md)',
+          marginBottom: 12, fontSize: '0.875rem',
+        }}>
+          <span style={{ fontWeight: 500, color: 'var(--cx-text-primary)' }}>{selectedFiles.size} selected</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowBulkUsageModal(true)}>Set Usage Rights</button>
+            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setSelectedFiles(new Set())}>Clear</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div className="cx-file-toolbar">
@@ -627,28 +780,43 @@ const FilesPage: React.FC = () => {
         <>
           <div className="cx-file-card-grid">
             {paginatedFiles.map(file => (
-              <FileCard
-                key={file.id}
-                id={file.id}
-                name={file.name}
-                type={file.type}
-                size={file.size}
-                modifiedAt={file.modifiedAt}
-                modifiedBy={file.modifiedBy}
-                isShared={file.isShared}
-                downloadCount={file.downloadCount}
-                onClick={() => {
-                  if (file.type === 'folder' && file.rawFolderId) {
-                    drillIntoFolder(file.rawFolderId, file.name);
-                  } else {
-                    setPreviewFile(file);
-                  }
-                }}
-                onDownload={() => handleDownload(file)}
-                onShare={() => { if (file.url) navigator.clipboard.writeText(file.url).then(() => alert('Link copied!')); }}
-                onEdit={() => setRenameFile(file)}
-                onDelete={() => setDeleteFile(file)}
-              />
+              <div key={file.id} style={{ position: 'relative' }}>
+                {file.type !== 'folder' && (
+                  <label style={{
+                    position: 'absolute', top: 8, left: 8, zIndex: 5,
+                    background: 'var(--cx-bg-surface)', borderRadius: 'var(--radius-sm)',
+                    padding: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedFiles.has(file.id)}
+                      onChange={() => toggleFileSelection(file.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </label>
+                )}
+                <FileCard
+                  id={file.id}
+                  name={file.name}
+                  type={file.type}
+                  size={file.size}
+                  modifiedAt={file.modifiedAt}
+                  modifiedBy={file.modifiedBy}
+                  isShared={file.isShared}
+                  downloadCount={file.downloadCount}
+                  onClick={() => {
+                    if (file.type === 'folder' && file.rawFolderId) {
+                      drillIntoFolder(file.rawFolderId, file.name);
+                    } else {
+                      setPreviewFile(file);
+                    }
+                  }}
+                  onDownload={() => handleDownload(file)}
+                  onShare={() => { if (file.url) navigator.clipboard.writeText(file.url).then(() => showToast({ title: 'Link copied to clipboard', type: 'success' })); }}
+                  onEdit={() => setRenameFile(file)}
+                  onDelete={() => setDeleteFile(file)}
+                />
+              </div>
             ))}
           </div>
           <div style={{ marginTop: 8, fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)' }}>
@@ -660,6 +828,28 @@ const FilesPage: React.FC = () => {
           <table className="cx-table">
             <thead>
               <tr>
+                <th style={{ width: 40, padding: '10px 4px' }}>
+                  <input
+                    type="checkbox"
+                    checked={paginatedFiles.filter(f => f.type !== 'folder').length > 0 && paginatedFiles.filter(f => f.type !== 'folder').every(f => selectedFiles.has(f.id))}
+                    onChange={e => {
+                      const fileIds = paginatedFiles.filter(f => f.type !== 'folder').map(f => f.id);
+                      if (e.target.checked) {
+                        setSelectedFiles(prev => {
+                          const next = new Set(prev);
+                          fileIds.forEach(id => next.add(id));
+                          return next;
+                        });
+                      } else {
+                        setSelectedFiles(prev => {
+                          const next = new Set(prev);
+                          fileIds.forEach(id => next.delete(id));
+                          return next;
+                        });
+                      }
+                    }}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Type</th>
                 <th>Size</th>
@@ -675,6 +865,15 @@ const FilesPage: React.FC = () => {
                     else setPreviewFile(file);
                   }}
                 >
+                  <td className="cx-table__cell" onClick={e => e.stopPropagation()}>
+                    {file.type !== 'folder' && (
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.has(file.id)}
+                        onChange={() => toggleFileSelection(file.id)}
+                      />
+                    )}
+                  </td>
                   <td className="cx-table__cell cx-table__cell--name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ flexShrink: 0, color: 'var(--cx-text-tertiary)' }}>{getTypeIcon(file.type)}</span>
                     <span style={{ fontWeight: file.type === 'folder' ? 500 : 400 }}>{file.name}</span>
@@ -815,13 +1014,68 @@ const FilesPage: React.FC = () => {
 
       {/* ── Modals ── */}
       {previewFile && (
-        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDownload={() => handleDownload(previewFile)} />
+        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDownload={() => handleDownload(previewFile)} onSaved={() => { refetchFiles(); }} />
       )}
       {renameFile && (
         <RenameModal file={renameFile} onClose={() => setRenameFile(null)} onConfirm={n => handleRename(renameFile, n)} />
       )}
       {deleteFile && (
         <DeleteModal file={deleteFile} onClose={() => setDeleteFile(null)} onConfirm={() => handleDelete(deleteFile)} />
+      )}
+
+      {/* ── Bulk Usage Rights Modal ── */}
+      {showBulkUsageModal && (
+        <div className="cx-modal-overlay" onClick={() => setShowBulkUsageModal(false)}>
+          <div className="cx-modal cx-modal--sm" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Set Usage Rights ({selectedFiles.size} files)</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setShowBulkUsageModal(false)}><XSvg /></button>
+            </div>
+            <div className="cx-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Justification</label>
+                <select
+                  className="cx-select"
+                  style={{ width: '100%' }}
+                  value={bulkJustification}
+                  onChange={e => setBulkJustification(e.target.value)}
+                >
+                  <option value="">Select justification…</option>
+                  <option value="own_copyright">I hold the copyright</option>
+                  <option value="used_by_permission">Used with permission</option>
+                  <option value="fair_use">Fair use</option>
+                  <option value="public_domain">Public domain</option>
+                  <option value="creative_commons">Creative Commons</option>
+                </select>
+              </div>
+              {bulkJustification === 'creative_commons' && (
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>License</label>
+                  <select
+                    className="cx-select"
+                    style={{ width: '100%' }}
+                    value={bulkLicense}
+                    onChange={e => setBulkLicense(e.target.value)}
+                  >
+                    <option value="">Select license…</option>
+                    <option value="cc_by">CC BY</option>
+                    <option value="cc_by_sa">CC BY-SA</option>
+                    <option value="cc_by_nc">CC BY-NC</option>
+                    <option value="cc_by_nc_sa">CC BY-NC-SA</option>
+                    <option value="cc_by_nd">CC BY-ND</option>
+                    <option value="cc_by_nc_nd">CC BY-NC-ND</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setShowBulkUsageModal(false)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={!bulkJustification || bulkSaving} onClick={handleBulkUsageRights}>
+                {bulkSaving ? 'Saving…' : 'Apply'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

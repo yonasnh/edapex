@@ -15,6 +15,7 @@ interface Discussion {
   viewCount: number;
   likeCount: number;
   isLiked?: boolean;
+  allowRating?: boolean;
   isPinned?: boolean;
   isLocked?: boolean;
   isResolved?: boolean;
@@ -31,7 +32,11 @@ const SearchSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="no
 const PlusSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>;
 const ChatSvg = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 10a8 8 0 1114.7 4.7L18 18l-3.3-1.3A8 8 0 012 10z"/></svg>;
 const ReplySvg = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 8l5-5v3c4 0 6 2 7 5-2-2-4-3-7-3v3L2 8z"/></svg>;
-const HeartSvg = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 12C3.5 9.5 1 7.3 1 5a3.5 3.5 0 016-2A3.5 3.5 0 0113 5c0 2.3-2.5 4.5-6 7z"/></svg>;
+const HeartSvg = ({ filled = false }: { filled?: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+    <path d="M7 12C3.5 9.5 1 7.3 1 5a3.5 3.5 0 016-2A3.5 3.5 0 0113 5c0 2.3-2.5 4.5-6 7z"/>
+  </svg>
+);
 const EyeSvg = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 7s2.5-4.5 6-4.5S13 7 13 7s-2.5 4.5-6 4.5S1 7 1 7z"/><circle cx="7" cy="7" r="1.5"/></svg>;
 const PinSvg = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0C4.5 0 3 1 2 2.5L4 5l-2 3 2 2 3-2 2.5 2C11 9 12 7.5 12 6"/></svg>;
 const LockSvg = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="3" y="5" width="6" height="5" rx="1"/><path d="M4 5V3a2 2 0 014 0v2"/></svg>;
@@ -42,14 +47,21 @@ const EditSvg = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none
 function BellSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 1.5A4.5 4.5 0 002.5 6c0 2.5-.8 4-1.5 5h12c-.7-1-1.5-2.5-1.5-5A4.5 4.5 0 007 1.5z"/><path d="M5.5 11a1.5 1.5 0 003 0"/></svg>; }
 function BellOffSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1.5 1.5l11 11M7 1.5A4.5 4.5 0 002.5 6c0 2.5-.8 4-1.5 5h12"/><path d="M5.5 11a1.5 1.5 0 003 0"/></svg>; }
 
-import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
+import RichEditor from '../components/RichEditor';
+import PodcastFeedGenerator from '../components/PodcastFeedGenerator';
+import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
 
 const DiscussionsPage: React.FC = () => {
+  const { showToast } = useNotification();
+  const { role } = useRole();
+  const isTeacher = role === 'teacher' || role === 'admin';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [selectedDiscussion, setSelectedDiscussion] = useState<any | null>(null);
   const [showReply, setShowReply] = useState(false);
@@ -57,7 +69,7 @@ const DiscussionsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editDiscussion, setEditDiscussion] = useState<any | null>(null);
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', courseId: '', tags: '' });
-  const [entriesRefetch, setEntriesRefetch] = useState(0)
+  const [_entriesRefetch] = useState(0)
   const [showPicker, setShowPicker] = useState(false);
 
   const activeCourseId = editDiscussion ? (editDiscussion.course?.id || filterCourse) : (discussionForm.courseId || filterCourse);
@@ -122,7 +134,8 @@ const DiscussionsPage: React.FC = () => {
 
   const { data: apiDiscussions, refetch } = useCanvasQuery<any[]>(
     filterCourse ? `/api/v1/courses/${filterCourse}/discussion_topics` : '',
-    { per_page: 50, enabled: !!filterCourse } as any
+    { per_page: 50 },
+    { enabled: !!filterCourse }
   )
 
   // Live entries for selected discussion (threaded)
@@ -130,7 +143,8 @@ const DiscussionsPage: React.FC = () => {
     selectedDiscussion && filterCourse
       ? `/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`
       : '',
-    { per_page: 50 } as any
+    { per_page: 50 },
+    { enabled: !!(selectedDiscussion && filterCourse) }
   )
   
   const discussions = Array.isArray(apiDiscussions) ? apiDiscussions.map(d => ({
@@ -143,7 +157,9 @@ const DiscussionsPage: React.FC = () => {
     lastReplyAt: d.last_reply_at,
     replyCount: d.discussion_subentry_count || 0,
     viewCount: 0,
-    likeCount: 0,
+    likeCount: d.rating_count || d.rating_sum || 0,
+    isLiked: !!d.rating_sum || false,
+    allowRating: d.allow_rating,
     isPinned: d.pinned,
     isLocked: d.locked,
     isUnread: d.unread_count > 0,
@@ -153,7 +169,7 @@ const DiscussionsPage: React.FC = () => {
   })) : []
   const openCreateModal = () => {
     setEditDiscussion(null);
-    setDiscussionForm({ title: '', content: '', courseId: '', tags: '' });
+    setDiscussionForm({ title: '', content: '', courseId: filterCourse || '', tags: '' });
     setShowCreateModal(true);
   };
 
@@ -166,71 +182,93 @@ const DiscussionsPage: React.FC = () => {
   const handleCreateDiscussion = async () => {
     if (!discussionForm.title.trim()) return;
     const courseId = editDiscussion ? (editDiscussion.course?.id || filterCourse) : discussionForm.courseId
-    if (!courseId) return
+    if (!courseId) {
+      showToast({ title: 'Please select a course first.', type: 'warning' })
+      return
+    }
+    const isEdit = !!editDiscussion
     try {
-      const formData = new URLSearchParams()
-      formData.append('title', discussionForm.title)
-      formData.append('message', discussionForm.content)
+      const payload: Record<string, any> = {
+        title: discussionForm.title.trim(),
+        message: discussionForm.content,
+      }
 
-      const isEdit = !!editDiscussion
       const url = isEdit
         ? `/api/v1/courses/${courseId}/discussion_topics/${editDiscussion.id}`
         : `/api/v1/courses/${courseId}/discussion_topics`
       const method = isEdit ? 'PUT' : 'POST'
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      await canvasFetch(url, { method, body: payload })
 
       setShowCreateModal(false)
       setEditDiscussion(null)
+      setDiscussionForm({ title: '', content: '', courseId: '', tags: '' })
       refetch()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Failed to save discussion.')
+      showToast({ title: isEdit ? 'Failed to save discussion.' : 'Failed to create discussion.', type: 'error' })
     }
   };
 
   const togglePin = useCallback(async (id: string, currentlyPinned: boolean) => {
     try {
-      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
+      await canvasFetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `discussion_topic[pinned]=${!currentlyPinned}`,
+        body: { pinned: !currentlyPinned },
       })
       refetch()
     } catch (err) {
       console.error('[Discussions] togglePin failed:', err)
+      showToast({ title: 'Failed to update pin.', type: 'error' })
     }
-  }, [filterCourse, refetch])
+  }, [filterCourse, refetch, showToast])
 
   const toggleLock = useCallback(async (id: string, currentlyLocked: boolean) => {
     try {
-      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
+      await canvasFetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `discussion_topic[locked]=${!currentlyLocked}`,
+        body: { locked: !currentlyLocked },
       })
       refetch()
     } catch (err) {
       console.error('[Discussions] toggleLock failed:', err)
+      showToast({ title: 'Failed to update lock.', type: 'error' })
     }
-  }, [filterCourse, refetch])
+  }, [filterCourse, refetch, showToast])
 
   const toggleSubscribe = useCallback(async (id: string, currentlySubscribed: boolean) => {
     try {
       // Canvas uses PUT to subscribe, DELETE to unsubscribe
-      await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}/subscribed`, {
+      await canvasFetch(`/api/v1/courses/${filterCourse}/discussion_topics/${id}/subscribed`, {
         method: currentlySubscribed ? 'DELETE' : 'PUT',
       })
       refetch()
     } catch (err) {
       console.error('[Discussions] toggleSubscribe failed:', err)
+      showToast({ title: 'Failed to update subscription.', type: 'error' })
     }
-  }, [filterCourse, refetch])
+  }, [filterCourse, refetch, showToast])
+
+  const toggleLike = useCallback(async (topicId: string, entryId?: string, currentlyLiked?: boolean) => {
+    if (!filterCourse) return
+    try {
+      const url = entryId
+        ? `/api/v1/courses/${filterCourse}/discussion_topics/${topicId}/entries/${entryId}/rating`
+        : `/api/v1/courses/${filterCourse}/discussion_topics/${topicId}/rating`
+      await canvasFetch(url, {
+        method: currentlyLiked ? 'DELETE' : 'PUT',
+        body: currentlyLiked ? undefined : { rating: 1 },
+      })
+      if (entryId) {
+        refetchEntries()
+      } else {
+        refetch()
+      }
+    } catch (err) {
+      console.error('[Discussions] toggleLike failed:', err)
+      showToast({ title: 'Failed to update like.', type: 'error' })
+    }
+  }, [filterCourse, refetch, refetchEntries, showToast])
 
   const filteredDiscussions = useMemo(() => {
     let filtered = [...discussions];
@@ -238,7 +276,7 @@ const DiscussionsPage: React.FC = () => {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(d => d.title?.toLowerCase().includes(q) || d.content?.toLowerCase().includes(q));
     }
-    if (filterCourse !== 'all') filtered = filtered.filter(d => d.course?.id === filterCourse);
+    if (filterCourse !== 'all') filtered = filtered.filter(d => String(d.course?.id) === filterCourse);
     if (showUnreadOnly) filtered = filtered.filter(d => d.isUnread);
     const pinned = filtered.filter(d => d.isPinned);
     const unpinned = filtered.filter(d => !d.isPinned);
@@ -254,7 +292,7 @@ const DiscussionsPage: React.FC = () => {
       }
     });
     return [...pinned, ...unpinned];
-  }, [searchTerm, filterCourse, showUnreadOnly, sortBy]);
+  }, [discussions, searchTerm, filterCourse, showUnreadOnly, sortBy]);
 
   const totalPages = Math.ceil(filteredDiscussions.length / pageSize);
   const paginatedDiscussions = filteredDiscussions.slice((page - 1) * pageSize, page * pageSize);
@@ -270,7 +308,14 @@ const DiscussionsPage: React.FC = () => {
   return (
     <div className="cx-page">
       <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={openCreateModal}><PlusSvg /> New Discussion</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {filterCourse && (
+            <PodcastFeedGenerator courseId={filterCourse} feedType="discussions" />
+          )}
+          {isTeacher && (
+            <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={openCreateModal}><PlusSvg /> New Discussion</button>
+          )}
+        </div>
       </div>
 
       <div className="cx-stats-grid">
@@ -344,7 +389,15 @@ const DiscussionsPage: React.FC = () => {
               <div className="cx-discussion-card__footer">
                 <span><ReplySvg /> {discussion.replyCount}</span>
                 <span><EyeSvg /> {discussion.viewCount}</span>
-                <span><HeartSvg /> {discussion.likeCount}</span>
+                <button
+                  className={clsx('cx-btn cx-btn--ghost cx-btn--sm', discussion.isLiked && 'cx-btn--primary')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}
+                  onClick={(e) => { e.stopPropagation(); toggleLike(discussion.id, undefined, discussion.isLiked); }}
+                  disabled={discussion.allowRating === false}
+                  title={discussion.allowRating === false ? 'Rating disabled' : (discussion.isLiked ? 'Unlike' : 'Like')}
+                >
+                  <HeartSvg filled={discussion.isLiked} /> {discussion.likeCount}
+                </button>
               </div>
             </div>
           ))}
@@ -367,7 +420,9 @@ const DiscussionsPage: React.FC = () => {
             <div className="cx-modal__header">
               <h2 className="cx-modal__title">{selectedDiscussion.title}</h2>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { const d = selectedDiscussion; setSelectedDiscussion(null); openEditModal(d); }} title="Edit"><EditSvg /></button>
+                {isTeacher && (
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { const d = selectedDiscussion; setSelectedDiscussion(null); openEditModal(d); }} title="Edit"><EditSvg /></button>
+                )}
                 <button className="cx-btn cx-btn--ghost" onClick={() => { setSelectedDiscussion(null); setShowReply(false); setReplyToEntryId(null) }}><XSvg /></button>
               </div>
             </div>
@@ -382,14 +437,18 @@ const DiscussionsPage: React.FC = () => {
 
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-                <button
-                  className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isPinned ? 'cx-btn--primary' : 'cx-btn--ghost')}
-                  onClick={() => togglePin(selectedDiscussion.id, selectedDiscussion.isPinned)}
-                ><PinSvg /> {selectedDiscussion.isPinned ? 'Pinned' : 'Pin'}</button>
-                <button
-                  className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isLocked ? 'cx-btn--secondary' : 'cx-btn--ghost')}
-                  onClick={() => toggleLock(selectedDiscussion.id, selectedDiscussion.isLocked)}
-                ><LockSvg /> {selectedDiscussion.isLocked ? 'Locked' : 'Lock'}</button>
+                {isTeacher && (
+                  <>
+                    <button
+                      className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isPinned ? 'cx-btn--primary' : 'cx-btn--ghost')}
+                      onClick={() => togglePin(selectedDiscussion.id, selectedDiscussion.isPinned)}
+                    ><PinSvg /> {selectedDiscussion.isPinned ? 'Pinned' : 'Pin'}</button>
+                    <button
+                      className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isLocked ? 'cx-btn--secondary' : 'cx-btn--ghost')}
+                      onClick={() => toggleLock(selectedDiscussion.id, selectedDiscussion.isLocked)}
+                    ><LockSvg /> {selectedDiscussion.isLocked ? 'Locked' : 'Lock'}</button>
+                  </>
+                )}
                 <button
                   className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isSubscribed ? 'cx-btn--primary' : 'cx-btn--ghost')}
                   onClick={() => toggleSubscribe(selectedDiscussion.id, selectedDiscussion.isSubscribed)}
@@ -398,6 +457,14 @@ const DiscussionsPage: React.FC = () => {
                   className="cx-btn cx-btn--primary cx-btn--sm"
                   onClick={() => { setShowReply(p => !p); setReplyToEntryId(null) }}
                 ><ReplySvg /> {showReply && replyToEntryId === null ? 'Cancel' : 'Reply'}</button>
+                <button
+                  className={clsx('cx-btn cx-btn--sm', selectedDiscussion.isLiked ? 'cx-btn--primary' : 'cx-btn--ghost')}
+                  onClick={() => toggleLike(selectedDiscussion.id, undefined, selectedDiscussion.isLiked)}
+                  disabled={selectedDiscussion.allowRating === false}
+                  title={selectedDiscussion.allowRating === false ? 'Rating disabled' : (selectedDiscussion.isLiked ? 'Unlike' : 'Like')}
+                >
+                  <HeartSvg filled={selectedDiscussion.isLiked} /> {selectedDiscussion.likeCount}
+                </button>
               </div>
 
               {/* Top-level reply form */}
@@ -407,18 +474,16 @@ const DiscussionsPage: React.FC = () => {
                     courseId={filterCourse}
                     onSubmit={async (text) => {
                       try {
-                        const res = await fetch(`/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`, {
+                        await canvasFetch(`/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries`, {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                          body: new URLSearchParams({ message: text }).toString()
+                          body: { message: text },
                         })
-                        if (!res.ok) throw new Error('Failed to post reply')
                         setShowReply(false)
                         refetchEntries()
                         refetch()
                       } catch (err) {
                         console.error(err)
-                        alert('Failed to post reply. Please try again.')
+                        showToast({ title: 'Failed to post reply.', message: 'Please try again.', type: 'error' })
                       }
                     }}
                     onCancel={() => setShowReply(false)}
@@ -460,13 +525,22 @@ const DiscussionsPage: React.FC = () => {
                               style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', lineHeight: 1.6 }}
                               dangerouslySetInnerHTML={{ __html: entry.message }}
                             />
-                            <button
-                              className="cx-btn cx-btn--ghost cx-btn--sm"
-                              style={{ marginTop: 6, fontSize: '0.75rem' }}
-                              onClick={() => setReplyToEntryId(replyToEntryId === String(entry.id) ? null : String(entry.id))}
-                            >
-                              <ReplySvg /> Reply
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                              <button
+                                className="cx-btn cx-btn--ghost cx-btn--sm"
+                                style={{ fontSize: '0.75rem' }}
+                                onClick={() => setReplyToEntryId(replyToEntryId === String(entry.id) ? null : String(entry.id))}
+                              >
+                                <ReplySvg /> Reply
+                              </button>
+                              <button
+                                className={clsx('cx-btn cx-btn--ghost cx-btn--sm', entry.rating_sum > 0 && 'cx-btn--primary')}
+                                style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px' }}
+                                onClick={() => toggleLike(selectedDiscussion.id, String(entry.id), entry.rating_sum > 0)}
+                              >
+                                <HeartSvg filled={entry.rating_sum > 0} /> {entry.rating_count || entry.rating_sum || 0}
+                              </button>
+                            </div>
 
                             {/* Nested reply form */}
                             {replyToEntryId === String(entry.id) && (
@@ -475,19 +549,17 @@ const DiscussionsPage: React.FC = () => {
                                   courseId={filterCourse}
                                   onSubmit={async (text) => {
                                     try {
-                                      const res = await fetch(
+                                      await canvasFetch(
                                         `/api/v1/courses/${filterCourse}/discussion_topics/${selectedDiscussion.id}/entries/${entry.id}/replies`,
                                         {
                                           method: 'POST',
-                                          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                          body: new URLSearchParams({ message: text }).toString()
+                                          body: { message: text },
                                         }
                                       )
-                                      if (!res.ok) throw new Error('Failed')
                                       setReplyToEntryId(null)
                                       refetchEntries()
                                     } catch {
-                                      alert('Failed to post nested reply.')
+                                      showToast({ title: 'Failed to post nested reply.', type: 'error' })
                                     }
                                   }}
                                   onCancel={() => setReplyToEntryId(null)}
@@ -514,6 +586,15 @@ const DiscussionsPage: React.FC = () => {
                                         <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)' }}>{new Date(sub.created_at).toLocaleString()}</span>
                                       </div>
                                       <div style={{ fontSize: '0.82rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: sub.message }} />
+                                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                                        <button
+                                          className={clsx('cx-btn cx-btn--ghost cx-btn--sm', sub.rating_sum > 0 && 'cx-btn--primary')}
+                                          style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 4px' }}
+                                          onClick={() => toggleLike(selectedDiscussion.id, String(sub.id), sub.rating_sum > 0)}
+                                        >
+                                          <HeartSvg filled={sub.rating_sum > 0} /> {sub.rating_count || sub.rating_sum || 0}
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
@@ -570,7 +651,12 @@ const DiscussionsPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <textarea id="disc-content" className="cx-input cx-input--textarea" rows={6} value={discussionForm.content} onChange={e => setDiscussionForm(p => ({ ...p, content: e.target.value }))} placeholder="Write your discussion prompt here..." />
+                <RichEditor
+                  value={discussionForm.content || ''}
+                  onChange={html => setDiscussionForm(p => ({ ...p, content: html }))}
+                  placeholder="Write your discussion prompt here..."
+                  minHeight={140}
+                />
               </div>
               <div>
                 <label className="cx-form-label" htmlFor="disc-course" style={{ fontSize: '0.8125rem', fontWeight: 500, display: 'block', marginBottom: 4 }}>Course</label>

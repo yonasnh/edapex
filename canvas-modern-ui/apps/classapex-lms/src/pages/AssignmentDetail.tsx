@@ -2,13 +2,20 @@ import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
+import { useRole } from '../contexts/RoleContext'
 import { SubmissionStatus } from '../widgets/SubmissionStatus'
 import { SubmissionForm } from '../widgets/SubmissionForm'
+import AssignmentEditModal from './AssignmentEditModal'
 import './assignment.css'
 
 export default function AssignmentDetail() {
   const { courseId, assignmentId } = useParams<{ courseId: string; assignmentId: string }>()
+  const { role } = useRole()
+  const { showToast } = useNotification()
+  const isTeacher = role === 'teacher' || role === 'admin'
   const [showForm, setShowForm] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const { data: assignment, isLoading, refetch } = useCanvasQuery<any>(
     `/api/v1/courses/${courseId}/assignments/${assignmentId}`,
@@ -63,9 +70,22 @@ export default function AssignmentDetail() {
         </Link>
         <div className="cx-assignment-detail__title-row">
           <h1 className="cx-assignment-detail__title">{assignment.name}</h1>
-          <Badge variant={hasSubmitted ? 'success' : isPast ? 'danger' : daysUntilDue !== null && daysUntilDue <= 2 ? 'warning' : 'primary'} size="md">
-            {hasSubmitted ? 'Submitted' : isPast ? 'Overdue' : daysUntilDue !== null && daysUntilDue <= 2 ? 'Due Soon' : dueDate ? 'Open' : 'No Due Date'}
-          </Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!isTeacher && (
+              <Badge variant={hasSubmitted ? 'success' : isPast ? 'danger' : daysUntilDue !== null && daysUntilDue <= 2 ? 'warning' : 'primary'} size="md">
+                {hasSubmitted ? 'Submitted' : isPast ? 'Overdue' : daysUntilDue !== null && daysUntilDue <= 2 ? 'Due Soon' : dueDate ? 'Open' : 'No Due Date'}
+              </Badge>
+            )}
+            {isTeacher && (
+              <button
+                className="cx-btn cx-btn--ghost cx-btn--sm"
+                onClick={() => setShowEditModal(true)}
+                title="Edit Assignment"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            )}
+          </div>
         </div>
         <div className="cx-assignment-detail__meta">
           <span className="cx-assignment-detail__points">{assignment.points_possible} points</span>
@@ -77,12 +97,14 @@ export default function AssignmentDetail() {
           )}
           <span className="cx-assignment-detail__type">{assignment.grading_type?.replace('_', ' ') || 'Points'}</span>
         </div>
-        <SubmissionStatus
-          status={submissionStatus as any}
-          grade={assignment.submission?.score}
-          pointsPossible={assignment.points_possible}
-          size="md"
-        />
+        {!isTeacher && (
+          <SubmissionStatus
+            status={submissionStatus as any}
+            grade={assignment.submission?.score}
+            pointsPossible={assignment.points_possible}
+            size="md"
+          />
+        )}
       </div>
 
       <div className="cx-assignment-detail__body">
@@ -119,94 +141,105 @@ export default function AssignmentDetail() {
         )}
       </div>
 
-      <div className="cx-assignment-detail__submit-section">
-        {isQuiz ? (
-          hasSubmitted ? (
-            <div className="cx-assignment-detail__already-submitted" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-              <p style={{ fontWeight: 600, color: 'var(--cx-color-success, #10b981)' }}>Quiz submitted successfully!</p>
-              <Link
-                to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
-                className="cx-btn cx-btn--ghost"
-                style={{ textDecoration: 'none' }}
-              >
-                View Quiz Details
-              </Link>
+      {!isTeacher && (
+        <div className="cx-assignment-detail__submit-section">
+          {isQuiz ? (
+            hasSubmitted ? (
+              <div className="cx-assignment-detail__already-submitted" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <p style={{ fontWeight: 600, color: 'var(--cx-color-success, #10b981)' }}>Quiz submitted successfully!</p>
+                <Link
+                  to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
+                  className="cx-btn cx-btn--ghost"
+                  style={{ textDecoration: 'none' }}
+                >
+                  View Quiz Details
+                </Link>
+              </div>
+            ) : (
+              <div className="cx-assignment-detail__quiz-take-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
+                <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+                  This assignment is a quiz and must be completed using the Quizzes tool.
+                </p>
+                <Link
+                  to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
+                  className="cx-btn cx-btn--primary"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                >
+                  Take Quiz
+                </Link>
+              </div>
+            )
+          ) : !expectsSubmission ? (
+            <div className="cx-assignment-detail__already-submitted">
+              <p>No online submission is required for this assignment.</p>
             </div>
-          ) : (
+          ) : isExternalTool ? (
             <div className="cx-assignment-detail__quiz-take-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
               <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-                This assignment is a quiz and must be completed using the Quizzes tool.
+                This assignment uses an external tool.
               </p>
               <Link
-                to={`/courses/${courseId}/quizzes?quiz_id=${targetQuizId}`}
+                to={`/courses/${courseId}/external-tools`}
                 className="cx-btn cx-btn--primary"
                 style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
               >
-                Take Quiz
+                Launch External Tool
               </Link>
             </div>
-          )
-        ) : !expectsSubmission ? (
-          <div className="cx-assignment-detail__already-submitted">
-            <p>No online submission is required for this assignment.</p>
-          </div>
-        ) : isExternalTool ? (
-          <div className="cx-assignment-detail__quiz-take-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '16px 0' }}>
-            <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-              This assignment uses an external tool.
-            </p>
-            <Link
-              to={`/courses/${courseId}/external-tools`}
-              className="cx-btn cx-btn--primary"
-              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
-            >
-              Launch External Tool
-            </Link>
-          </div>
-        ) : !hasSubmitted ? (
-          showForm ? (
-            <SubmissionForm
-              assignmentId={assignment.id}
-              submissionTypes={assignment.submission_types || ['online_text_entry', 'online_upload', 'online_url']}
-              courseId={courseId}
-              onSubmit={async (data) => {
-                try {
-                  const formData = new URLSearchParams()
-                  formData.append('submission[submission_type]', data.type)
-                  if (data.type === 'online_text_entry' && data.body) {
-                    formData.append('submission[body]', data.body)
-                  } else if (data.type === 'online_url' && data.url) {
-                    formData.append('submission[url]', data.url)
-                  } else if (data.type === 'online_upload' && data.fileIds) {
-                    data.fileIds.forEach(id => formData.append('submission[file_ids][]', String(id)))
+          ) : !hasSubmitted ? (
+            showForm ? (
+              <SubmissionForm
+                assignmentId={assignment.id}
+                submissionTypes={assignment.submission_types || ['online_text_entry', 'online_upload', 'online_url']}
+                courseId={courseId}
+                onSubmit={async (data) => {
+                  try {
+                    const formData = new URLSearchParams()
+                    formData.append('submission[submission_type]', data.type)
+                    if (data.type === 'online_text_entry' && data.body) {
+                      formData.append('submission[body]', data.body)
+                    } else if (data.type === 'online_url' && data.url) {
+                      formData.append('submission[url]', data.url)
+                    } else if (data.type === 'online_upload' && data.fileIds) {
+                      data.fileIds.forEach(id => formData.append('submission[file_ids][]', String(id)))
+                    }
+                    
+                    const res = await fetch(`/api/v1/courses/${courseId}/assignments/${assignment.id}/submissions`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                      body: formData.toString()
+                    })
+                    if (!res.ok) throw new Error('Submission failed')
+                    showToast({ title: 'Assignment submitted successfully!', type: 'success' })
+                    setShowForm(false)
+                    refetch()
+                  } catch (err) {
+                    console.error(err)
+                    showToast({ title: 'Failed to submit assignment', message: 'Please try again.', type: 'error' })
                   }
-                  
-                  const res = await fetch(`/api/v1/courses/${courseId}/assignments/${assignment.id}/submissions`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: formData.toString()
-                  })
-                  if (!res.ok) throw new Error('Submission failed')
-                  alert('Assignment submitted successfully!')
-                  setShowForm(false)
-                  refetch()
-                } catch (err) {
-                  console.error(err)
-                  alert('Failed to submit assignment. Please try again.')
-                }
-              }}
-            />
+                }}
+              />
+            ) : (
+              <button className="cx-assignment-detail__submit-btn" onClick={() => setShowForm(true)}>
+                Start Submission
+              </button>
+            )
           ) : (
-            <button className="cx-assignment-detail__submit-btn" onClick={() => setShowForm(true)}>
-              Start Submission
-            </button>
-          )
-        ) : (
-          <div className="cx-assignment-detail__already-submitted">
-            <p>You have already submitted this assignment.</p>
-          </div>
-        )}
-      </div>
+            <div className="cx-assignment-detail__already-submitted">
+              <p>You have already submitted this assignment.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showEditModal && (
+        <AssignmentEditModal
+          courseId={courseId!}
+          assignment={assignment}
+          onClose={() => setShowEditModal(false)}
+          onSaved={refetch}
+        />
+      )}
     </div>
   )
 }

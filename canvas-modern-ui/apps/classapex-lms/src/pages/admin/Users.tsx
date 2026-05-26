@@ -57,6 +57,7 @@ const roleBadgeClass = (role: string) => {
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useRole } from '../../contexts/RoleContext';
 import { useNotification } from '../../hooks/useNotification';
+import BulkOperationsBar from '../../components/BulkOperationsBar';
 
 const AdminUsersPage: React.FC = () => {
   const { showConfirm, showToast } = useNotification();
@@ -118,7 +119,12 @@ const AdminUsersPage: React.FC = () => {
   }, []);
 
   const [users, setUsers] = useState<UserData[]>([]);
-  const { data: canvasUsers, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/users', { include: ['email', 'last_login'], per_page: 50 } as any);
+  // Persistent map of userId → role for users we explicitly created/assigned.
+  // Survives refetch cycles because Canvas /accounts/:id/users often returns
+  // empty enrollments for newly-created users, causing them to default to 'student'.
+  const knownRolesRef = useRef<Record<string, UserData['role']>>({});
+
+  const { data: canvasUsers, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/users', { include: ['email', 'last_login', 'enrollments'], per_page: 50 } as any);
   const { data: canvasAdmins } = useCanvasQuery<any[]>('/api/v1/accounts/1/admins', {} as any);
 
   React.useEffect(() => {
@@ -138,28 +144,28 @@ const AdminUsersPage: React.FC = () => {
         const loginId = u.login_id || '';
         const name = u.name || u.short_name || 'Unknown User';
 
-        // Smart role determination
-        let role: 'student' | 'teacher' | 'ta' | 'observer' | 'admin' | 'designer' = 'student';
-        if (adminUserIds.has(id) || email.toLowerCase().includes('admin') || loginId.toLowerCase().includes('admin')) {
+        // Role determination from actual Canvas enrollments + admin list + knownRoles fallback
+        let role: UserData['role'] = 'student';
+        if (adminUserIds.has(id)) {
           role = 'admin';
-        } else if (email.toLowerCase().includes('teacher') || loginId.toLowerCase().includes('teacher')) {
-          role = 'teacher';
-        } else if (email.toLowerCase().includes('ta') || loginId.toLowerCase().includes('ta')) {
-          role = 'ta';
-        } else if (email.toLowerCase().includes('observer') || loginId.toLowerCase().includes('observer') || email.toLowerCase().includes('parent') || loginId.toLowerCase().includes('parent')) {
-          role = 'observer';
-        } else if (email.toLowerCase().includes('designer') || loginId.toLowerCase().includes('designer')) {
-          role = 'designer';
+        } else if (Array.isArray(u.enrollments) && u.enrollments.length > 0) {
+          const types = u.enrollments.map((e: any) => e.type || e.role);
+          if (types.includes('TeacherEnrollment')) role = 'teacher';
+          else if (types.includes('TaEnrollment')) role = 'ta';
+          else if (types.includes('DesignerEnrollment')) role = 'designer';
+          else if (types.includes('ObserverEnrollment')) role = 'observer';
+          else if (types.includes('StudentEnrollment')) role = 'student';
+        } else if (knownRolesRef.current[id]) {
+          // Canvas did not return enrollments but we know the role from creation
+          role = knownRolesRef.current[id];
         }
 
         // Determine last login
         let lastLogin = u.last_login;
         if (!lastLogin) {
-          // If Yonas Nebro (the admin user) or the user's loginId has mail2yonas, set to current time
           if (id === '1' || loginId.includes('mail2yonas') || email.includes('mail2yonas')) {
             lastLogin = new Date().toISOString();
           } else {
-            // Stable deterministic past date
             const idNum = parseInt(id) || 0;
             const createdDate = new Date(u.created_at || '2025-08-09T00:00:00Z');
             const now = new Date();
@@ -443,8 +449,14 @@ const AdminUsersPage: React.FC = () => {
   const [newUser, setNewUser] = useState({
     name: '', email: '', role: 'student', isActive: true,
     sendWelcomeEmail: true, temporaryPassword: '',
-    timezone: 'America/New_York', locale: 'en'
+    timezone: 'America/New_York', locale: 'en', courseId: ''
   });
+
+  // Fetch courses for role assignment during user creation
+  const { data: adminCourses } = useCanvasQuery<any[]>(
+    '/api/v1/courses',
+    { per_page: 100, enrollment_state: 'active' } as any
+  );
 
   const [editUser, setEditUser] = useState<Partial<UserData>>({});
 
@@ -500,6 +512,14 @@ const AdminUsersPage: React.FC = () => {
   };
 
   const handleCreateUser = async () => {
+    if (!newUser.name.trim() || !newUser.email.trim()) {
+      showToast({ title: 'Name and email are required', type: 'error' });
+      return;
+    }
+    if (newUser.role !== 'admin' && !newUser.courseId) {
+      showToast({ title: 'Course is required for this role', type: 'error' });
+      return;
+    }
     try {
       const payload = {
         user: {
@@ -516,16 +536,59 @@ const AdminUsersPage: React.FC = () => {
         }
       };
 
-      await canvasFetch('/api/v1/accounts/1/users', {
+      const created = await canvasFetch('/api/v1/accounts/1/users', {
         method: 'POST',
         body: payload
-      });
-      
-      setNewUser({ name: '', email: '', role: 'student', isActive: true, sendWelcomeEmail: true, temporaryPassword: '', timezone: 'America/New_York', locale: 'en' });
+      }) as any;
+      const userId = created?.id;
+
+      // Assign role
+      if (newUser.role === 'admin' && userId) {
+        await canvasFetch('/api/v1/accounts/1/admins', {
+          method: 'POST',
+          body: { user_id: userId, role: 'AccountAdmin', send_confirmation: false }
+        });
+      } else if (newUser.role !== 'admin' && userId && newUser.courseId) {
+        const enrollmentTypeMap: Record<string, string> = {
+          student: 'StudentEnrollment',
+          teacher: 'TeacherEnrollment',
+          ta: 'TaEnrollment',
+          observer: 'ObserverEnrollment',
+          designer: 'DesignerEnrollment',
+        };
+        await canvasFetch(`/api/v1/courses/${newUser.courseId}/enrollments`, {
+          method: 'POST',
+          body: {
+            enrollment: {
+              user_id: userId,
+              type: enrollmentTypeMap[newUser.role] || 'StudentEnrollment',
+              enrollment_state: 'active',
+            }
+          }
+        });
+      }
+
+      // Persist the explicitly-assigned role so it survives refetch cycles
+      if (userId) {
+        knownRolesRef.current[String(userId)] = newUser.role as UserData['role'];
+        setUsers(prev => [{
+          id: String(userId),
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role as UserData['role'],
+          isActive: true,
+          lastLogin: undefined,
+          createdAt: new Date().toISOString(),
+          profile: { timezone: newUser.timezone },
+          enrollmentCount: newUser.courseId ? 1 : 0,
+        }, ...prev]);
+      }
+
+      setNewUser({ name: '', email: '', role: 'student', isActive: true, sendWelcomeEmail: true, temporaryPassword: '', timezone: 'America/New_York', locale: 'en', courseId: '' });
       setShowCreateModal(false);
       showToast({
         title: 'User Created',
-        message: 'Successfully created a new user.',
+        message: `Successfully created user with ${newUser.role} role.`,
         type: 'success'
       });
       refetch();
@@ -616,11 +679,71 @@ const AdminUsersPage: React.FC = () => {
     });
   };
 
-  const handleBulkAction = (_action: string) => {
-    // Bulk actions omitted for MVP simplicity
-    setSelectedUsers([]);
+  const handleResetPassword = async (userId: string) => {
+    try {
+      const logins = await canvasFetch(`/api/v1/users/${userId}/logins`);
+      if (!Array.isArray(logins) || logins.length === 0) {
+        throw new Error('No logins found for this user.');
+      }
+      const loginId = logins[0].id;
+      await canvasFetch(`/api/v1/logins/${loginId}`, {
+        method: 'PUT',
+        body: { login: { password: 'CanvasReset123!' } }
+      });
+      showToast({
+        title: 'Password reset',
+        message: 'Temporary password: CanvasReset123!',
+        type: 'success'
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Password reset failed',
+        message: err?.message || 'This action may require server-level admin access.',
+        type: 'error'
+      });
+    }
   };
-  const _handleExport = () => console.log('Exporting user data...');
+
+  const handleBulkActivate = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/users/${id}`, { method: 'PUT', body: { user: { event: 'unsuspend' } } })))
+      showToast({ title: `${ids.length} user(s) activated`, type: 'success' })
+      setSelectedUsers([])
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Bulk activate failed', message: err.message || 'Unknown error', type: 'error' })
+    }
+  }
+
+  const handleBulkDeactivate = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/users/${id}`, { method: 'PUT', body: { user: { event: 'suspend' } } })))
+      showToast({ title: `${ids.length} user(s) deactivated`, type: 'success' })
+      setSelectedUsers([])
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Bulk deactivate failed', message: err.message || 'Unknown error', type: 'error' })
+    }
+  }
+
+  const handleBulkDeleteUsers = async (ids: string[]) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Users?',
+      message: `This will permanently delete ${ids.length} user(s).`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger',
+    })
+    if (!confirmed) return
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/accounts/1/users/${id}`, { method: 'DELETE' })))
+      showToast({ title: `${ids.length} user(s) deleted`, type: 'success' })
+      setSelectedUsers([])
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Bulk delete failed', message: err.message || 'Unknown error', type: 'error' })
+    }
+  }
 
   const toggleUserSelection = (id: string) => {
     setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -694,14 +817,18 @@ const AdminUsersPage: React.FC = () => {
           </select>
         </div>
 
-        {selectedUsers.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--cx-bg-canvas)', borderRadius: 'var(--radius-md)', marginBottom: 12, fontSize: '0.8125rem' }}>
-            <span style={{ color: 'var(--cx-text-secondary)' }}>{selectedUsers.length} users selected</span>
-            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => handleBulkAction('activate')}>Activate</button>
-            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => handleBulkAction('deactivate')}>Deactivate</button>
-            <button className="cx-btn cx-btn--danger cx-btn--sm" onClick={() => handleBulkAction('delete')}>Delete</button>
-          </div>
-        )}
+        <BulkOperationsBar<UserData>
+          items={paginatedUsers}
+          selectedIds={selectedUsers}
+          onSelectAll={toggleAll}
+          onSelectNone={() => setSelectedUsers([])}
+          itemName="users"
+          actions={[
+            { id: 'activate', label: 'Activate', variant: 'primary', onClick: handleBulkActivate },
+            { id: 'deactivate', label: 'Deactivate', variant: 'secondary', onClick: handleBulkDeactivate },
+            { id: 'delete', label: 'Delete', variant: 'danger', confirmMessage: 'Are you sure you want to delete the selected users?', onClick: handleBulkDeleteUsers },
+          ]}
+        />
 
         {paginatedUsers.length === 0 ? (
           <div className="cx-empty">
@@ -748,7 +875,7 @@ const AdminUsersPage: React.FC = () => {
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleUserClick(user); setShowActions(null); }}><EyeSvg /> View Profile</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleEditClick(user); setShowActions(null); }}><EditSvg /> Edit User</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleMasquerade(user); setShowActions(null); }}><UserCheckSvg /> Act As User</button>
-                          <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { console.log('Reset password for', user.id); setShowActions(null); }}><KeySvg /> Reset Password</button>
+                          <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleResetPassword(user.id); setShowActions(null); }}><KeySvg /> Reset Password</button>
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { setSendMessageUser(user); setShowActions(null); }}><MailSvg /> Send Message</button>
                           <div style={{ borderTop: '1px solid var(--cx-border-subtle)', margin: '4px 0' }} />
                           <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-accent-error)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleDeleteUser(user.id); setShowActions(null); }}><TrashSvg /> Delete User</button>
@@ -799,7 +926,7 @@ const AdminUsersPage: React.FC = () => {
                 </div>
                 <div>
                   <label style={labelStyle}>Role</label>
-                  <select className="cx-select" style={{ width: '100%' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <select className="cx-select" style={{ width: '100%' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value, courseId: ''})}>
                     <option value="student">Student</option>
                     <option value="teacher">Teacher</option>
                     <option value="ta">Teaching Assistant</option>
@@ -807,7 +934,21 @@ const AdminUsersPage: React.FC = () => {
                     <option value="designer">Designer</option>
                     <option value="admin">Administrator</option>
                   </select>
+                  {newUser.role !== 'admin' && (
+                    <p style={{ fontSize: '0.72rem', color: 'var(--cx-color-warning, #d97706)', margin: '4px 0 0 0' }}>Required: select a course to assign this role.</p>
+                  )}
                 </div>
+                {newUser.role !== 'admin' && (
+                  <div>
+                    <label style={labelStyle}>Course <span style={{ color: 'var(--cx-color-danger, #dc2626)' }}>*</span></label>
+                    <select className="cx-select" style={{ width: '100%' }} value={newUser.courseId} onChange={e => setNewUser({...newUser, courseId: e.target.value})}>
+                      <option value="">Select a course...</option>
+                      {(adminCourses || []).map((c: any) => (
+                        <option key={c.id} value={String(c.id)}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label style={labelStyle}>Temporary Password (optional)</label>
                   <input type="password" style={inpStyle} placeholder="Leave blank to auto-generate" value={newUser.temporaryPassword} onChange={e => setNewUser({...newUser, temporaryPassword: e.target.value})} />
@@ -1106,7 +1247,7 @@ const AdminUsersPage: React.FC = () => {
             <div className="cx-modal__footer" style={{ display: 'flex', gap: 8 }}>
               <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => { setShowUserModal(false); handleEditClick(selectedUser); }}><EditSvg /> Edit User</button>
               <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setSendMessageUser(selectedUser)}><MailSvg /> Send Message</button>
-              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => console.log('Reset password for', selectedUser.id)}><KeySvg /> Reset Password</button>
+              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleResetPassword(selectedUser.id)}><KeySvg /> Reset Password</button>
             </div>
           </div>
         </div>

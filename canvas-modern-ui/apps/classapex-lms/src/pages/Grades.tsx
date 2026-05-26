@@ -26,10 +26,9 @@ interface Grade {
 }
 
 // We will fetch this data from the Live Canvas API instead
-// const mockGrades = ...
+// const liveGrades = ...
 // const mockCourses = ...
 
-function ChevronDownSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 5l3 3 3-3"/></svg>; }
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function TrophySvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 3h10v4a5 5 0 01-10 0V3z"/><path d="M7 3V1h6v2"/><path d="M5 14h10v2H5z"/><path d="M10 14v4"/></svg>; }
 function TrendingUpSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14l5-5 4 4 7-7"/><path d="M13 6h5v5"/></svg>; }
@@ -47,7 +46,7 @@ const GRADING_SCHEMES = [
   { label: 'F', min: 0, color: '#ef4444' },
 ]
 
-function getLetterGrade(percentage: number): string {
+export function getLetterGrade(percentage: number): string {
   for (const s of GRADING_SCHEMES) {
     if (percentage >= s.min) return s.label
   }
@@ -72,7 +71,7 @@ const defaultLatePolicy: LatePolicy = {
   maxLatePercent: 50,
 }
 
-function exportGradesCSV(grades: Grade[]) {
+export function exportGradesCSV(grades: Grade[]) {
   const rows = [['Assignment','Course','Type','Score','Points Possible','Percentage','Status','Due Date','Submitted Date','Graded Date','Feedback']]
   grades.forEach(g => {
     rows.push([
@@ -99,11 +98,41 @@ function exportGradesCSV(grades: Grade[]) {
   URL.revokeObjectURL(url)
 }
 
+export function filterGrades(
+  grades: Grade[],
+  searchTerm: string,
+  filterCourse: string,
+  filterType: string,
+  filterStatus: string,
+  sortBy: string
+): Grade[] {
+  let filtered = [...grades];
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase();
+    filtered = filtered.filter(g => g.assignment.name.toLowerCase().includes(q));
+  }
+  if (filterCourse) filtered = filtered.filter(g => String(g.course.id) === filterCourse);
+  if (filterType !== 'all') filtered = filtered.filter(g => g.assignment.type === filterType);
+  if (filterStatus !== 'all') filtered = filtered.filter(g => g.status === filterStatus);
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case 'name': return a.assignment.name.localeCompare(b.assignment.name);
+      case 'score': return (b.score || 0) - (a.score || 0);
+      case 'type': return a.assignment.type.localeCompare(b.assignment.type);
+      default: return new Date(b.assignment.dueDate || 0).getTime() - new Date(a.assignment.dueDate || 0).getTime();
+    }
+  });
+  return filtered;
+}
+
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useRole } from '../contexts/RoleContext';
 
 const GradesPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryCourseId = searchParams.get('courseId');
+  const { role } = useRole();
+  const isStudent = role === 'student';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCourse, setFilterCourse] = useState('');
@@ -135,7 +164,7 @@ const GradesPage: React.FC = () => {
     { enabled: !!filterCourse }
   )
 
-  const mockGrades = useMemo<Grade[]>(() => {
+  const liveGrades = useMemo<Grade[]>(() => {
     if (!Array.isArray(submissionsData)) return []
     const course = courses.find(c => String(c.id) === filterCourse) || { id: filterCourse, name: 'Unknown Course' }
     return submissionsData.map(sub => {
@@ -165,7 +194,7 @@ const GradesPage: React.FC = () => {
 
   const effectiveScores = useMemo(() => {
     if (!whatIfMode) return undefined
-    return mockGrades.map(g => {
+    return liveGrades.map(g => {
       const adjusted = whatIfScores[g.id] !== undefined ? whatIfScores[g.id] : g.score ?? null
       return {
         ...g,
@@ -175,12 +204,12 @@ const GradesPage: React.FC = () => {
           : undefined,
       }
     })
-  }, [whatIfMode, whatIfScores, mockGrades])
+  }, [whatIfMode, whatIfScores, liveGrades])
 
-  const displayGrades = effectiveScores || mockGrades
+  const displayGrades = effectiveScores || liveGrades
 
   const stats = useMemo(() => {
-    const source = effectiveScores || mockGrades
+    const source = effectiveScores || liveGrades
     const graded = source.filter(g => g.status === 'graded' || g.score != null);
     const avg = graded.length ? Math.round(graded.reduce((s, g) => s + (g.percentage || 0), 0) / graded.length) : 0;
     return {
@@ -193,26 +222,10 @@ const GradesPage: React.FC = () => {
       totalPossible: graded.reduce((s, g) => s + g.assignment.pointsPossible, 0),
       whatIfGpa: whatIfMode ? avg : undefined,
     };
-  }, [effectiveScores, mockGrades, whatIfMode]);
+  }, [effectiveScores, liveGrades, whatIfMode]);
 
   const filteredGrades = useMemo(() => {
-    let filtered = [...displayGrades];
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      filtered = filtered.filter(g => g.assignment.name.toLowerCase().includes(q));
-    }
-    if (filterCourse) filtered = filtered.filter(g => String(g.course.id) === filterCourse);
-    if (filterType !== 'all') filtered = filtered.filter(g => g.assignment.type === filterType);
-    if (filterStatus !== 'all') filtered = filtered.filter(g => g.status === filterStatus);
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name': return a.assignment.name.localeCompare(b.assignment.name);
-        case 'score': return (b.score || 0) - (a.score || 0);
-        case 'type': return a.assignment.type.localeCompare(b.assignment.type);
-        default: return new Date(b.assignment.dueDate || 0).getTime() - new Date(a.assignment.dueDate || 0).getTime();
-      }
-    });
-    return filtered;
+    return filterGrades(displayGrades, searchTerm, filterCourse, filterType, filterStatus, sortBy);
   }, [searchTerm, filterCourse, filterType, filterStatus, sortBy, displayGrades]);
 
   const getStatusBadge = (status: string, opts?: { late?: boolean; missing?: boolean }) => {
@@ -230,12 +243,14 @@ const GradesPage: React.FC = () => {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {activeTab === 0 && (
             <>
-              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => exportGradesCSV(mockGrades)} title="Export to CSV"><DownloadSvg /> Export CSV</button>
-              <label className="cx-toggle">
-                <input type="checkbox" checked={whatIfMode} onChange={e => { setWhatIfMode(e.target.checked); setWhatIfScores({}) }} />
-                <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
-                <span className="cx-toggle__label">What-If</span>
-              </label>
+              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => exportGradesCSV(liveGrades)} title="Export to CSV"><DownloadSvg /> Export CSV</button>
+              {isStudent && (
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={whatIfMode} onChange={e => { setWhatIfMode(e.target.checked); setWhatIfScores({}) }} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label">What-If</span>
+                </label>
+              )}
             </>
           )}
         </div>
@@ -366,7 +381,7 @@ const GradesPage: React.FC = () => {
         <div role="tabpanel" id="grades-panel-1" aria-labelledby="grades-tab-1" className="cx-section">
           <div className="cx-stats-grid cx-stats-grid--2">
             {courses.map((course: any) => {
-              const courseGrades = mockGrades.filter(g => g.course.id === String(course.id) && g.status === 'graded');
+              const courseGrades = liveGrades.filter(g => g.course.id === String(course.id) && g.status === 'graded');
               const avg = courseGrades.length ? Math.round(courseGrades.reduce((s, g) => s + (g.percentage || 0), 0) / courseGrades.length) : 0;
               return (
                 <div key={course.id} className="cx-card">
@@ -382,7 +397,7 @@ const GradesPage: React.FC = () => {
                     </div>
                     <div className="cx-card__meta">
                       <span>{courseGrades.length} graded</span>
-                      <span>{mockGrades.filter(g => g.course.id === String(course.id) && g.status === 'missing').length} missing</span>
+                      <span>{liveGrades.filter(g => g.course.id === String(course.id) && g.status === 'missing').length} missing</span>
                     </div>
                   </div>
                 </div>
@@ -420,7 +435,7 @@ const GradesPage: React.FC = () => {
             <div className="cx-card__body">
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                 {courses.map((course: any) => {
-                  const courseGrades = mockGrades.filter(g => g.course.id === String(course.id) && g.percentage != null)
+                  const courseGrades = liveGrades.filter(g => g.course.id === String(course.id) && g.percentage != null)
                   const avg = courseGrades.length ? Math.round(courseGrades.reduce((s, g) => s + (g.percentage || 0), 0) / courseGrades.length) : 0
                   const letter = getLetterGrade(avg)
                   const scheme = GRADING_SCHEMES.find(s => s.label === letter)
@@ -495,11 +510,11 @@ const GradesPage: React.FC = () => {
           <div className="cx-card" style={{ marginTop: 16 }}>
             <div className="cx-card__header"><h3 className="cx-card__title">Late & Missing Submissions</h3></div>
             <div className="cx-card__body">
-              {mockGrades.filter(g => g.isLate || g.isMissing).length === 0 ? (
+              {liveGrades.filter(g => g.isLate || g.isMissing).length === 0 ? (
                 <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.8125rem', margin: 0 }}>No late or missing submissions.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {mockGrades.filter(g => g.isLate || g.isMissing).map(g => {
+                  {liveGrades.filter(g => g.isLate || g.isMissing).map(g => {
                     const daysLate = g.assignment.dueDate ? Math.max(0, Math.floor((Date.now() - new Date(g.assignment.dueDate).getTime()) / 86400000)) : 0
                     const penalty = Math.min(daysLate * latePolicy.latePenaltyPercent, latePolicy.maxLatePercent)
                     return (
@@ -529,7 +544,7 @@ const GradesPage: React.FC = () => {
             <div className="cx-card__body">
               {(() => {
                 // Compute real distribution from Canvas submission data
-                const graded = mockGrades.filter(g => g.percentage != null)
+                const graded = liveGrades.filter(g => g.percentage != null)
                 const dist = GRADING_SCHEMES.map(scheme => {
                   const nextMin = GRADING_SCHEMES[GRADING_SCHEMES.indexOf(scheme) - 1]?.min ?? 101
                   const count = graded.filter(g => {

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n, type Locale } from '../contexts/I18nContext';
-import { useCanvasQuery, useCanvasMutation } from '../hooks/useCanvasQuery';
+import { useCanvasQuery, useCanvasMutation, canvasFetch } from '../hooks/useCanvasQuery';
+import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
 import { Link } from 'react-router-dom';
 
-function SettingsSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>; }
+
 function UserSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 17v-1a3 3 0 00-3-3H7a3 3 0 00-3 3v1"/><circle cx="10" cy="6" r="3"/></svg>; }
 function BellSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2a6 6 0 00-6 6c0 3-1 5-2 6h16c-1-1-2-3-2-6a6 6 0 00-6-6z"/><path d="M8 14a2 2 0 004 0"/></svg>; }
 function PaletteSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="13" cy="7" r="1" fill="currentColor"/><circle cx="10" cy="13" r="1" fill="currentColor"/><path d="M14 11c-1 0-2 1-2 2"/><path d="M6 11c1 0 2 1 2 2"/></svg>; }
@@ -14,6 +16,84 @@ function SunSvg() { return <svg width="18" height="18" viewBox="0 0 18 18" fill=
 function MoonSvg() { return <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 9.5A6.5 6.5 0 118.5 3a5 5 0 106.5 6.5z"/></svg>; }
 function SpinnerSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 0.7s linear infinite' }}><circle cx="8" cy="8" r="6" strokeOpacity="0.3"/><path d="M8 2a6 6 0 016 6" strokeLinecap="round"/></svg>; }
 function InfoSvg() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>; }
+
+function ObserverPairingSection() {
+  const { showToast } = useNotification()
+  const [pairingCode, setPairingCode] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const generateCode = async () => {
+    setLoading(true)
+    try {
+      const res = await canvasFetch('/api/v1/users/self/observer_pairing_codes', { method: 'POST' })
+      setPairingCode(res?.code || '')
+      showToast({ title: 'Pairing code generated', type: 'success' })
+    } catch (err: any) {
+      const msg = err.status === 403
+        ? 'Observer pairing is not enabled for your account. Contact your school admin if you need parent/guardian access.'
+        : (err.message || 'Unknown error')
+      showToast({ title: 'Generation failed', message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }}>
+        Generate a pairing code for an observer (parent/guardian) to link to your account. Codes expire after 7 days or first use.
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ padding: '10px 18px', background: 'var(--cx-bg-surface-raised)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)', minWidth: 120, textAlign: 'center' }}>
+          <span style={{ fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '1.1rem', fontWeight: 700, color: 'var(--cx-text-primary)', letterSpacing: '0.1em' }}>{pairingCode || '—'}</span>
+        </div>
+        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={generateCode} disabled={loading}>
+          {loading ? 'Generating...' : 'Generate Code'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DataExportButton() {
+  const { showToast } = useNotification()
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const [coursesRes, todosRes, submissionsRes] = await Promise.all([
+        canvasFetch('/api/v1/courses?per_page=100'),
+        canvasFetch('/api/v1/users/self/todo?per_page=100'),
+        canvasFetch('/api/v1/users/self/submissions?per_page=100'),
+      ])
+      const data = {
+        exported_at: new Date().toISOString(),
+        courses: coursesRes,
+        todo_items: todosRes,
+        submissions: submissionsRes,
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `classapex-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast({ title: 'Data exported', type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Export failed', message: err.message || 'Unknown error', type: 'error' })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  return (
+    <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExport} disabled={exporting}>
+      {exporting ? 'Exporting...' : 'Download JSON'}
+    </button>
+  )
+}
 
 const TIMEZONES = [
   'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
@@ -32,9 +112,11 @@ const LOCALES = [
 const SettingsPage: React.FC = () => {
   const { theme, toggleTheme, accentColor, setAccentColor } = useTheme();
   const { locale, setLocale, t } = useI18n();
+  const { showToast } = useNotification()
+  const { role } = useRole()
 
   // ── Load real user from Canvas API ──
-  const { data: canvasUser, isLoading: userLoading } = useCanvasQuery<any>(
+  const { data: canvasUser, isLoading: userLoading, refetch: refetchUser } = useCanvasQuery<any>(
     '/api/v1/users/self',
     { include: ['avatar_url', 'bio', 'locale', 'effective_locale', 'permissions'] } as any
   )
@@ -133,8 +215,12 @@ const SettingsPage: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false)
   const [showError, setShowError] = useState('')
 
+  // ── Communication Channels ──
+  const { data: commChannels, refetch: refetchChannels } = useCanvasQuery<any[]>('/api/v1/users/self/communication_channels')
+  const [newChannel, setNewChannel] = useState('')
+
   // ── Mutation for updating user profile ──
-  const { mutate: updateUser, isLoading: saving, error: mutationError } = useCanvasMutation<any, any>(
+  const { mutate: updateUser, isLoading: saving } = useCanvasMutation<any, any>(
     '/api/v1/users/self',
     'PUT'
   )
@@ -319,21 +405,51 @@ const SettingsPage: React.FC = () => {
       <div className="cx-settings-section" style={{ marginTop: 24 }}>
         <h2 className="cx-settings-section__title"><UserSvg /> {t('settings.profile')}</h2>
         <div className="cx-section">
-          {canvasUser?.avatar_url && (
-            <div className="cx-settings-row">
-              <div>
-                <div className="cx-settings-row__label">Avatar</div>
-                <div className="cx-settings-row__desc">Your Canvas profile picture</div>
-              </div>
-              <div className="cx-settings-row__control">
-                <img
-                  src={canvasUser.avatar_url}
-                  alt={name}
-                  style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--cx-border-subtle)' }}
-                />
-              </div>
+          <div className="cx-settings-row">
+            <div>
+              <div className="cx-settings-row__label">Avatar</div>
+              <div className="cx-settings-row__desc">Your Canvas profile picture</div>
             </div>
-          )}
+            <div className="cx-settings-row__control" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <img
+                src={canvasUser?.avatar_url || '/default-avatar.png'}
+                alt={name}
+                style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--cx-border-subtle)' }}
+              />
+              <label style={{ position: 'relative', cursor: 'pointer' }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    try {
+                      const formData = new FormData()
+                      formData.append('name', file.name)
+                      formData.append('content_type', file.type)
+                      formData.append('size', String(file.size))
+                      const preflight = await canvasFetch('/api/v1/users/self/files', { method: 'POST', body: formData })
+                      if (preflight.upload_url) {
+                        const upForm = new FormData()
+                        for (const [key, value] of Object.entries(preflight.upload_params || {})) {
+                          upForm.append(key, String(value))
+                        }
+                        upForm.append('file', file)
+                        await fetch(preflight.upload_url, { method: 'POST', body: upForm })
+                      }
+                      await updateUser({ user: { avatar: { url: preflight.url || preflight.preview_url } } })
+                      await refetchUser()
+                      showToast({ title: 'Avatar updated', type: 'success' })
+                    } catch (err: any) {
+                      showToast({ title: 'Upload failed', message: err.message || 'Unknown error', type: 'error' })
+                    }
+                  }}
+                />
+                <span className="cx-btn cx-btn--secondary cx-btn--sm">Change</span>
+              </label>
+            </div>
+          </div>
 
           <div className="cx-settings-row">
             <div>
@@ -438,6 +554,41 @@ const SettingsPage: React.FC = () => {
                 <input type="checkbox" checked={pushNotifications} onChange={e => setPushNotifications(e.target.checked)} />
                 <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
               </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Communication Channels ── */}
+      <div className="cx-settings-section">
+        <h2 className="cx-settings-section__title"><BellSvg /> Communication Channels</h2>
+        <div className="cx-section">
+          {(commChannels || []).map((ch: any) => (
+            <div key={ch.id} className="cx-settings-row">
+              <div>
+                <div className="cx-settings-row__label">{ch.address}</div>
+                <div className="cx-settings-row__desc">{ch.type} · {ch.workflow_state}</div>
+              </div>
+              <div className="cx-settings-row__control">
+                <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={async () => {
+                  try { await canvasFetch(`/api/v1/users/self/communication_channels/${ch.id}`, { method: 'DELETE' }); refetchChannels(); showToast({ title: 'Channel removed', type: 'success' }) }
+                  catch (err: any) { showToast({ title: 'Remove failed', message: err.message, type: 'error' }) }
+                }} style={{ color: 'var(--cx-color-danger, #dc2626)' }}>Remove</button>
+              </div>
+            </div>
+          ))}
+          <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="cx-settings-row__label">Add Email Channel</div>
+              <div className="cx-settings-row__desc">Receive notifications at an additional address</div>
+            </div>
+            <div className="cx-settings-row__control" style={{ display: 'flex', gap: 8 }}>
+              <input type="email" className="cx-input" style={{ ...inputStyle, width: 200 }} value={newChannel} onChange={e => setNewChannel(e.target.value)} placeholder="email@example.com" />
+              <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={async () => {
+                if (!newChannel.trim()) return
+                try { await canvasFetch('/api/v1/users/self/communication_channels', { method: 'POST', body: { communication_channel: { address: newChannel.trim(), type: 'email' } } }); setNewChannel(''); refetchChannels(); showToast({ title: 'Channel added', type: 'success' }) }
+                catch (err: any) { showToast({ title: 'Add failed', message: err.message, type: 'error' }) }
+              }}>Add</button>
             </div>
           </div>
         </div>
@@ -646,6 +797,32 @@ const SettingsPage: React.FC = () => {
               <Link to="/accessibility-statement" className="cx-btn cx-btn--secondary cx-btn--sm">
                 View Compliance Statement
               </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Observer Pairing Code (students only) ── */}
+      {role === 'student' && (
+        <div className="cx-settings-section">
+          <h2 className="cx-settings-section__title"><ShieldSvg /> Observer Pairing</h2>
+          <div className="cx-section">
+            <ObserverPairingSection />
+          </div>
+        </div>
+      )}
+
+      {/* ── Data Export ── */}
+      <div className="cx-settings-section">
+        <h2 className="cx-settings-section__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Data Export</h2>
+        <div className="cx-section">
+          <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+            <div>
+              <div className="cx-settings-row__label">Export Your Data</div>
+              <div className="cx-settings-row__desc">Download all your courses, assignments, and grades as a JSON file</div>
+            </div>
+            <div className="cx-settings-row__control">
+              <DataExportButton />
             </div>
           </div>
         </div>

@@ -56,14 +56,14 @@ export const navItems: NavigationItem[] = [
       { id: 'course-catalog', label: 'Course Catalog', icon: SearchIcon, href: '/courses/catalog', description: 'Explore and enroll in public courses' },
     ]
   },
-  { id: 'assignments', label: 'Assignments', icon: AssignmentIcon, href: '/assignments', badge: 3, description: 'View and submit assignments', roles: ['student', 'teacher', 'ta', 'admin'] },
-  { id: 'grades', label: 'Grades', icon: GradeIcon, href: '/grades', description: 'View grades and feedback', roles: ['student', 'teacher', 'ta'] },
+  { id: 'assignments', label: 'Assignments', icon: AssignmentIcon, href: '/assignments', description: 'View and submit assignments', roles: ['student', 'teacher', 'ta', 'admin'] },
+  { id: 'grades', label: 'Grades', icon: GradeIcon, href: '/grades', description: 'View grades and feedback', roles: ['student', 'teacher', 'ta', 'observer', 'admin'] },
   { id: 'grading', label: 'Grading Queue', icon: ClipboardIcon, href: '/grading', description: 'Review and grade submissions', roles: ['teacher', 'ta'] },
   { id: 'calendar', label: 'Calendar', icon: CalendarIcon, href: '/calendar', description: 'View upcoming events and deadlines' },
-  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', badge: 2, description: 'Messages and conversations' },
+  { id: 'inbox', label: 'Inbox', icon: InboxIcon, href: '/inbox', description: 'Messages and conversations' },
   { id: 'discussions', label: 'Discussions', icon: ChatIcon, href: '/discussions', description: 'Participate in course discussions' },
   { id: 'files', label: 'Files', icon: FolderIcon, href: '/files', description: 'Access course files and resources' },
-  { id: 'groups', label: 'Groups', icon: GroupIcon, href: '/groups', description: 'Collaborate with study groups', roles: ['student', 'teacher'] },
+  { id: 'groups', label: 'Groups', icon: GroupIcon, href: '/groups', description: 'Collaborate with study groups', roles: ['student', 'teacher', 'admin'] },
   { id: 'analytics', label: 'Analytics', icon: AnalyticsIcon, href: '/analytics', description: 'View learning analytics and progress', roles: ['teacher', 'admin'] },
   { id: 'reports', label: 'Reports', icon: ReportIcon, href: '/reports', description: 'Generate and view reports', roles: ['teacher', 'admin'] },
   {
@@ -80,12 +80,13 @@ export const navItems: NavigationItem[] = [
       { id: 'system-settings', label: 'System Settings', icon: SlidersIcon, href: '/admin/settings', description: 'Configure system settings', roles: ['admin'] },
       { id: 'developer-keys', label: 'Developer Keys', icon: KeyIcon, href: '/admin/developer-keys', description: 'Manage LTI and API keys', roles: ['admin'] },
       { id: 'assessment', label: 'Institutional Assessment', icon: ReportIcon, href: '/admin/assessment', description: 'Manage global question banks and outcomes', roles: ['admin'] },
+      { id: 'blueprint-courses', label: 'Blueprint Courses', icon: CloudIcon, href: '/admin/blueprint-courses', description: 'Manage blueprint templates and course sync', roles: ['admin'] },
       { id: 'theme-branding', label: 'Theme & Branding', icon: PaletteIcon, href: '/admin/branding', description: 'Configure platform visual appearance', roles: ['admin'] },
       { id: 'grade-change-audit', label: 'Grade Change Audit', icon: ShieldIcon, href: '/admin/grade-change-audit', description: 'Review grader modification history', roles: ['admin'] },
       { id: 'global-notifications', label: 'Global Notifications', icon: NotificationIcon, href: '/admin/notifications', description: 'Broadcast global system announcements', roles: ['admin'] },
     ]
   },
-  { id: 'eportfolios', label: 'ePortfolios', icon: EducationIcon, href: '/eportfolios', description: 'Curate your learning journey and achievements' },
+  { id: 'eportfolios', label: 'ePortfolios', icon: EducationIcon, href: '/eportfolios', description: 'Curate your learning journey and achievements', roles: ['student'] },
   { id: 'help', label: 'Help & Support', icon: HelpIcon, href: '/help', description: 'Get help and support' },
 ];
 

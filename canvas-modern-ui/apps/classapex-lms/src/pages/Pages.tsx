@@ -9,7 +9,7 @@
  *  DELETE /api/v1/courses/:id/pages/:url   — delete page (teacher)
  */
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
@@ -30,6 +30,49 @@ interface WikiPage {
   body?: string
   last_edited_by?: { display_name: string; avatar_image_url?: string }
   front_page?: boolean
+}
+
+// ─── localStorage helpers ────────────────────────────────────────────────────
+
+function getPageOrderKey(courseId: string) {
+  return `classapex-page-order-${courseId}`
+}
+
+function loadPageOrder(courseId: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(getPageOrderKey(courseId))
+    if (raw) return JSON.parse(raw) as string[]
+  } catch {
+    // ignore parse errors
+  }
+  return null
+}
+
+function savePageOrder(courseId: string, order: string[]) {
+  try {
+    localStorage.setItem(getPageOrderKey(courseId), JSON.stringify(order))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function applyPageOrder(pages: WikiPage[], order: string[] | null): WikiPage[] {
+  if (!order || order.length === 0) return pages
+  const map = new Map(pages.map(p => [p.url, p]))
+  const ordered: WikiPage[] = []
+  const seen = new Set<string>()
+  order.forEach(url => {
+    const page = map.get(url)
+    if (page && !seen.has(url)) {
+      ordered.push(page)
+      seen.add(url)
+    }
+  })
+  // Append any pages not in the stored order
+  pages.forEach(p => {
+    if (!seen.has(p.url)) ordered.push(p)
+  })
+  return ordered
 }
 
 // ─── Rich Text Editor ────────────────────────────────────────────────────────
@@ -409,10 +452,179 @@ function PageViewer({
   )
 }
 
+// ─── Draggable Page List Item ────────────────────────────────────────────────
+
+function DraggablePageRow({
+  page,
+  index,
+  isTeacher,
+  deletingId,
+  onView,
+  onEdit,
+  onDelete,
+  onSetFrontPage,
+  onReorder,
+}: {
+  page: WikiPage
+  index: number
+  isTeacher: boolean
+  deletingId: string | null
+  onView: (url: string) => void
+  onEdit: (page: WikiPage) => void
+  onDelete: (url: string) => void
+  onSetFrontPage: (url: string) => void
+  onReorder: (fromIndex: number, toIndex: number) => void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleDragStart = (e: React.DragEvent) => {
+    setDragging(true)
+    e.dataTransfer.setData('text/plain', String(index))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setDragging(false)
+    setDragOver(false)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const fromIndex = Number(e.dataTransfer.getData('text/plain'))
+    if (!isNaN(fromIndex) && fromIndex !== index) {
+      onReorder(fromIndex, index)
+    }
+  }
+
+  return (
+    <li
+      draggable={isTeacher}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 16px',
+        background: dragOver ? 'var(--cx-color-primary-subtle, rgba(99,102,241,0.08))' : 'var(--cx-bg-surface)',
+        borderRadius: 10,
+        border: '1px solid',
+        borderColor: dragOver ? 'var(--cx-color-primary)' : 'var(--cx-border-subtle)',
+        transition: 'box-shadow 0.15s, background 0.15s, border-color 0.15s',
+        cursor: isTeacher ? 'grab' : 'pointer',
+        opacity: dragging ? 0.5 : 1,
+      }}
+      onClick={() => onView(page.url)}
+      onMouseEnter={e => {
+        if (!dragOver) e.currentTarget.style.boxShadow = 'var(--cx-shadow-sm)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      {isTeacher && (
+        <div
+          style={{
+            color: 'var(--cx-text-tertiary)',
+            cursor: 'grab',
+            display: 'flex',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+          onClick={e => e.stopPropagation()}
+          title="Drag to reorder"
+        >
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M7 4h6M7 10h6M7 16h6"/>
+          </svg>
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--cx-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {page.title}
+          {page.front_page && (
+            <span style={{
+              marginLeft: 8,
+              fontSize: '0.7rem',
+              padding: '1px 6px',
+              borderRadius: 8,
+              background: 'var(--cx-color-primary)',
+              color: '#fff',
+            }}>Front Page</span>
+          )}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
+          Updated {new Date(page.updated_at).toLocaleDateString()}
+          {page.last_edited_by ? ` by ${page.last_edited_by.display_name}` : ''}
+        </div>
+      </div>
+
+      {!page.published && (
+        <span style={{
+          fontSize: '0.7rem',
+          padding: '2px 8px',
+          borderRadius: 12,
+          background: 'rgba(245,158,11,0.12)',
+          color: '#d97706',
+          fontWeight: 600,
+          flexShrink: 0,
+        }}>Draft</span>
+      )}
+
+      {isTeacher && (
+        <div
+          style={{ display: 'flex', gap: 6, flexShrink: 0 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="cx-btn cx-btn--ghost cx-btn--sm"
+            onClick={() => onSetFrontPage(page.url)}
+            disabled={page.front_page}
+            title={page.front_page ? 'Already front page' : 'Set as front page'}
+          >
+            {page.front_page ? 'Front' : 'Set Front'}
+          </button>
+          <button
+            className="cx-btn cx-btn--ghost cx-btn--sm"
+            onClick={() => onEdit(page)}
+            title="Edit page"
+          >
+            Edit
+          </button>
+          <button
+            className="cx-btn cx-btn--ghost cx-btn--sm"
+            onClick={() => onDelete(page.url)}
+            disabled={deletingId === page.url}
+            title="Delete page"
+            style={{ color: 'var(--cx-color-error,#ef4444)' }}
+          >
+            {deletingId === page.url ? '…' : 'Delete'}
+          </button>
+        </div>
+      )}
+    </li>
+  )
+}
+
 // ─── Main Pages Component ─────────────────────────────────────────────────────
 
 export default function Pages() {
-  const { showConfirm } = useNotification()
+  const { showConfirm, showToast } = useNotification()
   const { courseId } = useParams<{ courseId: string }>()
   const { role } = useRole()
   const isTeacher = role === 'teacher' || role === 'admin'
@@ -422,6 +634,7 @@ export default function Pages() {
   const [editingPage, setEditingPage] = useState<WikiPage | null | 'new'>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [orderedPages, setOrderedPages] = useState<WikiPage[] | null>(null)
   const refetchRef = useRef<(() => void) | null>(null)
 
   const { data: pages, isLoading, refetch } = useCanvasQuery<WikiPage[]>(
@@ -430,9 +643,53 @@ export default function Pages() {
   )
   refetchRef.current = refetch
 
-  const filtered = (pages ?? []).filter(p =>
+  // Apply stored order whenever raw pages change
+  useEffect(() => {
+    if (!pages) {
+      setOrderedPages(null)
+      return
+    }
+    const storedOrder = courseId ? loadPageOrder(courseId) : null
+    const next = applyPageOrder(pages, storedOrder)
+    setOrderedPages(prev => {
+      // Prevent unnecessary state updates if order is unchanged
+      if (prev && prev.length === next.length && prev.every((p, i) => p.url === next[i].url)) {
+        return prev
+      }
+      return next
+    })
+  }, [pages, courseId])
+
+  const filtered = (orderedPages ?? []).filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
+    setOrderedPages(prev => {
+      if (!prev) return prev
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      if (courseId) {
+        savePageOrder(courseId, next.map(p => p.url))
+      }
+      return next
+    })
+  }, [courseId])
+
+  const handleSetFrontPage = useCallback(async (pageUrl: string) => {
+    if (!courseId) return
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/pages/${pageUrl}`, {
+        method: 'PUT',
+        body: { wiki_page: { front_page: true } },
+      })
+      showToast({ title: 'Front page updated', type: 'success' })
+      refetchRef.current?.()
+    } catch (err: any) {
+      showToast({ title: 'Failed to set front page', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }, [courseId, showToast])
 
   const handleDelete = useCallback(async (pageUrl: string) => {
     const isConfirmed = await showConfirm({
@@ -535,80 +792,19 @@ export default function Pages() {
         </div>
       ) : (
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {filtered.map(page => (
-            <li
+          {filtered.map((page, index) => (
+            <DraggablePageRow
               key={page.page_id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 16px',
-                background: 'var(--cx-bg-surface)',
-                borderRadius: 10,
-                border: '1px solid var(--cx-border-subtle)',
-                transition: 'box-shadow 0.15s',
-                cursor: 'pointer',
-              }}
-              onClick={() => setViewingUrl(page.url)}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--cx-shadow-sm)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--cx-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {page.title}
-                  {page.front_page && (
-                    <span style={{
-                      marginLeft: 8,
-                      fontSize: '0.7rem',
-                      padding: '1px 6px',
-                      borderRadius: 8,
-                      background: 'var(--cx-color-primary)',
-                      color: '#fff',
-                    }}>Front Page</span>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
-                  Updated {new Date(page.updated_at).toLocaleDateString()}
-                  {page.last_edited_by ? ` by ${page.last_edited_by.display_name}` : ''}
-                </div>
-              </div>
-
-              {!page.published && (
-                <span style={{
-                  fontSize: '0.7rem',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  background: 'rgba(245,158,11,0.12)',
-                  color: '#d97706',
-                  fontWeight: 600,
-                  flexShrink: 0,
-                }}>Draft</span>
-              )}
-
-              {isTeacher && (
-                <div
-                  style={{ display: 'flex', gap: 6, flexShrink: 0 }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <button
-                    className="cx-btn cx-btn--ghost cx-btn--sm"
-                    onClick={() => setEditingPage(page)}
-                    title="Edit page"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="cx-btn cx-btn--ghost cx-btn--sm"
-                    onClick={() => handleDelete(page.url)}
-                    disabled={deletingId === page.url}
-                    title="Delete page"
-                    style={{ color: 'var(--cx-color-error,#ef4444)' }}
-                  >
-                    {deletingId === page.url ? '…' : 'Delete'}
-                  </button>
-                </div>
-              )}
-            </li>
+              page={page}
+              index={index}
+              isTeacher={isTeacher}
+              deletingId={deletingId}
+              onView={setViewingUrl}
+              onEdit={setEditingPage}
+              onDelete={handleDelete}
+              onSetFrontPage={handleSetFrontPage}
+              onReorder={handleReorder}
+            />
           ))}
         </ul>
       )}

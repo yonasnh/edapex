@@ -10,10 +10,11 @@
  *  POST /api/v1/courses/:id/quizzes/:id/submissions/:id/complete  — submit
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
+import { useRole } from '../contexts/RoleContext'
 import './assignment.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,14 +33,50 @@ interface Quiz {
   locked_for_user?: boolean
 }
 
+interface MatchingPair {
+  id: number
+  left: string
+  right: string
+}
+
+interface NumericalAnswer {
+  id: number
+  exact?: number
+  margin?: number
+  approximate?: number
+  range_start?: number
+  range_end?: number
+}
+
+interface FormulaVariable {
+  name: string
+  min: number
+  max: number
+}
+
 interface QuizQuestion {
   id: number
   position: number
   question_name: string
-  question_type: 'multiple_choice_question' | 'true_false_question' | 'short_answer_question' | 'essay_question' | 'multiple_answers_question'
+  question_type:
+    | 'multiple_choice_question'
+    | 'true_false_question'
+    | 'short_answer_question'
+    | 'essay_question'
+    | 'multiple_answers_question'
+    | 'matching_question'
+    | 'numerical_question'
+    | 'calculated_question'
+    | 'file_upload_question'
+    | 'fill_in_multiple_blanks_question'
   question_text: string
   points_possible: number
   answers?: { id: number; text: string; html?: string }[]
+  matching_answer?: MatchingPair[]
+  numerical_answer?: NumericalAnswer[]
+  formulas?: string[]
+  variables?: FormulaVariable[]
+  blank_answers?: Record<string, { id: number; text: string }[]>
 }
 
 interface QuizSubmission {
@@ -51,6 +88,130 @@ interface QuizSubmission {
   score?: number
   kept_score?: number
   time_spent?: number
+}
+
+type AnswerValue = string | string[] | number | Record<string, string> | null
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getCsrfToken(): string {
+  const raw = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
+  return decodeURIComponent(raw)
+}
+
+function substituteFormulaVariables(text: string, variables: FormulaVariable[]): string {
+  let result = text
+  variables.forEach(v => {
+    const val = Math.round((v.min + Math.random() * (v.max - v.min)) * 100) / 100
+    const regex = new RegExp(`\\[${v.name}\\]`, 'g')
+    result = result.replace(regex, String(val))
+  })
+  return result
+}
+
+function parseBlankIds(text: string): string[] {
+  const matches = text.match(/\[([a-zA-Z0-9_]+)\]/g)
+  if (!matches) return []
+  return [...new Set(matches.map(m => m.slice(1, -1)))]
+}
+
+// ─── File Upload Area for Quiz Questions ──────────────────────────────────────
+
+function QuizFileUpload({
+  courseId,
+  quizId,
+  submissionId,
+  onUpload,
+}: {
+  courseId: string
+  quizId: number
+  submissionId: number
+  onUpload: (fileId: number) => void
+}) {
+  const { showToast } = useNotification()
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = async (file: File) => {
+    if (!file) return
+    setIsUploading(true)
+    try {
+      const notifyBody: Record<string, string | number> = {
+        name: file.name,
+        size: file.size,
+        content_type: file.type,
+      }
+      const notifyRes = await fetch(
+        `/api/v1/courses/${courseId}/quizzes/${quizId}/submissions/${submissionId}/files`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+          body: JSON.stringify(notifyBody),
+        }
+      )
+      if (!notifyRes.ok) throw new Error('Upload notify failed')
+      const { upload_url, upload_params } = await notifyRes.json()
+
+      const formData = new FormData()
+      Object.entries(upload_params || {}).forEach(([k, v]) => formData.append(k, v as string))
+      formData.append('file', file)
+      const uploadRes = await fetch(upload_url, { method: 'POST', body: formData })
+      if (!uploadRes.ok) throw new Error('File upload failed')
+
+      const confirmUrl = uploadRes.headers.get('Location') || (await uploadRes.json()).location
+      if (confirmUrl) await fetch(confirmUrl, { method: 'GET' })
+
+      const result = await uploadRes.json()
+      onUpload(result.id || result.file?.id || 0)
+      showToast({ title: 'File uploaded', type: 'success' })
+    } catch (err) {
+      console.error('[Quiz] Upload failed:', err)
+      showToast({ title: 'Upload failed', message: 'Check console for details.', type: 'error' })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        style={{ display: 'none' }}
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (f) handleFile(f)
+          e.target.value = ''
+        }}
+      />
+      <div
+        className="cx-file-upload-area"
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => {
+          e.preventDefault()
+          const f = e.dataTransfer.files?.[0]
+          if (f) handleFile(f)
+        }}
+        style={{
+          border: '2px dashed var(--cx-border-subtle)',
+          borderRadius: 12,
+          padding: '24px 16px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          background: 'var(--cx-bg-surface-sunken)',
+        }}
+      >
+        <div style={{ marginBottom: 8, color: 'var(--cx-color-primary)' }}>
+          <svg width="32" height="32" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M8 15V3M4 7l4-4 4 4"/><path d="M2 17h16"/>
+          </svg>
+        </div>
+        <p style={{ fontWeight: 500, margin: '0 0 4px' }}>{isUploading ? 'Uploading…' : 'Drag & drop a file here'}</p>
+        <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', margin: 0 }}>or click to browse</p>
+      </div>
+    </div>
+  )
 }
 
 // ─── Quiz Taker ───────────────────────────────────────────────────────────────
@@ -65,7 +226,7 @@ function QuizTaker({
   onExit: () => void
 }) {
   const [submission, setSubmission] = useState<QuizSubmission | null>(null)
-  const [answers, setAnswers] = useState<Record<number, string | string[]>>({})
+  const [answers, setAnswers] = useState<Record<number, AnswerValue>>({})
   const [currentQ, setCurrentQ] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -108,7 +269,7 @@ function QuizTaker({
     }
   }, [courseId, quizId, existingSubmission])
 
-  const handleAnswer = (qId: number, value: string | string[]) => {
+  const handleAnswer = (qId: number, value: AnswerValue) => {
     setAnswers(prev => ({ ...prev, [qId]: value }))
   }
 
@@ -117,10 +278,21 @@ function QuizTaker({
     setSubmitting(true); setError(null)
     try {
       // Build quiz_submissions payload
-      const quiz_questions = questions.map(q => ({
-        id: q.id,
-        answer: answers[q.id] ?? '',
-      }))
+      const quiz_questions = questions.map(q => {
+        const ans = answers[q.id]
+        let answer: any = ans ?? ''
+        // Canvas expects specific formats for complex types
+        if (q.question_type === 'matching_question' && typeof answer === 'object' && answer !== null && !Array.isArray(answer)) {
+          answer = answer
+        }
+        if (q.question_type === 'fill_in_multiple_blanks_question' && typeof answer === 'object' && answer !== null && !Array.isArray(answer)) {
+          answer = answer
+        }
+        return {
+          id: q.id,
+          answer,
+        }
+      })
       await canvasFetch(
         `/api/v1/courses/${courseId}/quizzes/${quizId}/submissions/${submission.id}/complete`,
         {
@@ -158,6 +330,28 @@ function QuizTaker({
       setCurrentQ(p => p - 1)
     }
   }
+
+  // Quiz timer — must be declared before any conditional returns to satisfy Rules of Hooks
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const timerInitRef = useRef(false)
+
+  useEffect(() => {
+    if (quiz?.time_limit && !timerInitRef.current) {
+      timerInitRef.current = true
+      setTimeLeft(quiz.time_limit * 60)
+    }
+  }, [quiz?.time_limit])
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 0) { clearInterval(interval); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [timeLeft])
 
   if (!quiz) {
     return (
@@ -266,15 +460,28 @@ function QuizTaker({
   const q = questions[currentQ]
   const progress = Math.round(((currentQ + 1) / questions.length) * 100)
 
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+
   return (
     <div className="cx-page cx-quiz-taker-detail">
       <div style={{ margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ fontWeight: 700, color: 'var(--cx-text-primary)', margin: 0 }}>{quiz.title}</h2>
-        <span style={{ fontSize: '0.82rem', color: 'var(--cx-text-tertiary)' }}>
-          Question {currentQ + 1} of {questions.length}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {timeLeft !== null && timeLeft > 0 && (
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: timeLeft < 60 ? '#dc2626' : 'var(--cx-text-secondary)', background: timeLeft < 60 ? 'rgba(239,68,68,0.10)' : 'var(--cx-bg-surface-raised)', padding: '4px 10px', borderRadius: 6 }}>
+              ⏱ {formatTime(timeLeft)}
+            </span>
+          )}
+          <span style={{ fontSize: '0.82rem', color: 'var(--cx-text-tertiary)' }}>
+            Question {currentQ + 1} of {questions.length}
+          </span>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -436,6 +643,194 @@ function QuizTaker({
                 }}
               />
             )}
+
+            {/* Matching Question */}
+            {q.question_type === 'matching_question' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {q.matching_answer && q.matching_answer.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Items</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {q.matching_answer.map(pair => (
+                          <div key={pair.id} style={{ padding: '12px 16px', background: 'var(--cx-bg-surface-sunken)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
+                            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>{pair.left}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Matches</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {q.matching_answer.map(pair => {
+                          const matchVal = (answers[q.id] as Record<string, string> | undefined)?.[String(pair.id)] ?? ''
+                          return (
+                            <select
+                              key={pair.id}
+                              value={matchVal}
+                              onChange={e => {
+                                const current = (answers[q.id] as Record<string, string> | undefined) ?? {}
+                                handleAnswer(q.id, { ...current, [String(pair.id)]: e.target.value })
+                              }}
+                              style={{
+                                padding: '12px 16px',
+                                borderRadius: 8,
+                                border: '1px solid var(--cx-border-subtle)',
+                                background: 'var(--cx-bg-surface-sunken)',
+                                color: 'var(--cx-text-primary)',
+                                fontSize: '0.875rem',
+                                width: '100%',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <option value="">Select match…</option>
+                              {q.matching_answer?.map(opt => (
+                                <option key={opt.id} value={String(opt.id)}>{opt.right}</option>
+                              ))}
+                            </select>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Numerical Question */}
+            {q.question_type === 'numerical_question' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <input
+                  type="number"
+                  step="any"
+                  className="cx-search__input"
+                  placeholder="Enter a number…"
+                  value={(answers[q.id] as number | string | undefined) ?? ''}
+                  onChange={e => {
+                    const val = e.target.value
+                    handleAnswer(q.id, val === '' ? '' : Number(val))
+                  }}
+                  style={{
+                    width: '100%',
+                    fontSize: '0.95rem',
+                    padding: 16,
+                    borderRadius: 12,
+                    border: '1px solid var(--cx-border-subtle)',
+                    background: 'var(--cx-bg-surface-sunken)',
+                    color: 'var(--cx-text-primary)',
+                  }}
+                />
+                {q.numerical_answer && q.numerical_answer.length > 0 && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>
+                    Accepted answers may have a tolerance range.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Calculated / Formula Question */}
+            {q.question_type === 'calculated_question' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div
+                  style={{
+                    padding: '16px 20px',
+                    background: 'var(--cx-bg-surface-sunken)',
+                    borderRadius: 12,
+                    border: '1px solid var(--cx-border-subtle)',
+                    fontSize: '0.95rem',
+                    color: 'var(--cx-text-primary)',
+                    lineHeight: 1.6,
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: substituteFormulaVariables(q.question_text, q.variables ?? []),
+                  }}
+                />
+                {q.formulas && q.formulas.length > 0 && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>
+                    Formula: {q.formulas[0]}
+                  </div>
+                )}
+                <input
+                  type="number"
+                  step="any"
+                  className="cx-search__input"
+                  placeholder="Enter your calculated answer…"
+                  value={(answers[q.id] as number | string | undefined) ?? ''}
+                  onChange={e => {
+                    const val = e.target.value
+                    handleAnswer(q.id, val === '' ? '' : Number(val))
+                  }}
+                  style={{
+                    width: '100%',
+                    fontSize: '0.95rem',
+                    padding: 16,
+                    borderRadius: 12,
+                    border: '1px solid var(--cx-border-subtle)',
+                    background: 'var(--cx-bg-surface-sunken)',
+                    color: 'var(--cx-text-primary)',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* File Upload Question */}
+            {q.question_type === 'file_upload_question' && submission && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <QuizFileUpload
+                  courseId={courseId}
+                  quizId={quizId}
+                  submissionId={submission.id}
+                  onUpload={fileId => handleAnswer(q.id, fileId)}
+                />
+                {typeof answers[q.id] === 'number' && (
+                  <div style={{ fontSize: '0.875rem', color: 'var(--cx-color-success)' }}>
+                    File uploaded successfully (ID: {String(answers[q.id])})
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Fill In Multiple Blanks Question */}
+            {q.question_type === 'fill_in_multiple_blanks_question' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {(() => {
+                  const blankIds = parseBlankIds(q.question_text)
+                  const parts = q.question_text.split(/\[([a-zA-Z0-9_]+)\]/g)
+                  return (
+                    <div style={{ fontSize: '0.95rem', color: 'var(--cx-text-primary)', lineHeight: 1.8 }}>
+                      {parts.map((part, i) => {
+                        if (i % 2 === 1) {
+                          const blankId = part
+                          const current = (answers[q.id] as Record<string, string> | undefined) ?? {}
+                          return (
+                            <input
+                              key={`${blankId}-${i}`}
+                              type="text"
+                              value={current[blankId] ?? ''}
+                              onChange={e => handleAnswer(q.id, { ...current, [blankId]: e.target.value })}
+                              placeholder={`Blank: ${blankId}`}
+                              style={{
+                                display: 'inline-block',
+                                width: 140,
+                                padding: '6px 10px',
+                                margin: '0 4px',
+                                borderRadius: 8,
+                                border: '1px solid var(--cx-border-subtle)',
+                                background: 'var(--cx-bg-surface-sunken)',
+                                color: 'var(--cx-text-primary)',
+                                fontSize: '0.9rem',
+                                verticalAlign: 'middle',
+                              }}
+                            />
+                          )
+                        }
+                        return <span key={i} dangerouslySetInnerHTML={{ __html: part }} />
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Swipe indicator (shown on mobile breakpoint) */}
@@ -531,6 +926,8 @@ export default function QuizzesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newQuiz, setNewQuiz] = useState({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
   const [creatingQuiz, setCreatingQuiz] = useState(false)
+  const { role } = useRole()
+  const isTeacher = role === 'teacher' || role === 'admin'
   const { showToast } = useNotification()
 
   useEffect(() => {
@@ -571,9 +968,11 @@ export default function QuizzesPage() {
           <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Quizzes</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Practice knowledge checks, graded quizzes, and surveys.</p>
         </div>
-        <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(true)}>
-          + Create Quiz
-        </button>
+        {isTeacher && (
+          <button className="cx-btn cx-btn--primary" onClick={() => setShowCreateModal(true)}>
+            + Create Quiz
+          </button>
+        )}
       </div>
 
       {isLoading ? (
@@ -612,6 +1011,16 @@ export default function QuizzesPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                {isTeacher && (
+                  <Link
+                    to={`/courses/${courseId}/quizzes/${quiz.id}/builder`}
+                    className="cx-btn cx-btn--ghost cx-btn--sm"
+                    onClick={e => e.stopPropagation()}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    Build
+                  </Link>
+                )}
                 {quiz.workflow_state === 'published' ? (
                   <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 600 }}>Published</span>
                 ) : (

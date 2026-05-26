@@ -50,7 +50,7 @@ export default function SubAccountsPage() {
     await Promise.all([refetchRoots(), refetchSubs()])
   }, [refetchRoots, refetchSubs])
 
-  const mockAccounts = React.useMemo<SubAccount[]>(() => {
+  const accounts = React.useMemo<SubAccount[]>(() => {
     const list: SubAccount[] = [];
     const seen = new Set<string>();
 
@@ -86,11 +86,11 @@ export default function SubAccountsPage() {
   }, [canvasAccounts, subAccounts]);
 
   const selectedAccount = React.useMemo(() => {
-    return mockAccounts.find(a => a.id === selectedAccountId) || null
-  }, [mockAccounts, selectedAccountId])
+    return accounts.find(a => a.id === selectedAccountId) || null
+  }, [accounts, selectedAccountId])
 
   const childrenOf = (parentId: string | null) =>
-    mockAccounts.filter(a => a.parentId === parentId && (!searchTerm || a.name.toLowerCase().includes(searchTerm.toLowerCase())))
+    accounts.filter(a => a.parentId === parentId && (!searchTerm || a.name.toLowerCase().includes(searchTerm.toLowerCase())))
 
   const rootAccounts = childrenOf(null)
 
@@ -152,7 +152,7 @@ export default function SubAccountsPage() {
 
   const renderTree = (accounts: SubAccount[], depth = 0): React.ReactNode => {
     return accounts.map(account => {
-      const hasChildren = mockAccounts.some(a => a.parentId === account.id)
+      const hasChildren = accounts.some(a => a.parentId === account.id)
       const isExpanded = expanded.has(account.id)
       const isSelected = selectedAccountId === account.id
 
@@ -563,7 +563,7 @@ export default function SubAccountsPage() {
               <label className="cx-form-label" htmlFor="sub-parent">Parent Account</label>
               <select id="sub-parent" className="cx-select" value={newParent} onChange={e => setNewParent(e.target.value)} style={{ width: '100%' }}>
                 <option value="root">Root Account</option>
-                {mockAccounts.map(a => (
+                {accounts.map(a => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>

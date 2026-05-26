@@ -860,6 +860,34 @@ const Analytics: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* Assignment Completion Rates */}
+          {assignments && submissions && (
+            <div className="cx-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 16px 0' }}>Assignment Completion Rates</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {assignments.map(a => {
+                  const assignmentSubs = submissions.filter(s => s.assignment_id === a.id)
+                  const submittedCount = assignmentSubs.filter(s => s.score !== null && s.score !== undefined).length
+                  const totalCount = Math.max(assignmentSubs.length, 1)
+                  const pct = Math.round((submittedCount / totalCount) * 100)
+                  return (
+                    <div key={a.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: '0.8125rem' }}>
+                        <span style={{ color: 'var(--cx-text-secondary)' }}>{a.name}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{submittedCount}/{totalCount} ({pct}%)</span>
+                      </div>
+                      <div className="cx-progress-bar">
+                        <div className="cx-progress-bar__track">
+                          <div className="cx-progress-bar__fill" style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--cx-color-success, #059669)' : pct >= 50 ? 'var(--cx-color-warning, #d97706)' : 'var(--cx-color-danger, #dc2626)' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

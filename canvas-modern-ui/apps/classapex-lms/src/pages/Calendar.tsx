@@ -339,33 +339,103 @@ const CalendarPage: React.FC = () => {
     }
   };
 
-  const handleExportICal = () => {
-    // Generate simple iCal from currently filtered events
-    let ical = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ClassApex//LMS//EN\n'
-    filteredEvents.forEach(e => {
-      const dtStart = new Date(e.startDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-      const dtEnd = e.endDate ? new Date(e.endDate).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z' : dtStart
-      ical += 'BEGIN:VEVENT\n'
-      ical += `UID:${e.id}@classapex.local\n`
-      ical += `DTSTAMP:${dtStart}\n`
-      ical += `DTSTART:${dtStart}\n`
-      ical += `DTEND:${dtEnd}\n`
-      ical += `SUMMARY:${e.title}\n`
-      if (e.description) ical += `DESCRIPTION:${e.description.replace(/\n/g, '\\n')}\n`
-      if (e.location) ical += `LOCATION:${e.location}\n`
-      ical += 'END:VEVENT\n'
-    })
-    ical += 'END:VCALENDAR'
+  const escapeICalText = (text: string) => {
+    return text
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '')
+  }
 
+  const formatICalDate = (dateStr: string, allDay = false) => {
+    const d = new Date(dateStr)
+    if (allDay) {
+      return d.toISOString().slice(0, 10).replace(/-/g, '')
+    }
+    return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+  }
+
+  const buildICal = (events: CalendarEvent[]) => {
+    let ical = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ClassApex//LMS//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n'
+    events.forEach(e => {
+      const dtStart = formatICalDate(e.startDate, e.isAllDay)
+      const dtEnd = e.endDate ? formatICalDate(e.endDate, e.isAllDay) : dtStart
+      const dtStamp = formatICalDate(new Date().toISOString())
+      const uid = `${e.id}@classapex.local`
+      ical += 'BEGIN:VEVENT\r\n'
+      ical += `UID:${uid}\r\n`
+      ical += `DTSTAMP:${dtStamp}\r\n`
+      if (e.isAllDay) {
+        ical += `DTSTART;VALUE=DATE:${dtStart}\r\n`
+        if (e.endDate) {
+          // All-day end date is exclusive in ICS, so add one day
+          const nextDay = new Date(e.endDate)
+          nextDay.setDate(nextDay.getDate() + 1)
+          ical += `DTEND;VALUE=DATE:${formatICalDate(nextDay.toISOString(), true)}\r\n`
+        } else {
+          ical += `DTEND;VALUE=DATE:${dtStart}\r\n`
+        }
+      } else {
+        ical += `DTSTART:${dtStart}\r\n`
+        ical += `DTEND:${dtEnd}\r\n`
+      }
+      ical += `SUMMARY:${escapeICalText(e.title)}\r\n`
+      if (e.description) ical += `DESCRIPTION:${escapeICalText(e.description)}\r\n`
+      if (e.location) ical += `LOCATION:${escapeICalText(e.location)}\r\n`
+      if (e.course) ical += `CATEGORIES:${escapeICalText(e.course.name)}\r\n`
+      // Recurring event support
+      if (e.isRecurring) {
+        ical += 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\n'
+      }
+      // Event status mapping
+      const statusMap: Record<string, string> = { upcoming: 'CONFIRMED', ongoing: 'CONFIRMED', completed: 'COMPLETED', cancelled: 'CANCELLED' }
+      if (e.status && statusMap[e.status]) {
+        ical += `STATUS:${statusMap[e.status]}\r\n`
+      }
+      ical += 'END:VEVENT\r\n'
+    })
+    ical += 'END:VCALENDAR\r\n'
+    return ical
+  }
+
+  const handleExportICal = () => {
+    const ical = buildICal(filteredEvents)
     const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', 'calendar.ics')
+    link.setAttribute('download', 'classapex-calendar.ics')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   };
+
+  const handleCopyFeedUrl = async () => {
+    const ical = buildICal(filteredEvents)
+    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
+    const dataUri = URL.createObjectURL(blob)
+    try {
+      await navigator.clipboard.writeText(dataUri)
+      showToast({ title: 'Copied', message: 'Calendar feed URL copied to clipboard.', type: 'success' })
+    } catch {
+      showToast({ title: 'Copy Failed', message: 'Could not copy to clipboard.', type: 'error' })
+    }
+  }
+
+  const handleSubscribe = () => {
+    const ical = buildICal(filteredEvents)
+    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
+    const dataUri = URL.createObjectURL(blob)
+    // Attempt webcal protocol; fallback to data URI for direct import
+    const webcalUrl = dataUri.replace(/^https?/, 'webcal')
+    window.open(webcalUrl, '_blank')
+    showToast({
+      title: 'Subscribe',
+      message: 'Opened calendar subscription. If your calendar app did not open, use Export iCal and import manually.',
+      type: 'success'
+    })
+  }
 
   const handleDragStart = (e: React.DragEvent, eventId: string) => {
     e.dataTransfer.setData('text/plain', eventId)
@@ -427,6 +497,8 @@ const CalendarPage: React.FC = () => {
   return (
     <div className="cx-page">
       <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0, gap: 12 }}>
+        <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleCopyFeedUrl}>Copy Calendar Feed URL</button>
+        <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleSubscribe}>Subscribe</button>
         <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportICal}>Export iCal</button>
         <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={openCreateModal}><PlusSvg /> Create Event</button>
       </div>

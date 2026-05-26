@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function DragHandleSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 4h6M5 8h6M5 12h6"/></svg>; }
@@ -58,6 +59,8 @@ const defaultMasteryConfig = (): MasteryPathConfig => ({
 export default function ModulesPage() {
   const { courseId } = useParams();
   const { showToast, showConfirm } = useNotification();
+  const { role } = useRole();
+  const isTeacher = role === 'teacher' || role === 'admin';
   const [expandedModules, setExpandedModules] = useState<Record<number, boolean>>({});
   
   // Modals state
@@ -441,9 +444,11 @@ export default function ModulesPage() {
           <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Modules</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Organize your course content sequentially.</p>
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button className="cx-btn cx-btn--primary" onClick={() => setShowAddModuleModal(true)}><PlusSvg /> Module</button>
-        </div>
+        {isTeacher && (
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button className="cx-btn cx-btn--primary" onClick={() => setShowAddModuleModal(true)}><PlusSvg /> Module</button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -489,11 +494,15 @@ export default function ModulesPage() {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowAddItemModal(mod.id)} disabled={mutatingModuleId === mod.id}><PlusSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenPrereqsModal(mod)} disabled={mutatingModuleId === mod.id || savingPrereqsModuleId === mod.id} title="Prerequisites"><LinkSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenMasteryPathsModal(mod)} disabled={mutatingModuleId === mod.id} title="Mastery Paths"><BranchSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishModule(mod)} disabled={mutatingModuleId === mod.id} style={{ color: mod.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteModule(mod.id)} disabled={mutatingModuleId === mod.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                  {isTeacher && (
+                    <>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowAddItemModal(mod.id)} disabled={mutatingModuleId === mod.id}><PlusSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenPrereqsModal(mod)} disabled={mutatingModuleId === mod.id || savingPrereqsModuleId === mod.id} title="Prerequisites"><LinkSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenMasteryPathsModal(mod)} disabled={mutatingModuleId === mod.id} title="Mastery Paths"><BranchSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishModule(mod)} disabled={mutatingModuleId === mod.id} style={{ color: mod.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteModule(mod.id)} disabled={mutatingModuleId === mod.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -533,9 +542,13 @@ export default function ModulesPage() {
                           )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} onClick={e => e.stopPropagation()}>
-                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} disabled={mutatingItemId === item.id} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
-                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenCompletionModal(mod.id, item)} disabled={mutatingItemId === item.id || savingCompletionItemId === item.id} title="Completion Requirement"><GearSvg /></button>
-                          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} disabled={mutatingItemId === item.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                          {isTeacher && (
+                            <>
+                              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleTogglePublishItem(mod.id, item)} disabled={mutatingItemId === item.id} style={{ color: item.published ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}><CheckSvg /></button>
+                              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleOpenCompletionModal(mod.id, item)} disabled={mutatingItemId === item.id || savingCompletionItemId === item.id} title="Completion Requirement"><GearSvg /></button>
+                              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDeleteItem(mod.id, item.id)} disabled={mutatingItemId === item.id} style={{ color: 'var(--cx-color-danger)' }}><TrashSvg /></button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );

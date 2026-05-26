@@ -11,7 +11,7 @@ interface Term {
 }
 
 // We will fetch these from Canvas API instead
-// const mockTerms: Term[] = ...
+// const terms: Term[] = ...
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg> }
 function EditSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 1.5l2.5 2.5L4.5 12H2v-2.5L10 1.5z"/></svg> }
@@ -39,7 +39,7 @@ export default function TermsPage() {
 
   const { data: termsData, refetch } = useCanvasQuery<any>('/api/v1/accounts/1/terms')
   
-  const mockTerms = React.useMemo<Term[]>(() => {
+  const terms = React.useMemo<Term[]>(() => {
     if (!termsData || !Array.isArray(termsData.enrollment_terms)) return [];
     return termsData.enrollment_terms.map((t: any) => ({
       id: String(t.id),
@@ -128,10 +128,10 @@ export default function TermsPage() {
   }
 
   const stats = {
-    active: mockTerms.filter(t => t.status === 'active').length,
-    upcoming: mockTerms.filter(t => t.status === 'upcoming').length,
-    past: mockTerms.filter(t => t.status === 'past').length,
-    total: mockTerms.length,
+    active: terms.filter(t => t.status === 'active').length,
+    upcoming: terms.filter(t => t.status === 'upcoming').length,
+    past: terms.filter(t => t.status === 'past').length,
+    total: terms.length,
   }
 
   return (
@@ -202,7 +202,7 @@ export default function TermsPage() {
             </tr>
           </thead>
           <tbody>
-            {mockTerms.map(term => (
+            {terms.map(term => (
               <tr key={term.id}>
                 <td className="cx-table__cell cx-table__cell--name">{term.name}</td>
                 <td className="cx-table__cell">{formatDate(term.startDate)}</td>

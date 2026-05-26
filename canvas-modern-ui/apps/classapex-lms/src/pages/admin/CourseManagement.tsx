@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import CourseCard from '../../components/CourseCard';
+import BulkOperationsBar from '../../components/BulkOperationsBar';
 
 interface SectionData {
   id: string;
@@ -58,8 +59,6 @@ interface CourseData {
 // We will fetch these from Canvas API instead
 // const mockCourses: CourseData[] = ...
 
-const mockTerms = ['Spring 2024', 'Fall 2024', 'Summer 2024', 'Fall 2023'];
-const mockDepartments = ['Computer Science', 'Mathematics', 'English', 'Physics', 'Chemistry', 'Biology'];
 
 const statusBadgeClass = (s: string) => s === 'available' ? 'cx-badge--success' : s === 'unpublished' ? 'cx-badge--warning' : s === 'completed' ? 'cx-badge--info' : 'cx-badge--danger';
 
@@ -72,7 +71,6 @@ const AdminCourseManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTerm, setFilterTerm] = useState('all');
-  const [filterDepartment, setFilterDepartment] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -106,6 +104,9 @@ const AdminCourseManagementPage: React.FC = () => {
     { id: 'a3', date: '2026-05-18T14:22:00Z', user: 'Emma Thompson', course: 'Chemistry Lab', role: 'Student', action: 'Dropped Course', actor: 'Student (Self-service)' }
   ]);
 
+  // Bulk selection state
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+
   const [newCourse, setNewCourse] = useState({
     name: '', courseCode: '', department: '', term: '', credits: 3,
     startDate: '', endDate: '', syllabusBody: '',
@@ -118,7 +119,7 @@ const AdminCourseManagementPage: React.FC = () => {
   const { data: canvasCourses, refetch } = useCanvasQuery<any[]>('/api/v1/accounts/1/courses', { include: ['term', 'total_students', 'teachers', 'syllabus_body'], per_page: 50 } as any);
   const { data: contentMigrations, isLoading: migrationsLoading } = useCanvasQuery<any[]>('/api/v1/accounts/1/content_migrations', { per_page: 10 } as any);
 
-  const mockCourses = useMemo<CourseData[]>(() => {
+  const courses = useMemo<CourseData[]>(() => {
     if (!Array.isArray(canvasCourses)) return [];
     return canvasCourses.map(c => ({
       id: String(c.id),
@@ -139,12 +140,20 @@ const AdminCourseManagementPage: React.FC = () => {
     }));
   }, [canvasCourses]);
 
+  const termOptions = useMemo(() => {
+    if (!Array.isArray(canvasCourses)) return [];
+    const terms = new Set<string>();
+    canvasCourses.forEach((c: any) => {
+      if (c.term?.name) terms.add(c.term.name);
+    });
+    return Array.from(terms).sort();
+  }, [canvasCourses]);
+
   const filteredCourses = useMemo(() => {
-    let filtered = mockCourses;
+    let filtered = courses;
     if (searchTerm) filtered = filtered.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) || c.department?.toLowerCase().includes(searchTerm.toLowerCase()));
     if (filterStatus !== 'all') filtered = filtered.filter(c => c.workflowState === filterStatus);
     if (filterTerm !== 'all') filtered = filtered.filter(c => c.term === filterTerm);
-    if (filterDepartment !== 'all') filtered = filtered.filter(c => c.department === filterDepartment);
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name': return a.name.localeCompare(b.name);
@@ -156,18 +165,18 @@ const AdminCourseManagementPage: React.FC = () => {
       }
     });
     return filtered;
-  }, [mockCourses, searchTerm, filterStatus, filterTerm, filterDepartment, sortBy]);
+  }, [courses, searchTerm, filterStatus, filterTerm, sortBy]);
 
   const totalPages = Math.ceil(filteredCourses.length / pageSize);
   const paginatedCourses = filteredCourses.slice((page - 1) * pageSize, page * pageSize);
 
   const stats = useMemo(() => ({
-    total: mockCourses.length,
-    active: mockCourses.filter(c => c.workflowState === 'available').length,
-    published: mockCourses.filter(c => c.isPublished).length,
-    totalStudents: mockCourses.reduce((s, c) => s + c.studentCount, 0),
-    unpublished: mockCourses.filter(c => c.workflowState === 'unpublished').length,
-  }), [mockCourses]);
+    total: courses.length,
+    active: courses.filter(c => c.workflowState === 'available').length,
+    published: courses.filter(c => c.isPublished).length,
+    totalStudents: courses.reduce((s, c) => s + c.studentCount, 0),
+    unpublished: courses.filter(c => c.workflowState === 'unpublished').length,
+  }), [courses]);
 
   const getStatusIcon = (s: string) => s === 'available' ? <CheckSvg /> : s === 'unpublished' ? <AlertSvg /> : s === 'completed' ? <CheckSvg /> : <XCircleSvg />;
 
@@ -423,6 +432,24 @@ const AdminCourseManagementPage: React.FC = () => {
     }
   };
 
+  const handleResetCourse = async (id: string) => {
+    const confirmed = await showConfirm({
+      title: 'Reset Course?',
+      message: 'This will remove ALL content (assignments, quizzes, files, modules) but keep enrollments. This cannot be undone.',
+      confirmLabel: 'Reset Course',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    try {
+      await canvasFetch(`/api/v1/courses/${id}/reset_content`, { method: 'POST' });
+      showToast({ title: 'Course reset', message: 'All content has been cleared. Enrollments preserved.', type: 'success' });
+      refetch();
+    } catch (err: any) {
+      showToast({ title: 'Reset failed', message: err.message || 'An error occurred.', type: 'error' });
+    }
+  };
+
   const handlePublishCourse = async (id: string) => {
     try {
       await canvasFetch(`/api/v1/courses/${id}`, {
@@ -444,7 +471,61 @@ const AdminCourseManagementPage: React.FC = () => {
       });
     }
   };
-  const handleClearFilters = () => { setSearchTerm(''); setFilterStatus('all'); setFilterTerm('all'); setFilterDepartment('all'); setPage(1); };
+  const handleClearFilters = () => { setSearchTerm(''); setFilterStatus('all'); setFilterTerm('all'); setPage(1); };
+
+  // Bulk operations
+  const toggleCourseSelection = (id: string) => {
+    setSelectedCourses(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleAllCourses = () => {
+    if (selectedCourses.length === paginatedCourses.length) {
+      setSelectedCourses([]);
+    } else {
+      setSelectedCourses(paginatedCourses.map(c => c.id));
+    }
+  };
+
+  const handleBulkPublish = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/courses/${id}`, { method: 'PUT', body: { course: { event: 'offer' } } })));
+      showToast({ title: `${ids.length} course(s) published`, type: 'success' });
+      setSelectedCourses([]);
+      refetch();
+    } catch (err: any) {
+      showToast({ title: 'Bulk publish failed', message: err.message || 'Unknown error', type: 'error' });
+    }
+  };
+
+  const handleBulkConclude = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/courses/${id}`, { method: 'PUT', body: { course: { event: 'conclude' } } })));
+      showToast({ title: `${ids.length} course(s) concluded`, type: 'success' });
+      setSelectedCourses([]);
+      refetch();
+    } catch (err: any) {
+      showToast({ title: 'Bulk conclude failed', message: err.message || 'Unknown error', type: 'error' });
+    }
+  };
+
+  const handleBulkDelete = async (ids: string[]) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Courses?',
+      message: `This will permanently delete ${ids.length} course(s).`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+    try {
+      await Promise.all(ids.map(id => canvasFetch(`/api/v1/courses/${id}?event=delete`, { method: 'DELETE' })));
+      showToast({ title: `${ids.length} course(s) deleted`, type: 'success' });
+      setSelectedCourses([]);
+      refetch();
+    } catch (err: any) {
+      showToast({ title: 'Bulk delete failed', message: err.message || 'Unknown error', type: 'error' });
+    }
+  };
 
   const inpStyle: React.CSSProperties = { border: '1px solid var(--cx-border-subtle)', borderRadius: 'var(--radius-md)', padding: '8px 12px', width: '100%', background: 'var(--cx-bg-surface)', color: 'var(--cx-text-primary)', fontFamily: 'inherit' };
   const labelStyle: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 };
@@ -502,11 +583,7 @@ const AdminCourseManagementPage: React.FC = () => {
             </select>
             <select className="cx-select" value={filterTerm} onChange={e => { setFilterTerm(e.target.value); setPage(1); }}>
               <option value="all">All Terms</option>
-              {mockTerms.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select className="cx-select" value={filterDepartment} onChange={e => { setFilterDepartment(e.target.value); setPage(1); }}>
-              <option value="all">All Departments</option>
-              {mockDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+              {termOptions.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <select className="cx-select" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }}>
               <option value="name">Course Name</option>
@@ -521,6 +598,21 @@ const AdminCourseManagementPage: React.FC = () => {
             </div>
           </div>
 
+          {viewMode === 'table' && (
+            <BulkOperationsBar<CourseData>
+              items={paginatedCourses}
+              selectedIds={selectedCourses}
+              onSelectAll={toggleAllCourses}
+              onSelectNone={() => setSelectedCourses([])}
+              itemName="courses"
+              actions={[
+                { id: 'publish', label: 'Publish', variant: 'primary', onClick: handleBulkPublish },
+                { id: 'conclude', label: 'Conclude', variant: 'secondary', onClick: handleBulkConclude },
+                { id: 'delete', label: 'Delete', variant: 'danger', confirmMessage: 'Are you sure you want to delete the selected courses?', onClick: handleBulkDelete },
+              ]}
+            />
+          )}
+
           {paginatedCourses.length === 0 ? (
             <div className="cx-empty">
               <BookSvg />
@@ -533,6 +625,14 @@ const AdminCourseManagementPage: React.FC = () => {
               <table className="cx-table">
                 <thead>
                   <tr>
+                    <th style={{ width: 40 }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedCourses.length === paginatedCourses.length && paginatedCourses.length > 0}
+                        onChange={toggleAllCourses}
+                        style={{ accentColor: 'var(--cx-accent)' }}
+                      />
+                    </th>
                     <th>Course Name</th>
                     <th>Code</th>
                     <th>Department</th>
@@ -547,7 +647,15 @@ const AdminCourseManagementPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {paginatedCourses.map(course => (
-                    <tr key={course.id} className="cx-table__row">
+                    <tr key={course.id} className={clsx('cx-table__row', selectedCourses.includes(course.id) && 'cx-table__row--selected')}>
+                      <td className="cx-table__cell" style={{ width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedCourses.includes(course.id)}
+                          onChange={() => toggleCourseSelection(course.id)}
+                          style={{ accentColor: 'var(--cx-accent)' }}
+                        />
+                      </td>
                       <td className="cx-table__cell cx-table__cell--name">{course.name}</td>
                       <td className="cx-table__cell cx-table__cell--muted">{course.courseCode}</td>
                       <td className="cx-table__cell cx-table__cell--muted">{course.department || '-'}</td>
@@ -574,6 +682,7 @@ const AdminCourseManagementPage: React.FC = () => {
                              <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { navigate(`/admin/users?courseId=${course.id}`); setShowActions(null); }}><PeopleSvg /> Manage Enrollments</button>
                              <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-text-primary)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { navigate(`/admin/course-settings?id=${course.id}`); setShowActions(null); }}><SettingsSvg /> Course Settings</button>
                             <div style={{ borderTop: '1px solid var(--cx-border-subtle)', margin: '4px 0' }} />
+                            <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-accent-error)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleResetCourse(course.id); setShowActions(null); }}>↻ Reset Course</button>
                             <button style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', border: 'none', background: 'none', color: 'var(--cx-accent-error)', cursor: 'pointer', fontSize: '0.8125rem', borderRadius: 'var(--radius-sm)' }} onClick={() => { handleDeleteCourse(course.id); setShowActions(null); }}><TrashSvg /> Delete Course</button>
                           </div>
                         )}
@@ -897,16 +1006,13 @@ const AdminCourseManagementPage: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label style={labelStyle}>Department</label>
-                    <select className="cx-select" style={{ width: '100%' }} value={newCourse.department} onChange={e => setNewCourse({...newCourse, department: e.target.value})}>
-                      <option value="">Select department</option>
-                      {mockDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <input type="text" style={inpStyle} placeholder="e.g., Computer Science" value={newCourse.department} onChange={e => setNewCourse({...newCourse, department: e.target.value})} />
                   </div>
                   <div>
                     <label style={labelStyle}>Term</label>
                     <select className="cx-select" style={{ width: '100%' }} value={newCourse.term} onChange={e => setNewCourse({...newCourse, term: e.target.value})}>
                       <option value="">Select term</option>
-                      {mockTerms.map(t => <option key={t} value={t}>{t}</option>)}
+                      {termOptions.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>

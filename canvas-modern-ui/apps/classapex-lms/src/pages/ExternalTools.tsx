@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function SettingsSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>; }
@@ -34,6 +35,8 @@ export default function ExternalToolsPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { showToast, showConfirm } = useNotification();
+  const { role } = useRole();
+  const isTeacher = role === 'teacher' || role === 'admin';
   const [activeTab, setActiveTab] = useState<'tools' | 'keys' | 'scorm'>('tools');
 
   // Add App state
@@ -221,9 +224,11 @@ export default function ExternalToolsPage() {
           <h1 className="cx-page__title">LTI Integrations &amp; SCORM Hub</h1>
           <p className="cx-page__subtitle">Manage third-party tools, SCORM player modules, and LTI developer keys.</p>
         </div>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowAddModal(true)}>
-          <PlusSvg /> Add LTI App
-        </button>
+        {isTeacher && (
+          <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowAddModal(true)}>
+            <PlusSvg /> Add LTI App
+          </button>
+        )}
       </div>
 
       {/* Tabs Switcher */}
@@ -288,13 +293,15 @@ export default function ExternalToolsPage() {
                         <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleLaunchLti(tool)}>
                           🚀 Launch App
                         </button>
-                        <button
-                          className="cx-btn cx-btn--secondary cx-btn--sm"
-                          onClick={() => handleDeleteTool(tool)}
-                          disabled={deletingToolId === tool.id}
-                        >
-                          {deletingToolId === tool.id ? 'Deleting...' : 'Delete'}
-                        </button>
+                        {isTeacher && (
+                          <button
+                            className="cx-btn cx-btn--secondary cx-btn--sm"
+                            onClick={() => handleDeleteTool(tool)}
+                            disabled={deletingToolId === tool.id}
+                          >
+                            {deletingToolId === tool.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -376,21 +383,25 @@ export default function ExternalToolsPage() {
                           </span>
                         </td>
                         <td style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
-                          <button
-                            className="cx-btn cx-btn--ghost cx-btn--sm"
-                            onClick={() => handleToggleKey(key)}
-                            disabled={togglingKeyId === key.id}
-                          >
-                            {togglingKeyId === key.id ? '...' : 'Toggle'}
-                          </button>
-                          <button
-                            className="cx-btn cx-btn--ghost cx-btn--sm"
-                            onClick={() => handleDeleteKey(key.id)}
-                            disabled={deletingKeyId === key.id}
-                            style={{ color: 'var(--cx-color-danger)' }}
-                          >
-                            {deletingKeyId === key.id ? '...' : 'Delete'}
-                          </button>
+                          {isTeacher && (
+                            <>
+                              <button
+                                className="cx-btn cx-btn--ghost cx-btn--sm"
+                                onClick={() => handleToggleKey(key)}
+                                disabled={togglingKeyId === key.id}
+                              >
+                                {togglingKeyId === key.id ? '...' : 'Toggle'}
+                              </button>
+                              <button
+                                className="cx-btn cx-btn--ghost cx-btn--sm"
+                                onClick={() => handleDeleteKey(key.id)}
+                                disabled={deletingKeyId === key.id}
+                                style={{ color: 'var(--cx-color-danger)' }}
+                              >
+                                {deletingKeyId === key.id ? '...' : 'Delete'}
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))

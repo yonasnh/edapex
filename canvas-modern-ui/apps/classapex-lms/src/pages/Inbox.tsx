@@ -59,6 +59,12 @@ const VideoSvg = () => (
   </svg>
 )
 
+const ForwardSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M2 10h12"/><path d="M10 6l4 4-4 4"/>
+  </svg>
+)
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface Participant {
@@ -107,7 +113,7 @@ function getAvatarColor(id: number): string {
   return AVATAR_COLORS[id % AVATAR_COLORS.length]
 }
 
-function formatTime(dateStr: string): string {
+export function formatTime(dateStr: string): string {
   const d = new Date(dateStr)
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
@@ -120,8 +126,33 @@ function formatTime(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function formatMessageTime(dateStr: string): string {
+export function formatMessageTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+export function filterConversations(
+  conversations: Conversation[],
+  filter: FilterScope,
+  searchQuery: string
+): Conversation[] {
+  let list = [...conversations]
+
+  if (filter === 'unread') list = list.filter(c => c.workflow_state === 'unread')
+  else if (filter === 'starred') list = list.filter(c => c.starred)
+  else if (filter === 'archived') list = list.filter(c => c.workflow_state === 'archived')
+  else if (filter === 'sent') list = list.filter(c => c.workflow_state !== 'archived')
+  else list = list.filter(c => c.workflow_state !== 'archived')
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase()
+    list = list.filter(c =>
+      c.subject.toLowerCase().includes(q) ||
+      c.last_message.toLowerCase().includes(q) ||
+      c.participants.some(p => p.name.toLowerCase().includes(q))
+    )
+  }
+
+  return list.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
 }
 
 async function uploadCanvasFile(file: File): Promise<{ id: number; name: string }> {
@@ -163,24 +194,28 @@ async function uploadCanvasFile(file: File): Promise<{ id: number; name: string 
 interface ComposeModalProps {
   isOpen: boolean
   onClose: () => void
-  onSend: (recipients: string[], subject: string, body: string, attachmentIds: number[]) => void
+  onSend: (recipients: string[], subject: string, body: string, attachmentIds: number[], bulkMessage?: boolean) => void
   conversations?: Conversation[]
+  initialSubject?: string
+  initialBody?: string
+  initialRecipients?: Recipient[]
+  modalTitle?: string
 }
 
 interface Recipient {
   id: string;
   name: string;
   avatar_url?: string;
-  type?: string;
+  type: string;
 }
 
-function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeModalProps) {
+function ComposeModal({ isOpen, onClose, onSend, conversations = [], initialSubject = '', initialBody = '', initialRecipients = [], modalTitle = 'New Message' }: ComposeModalProps) {
   const { showToast } = useNotification()
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Recipient[]>([])
-  const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>([])
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
+  const [selectedRecipients, setSelectedRecipients] = useState<Recipient[]>(initialRecipients)
+  const [subject, setSubject] = useState(initialSubject)
+  const [body, setBody] = useState(initialBody)
   const [, setIsSearching] = useState(false)
   const [sendAsBcc, setSendAsBcc] = useState(false)
   const [attachments, setAttachments] = useState<{ id: number; name: string }[]>([])
@@ -196,7 +231,7 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
         const key = String(p.id)
         if (!seen.has(key)) {
           seen.add(key)
-          result.push({ id: key, name: p.name, avatar_url: p.avatar_url })
+          result.push({ id: key, name: p.name, avatar_url: p.avatar_url, type: 'user' })
         }
       }
     }
@@ -212,18 +247,11 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
-        const res = await fetch(`/api/v1/search/recipients?search=${encodeURIComponent(query)}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data && data.length > 0) {
-            setSearchResults(data)
-          } else {
-            // Fallback: filter local participants
-            const q = query.toLowerCase()
-            setSearchResults(localParticipants.filter(p => p.name.toLowerCase().includes(q)))
-          }
+        const data = await canvasFetch(`/api/v1/search/recipients?search=${encodeURIComponent(query)}`)
+        if (data && Array.isArray(data) && data.length > 0) {
+          setSearchResults(data)
         } else {
-          // API error — use local fallback
+          // Fallback: filter local participants
           const q = query.toLowerCase()
           setSearchResults(localParticipants.filter(p => p.name.toLowerCase().includes(q)))
         }
@@ -258,7 +286,10 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
 
   const handleSend = () => {
     if (selectedRecipients.length > 0 && body.trim()) {
-      onSend(selectedRecipients.map(r => r.id), subject, body, attachments.map(a => a.id))
+      const formattedRecipients = selectedRecipients.map(r =>
+        r.type ? `${r.type}_${r.id}` : `user_${r.id}`
+      )
+      onSend(formattedRecipients, subject, body, attachments.map(a => a.id), sendAsBcc)
       setSelectedRecipients([])
       setQuery('')
       setSubject('')
@@ -282,7 +313,7 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
     <div className="cx-compose-overlay" onClick={onClose}>
       <div className="cx-compose" onClick={e => e.stopPropagation()} role="dialog" aria-label="Compose message">
         <div className="cx-compose__header">
-          <h2 className="cx-compose__title">New Message</h2>
+          <h2 className="cx-compose__title">{modalTitle}</h2>
           <button className="cx-compose__close" onClick={onClose} aria-label="Close">&times;</button>
         </div>
         <div className="cx-compose__body">
@@ -373,7 +404,7 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [] }: ComposeMo
 
 // ─── Inbox Page ─────────────────────────────────────────────────────────────
 
-type FilterScope = 'all' | 'unread' | 'starred' | 'archived'
+type FilterScope = 'all' | 'unread' | 'starred' | 'sent' | 'archived'
 
 export default function InboxPage() {
   const { showConfirm, showToast } = useNotification()
@@ -381,6 +412,8 @@ export default function InboxPage() {
   const [filter, setFilter] = useState<FilterScope>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [composeOpen, setComposeOpen] = useState(false)
+  const [forwardOpen, setForwardOpen] = useState(false)
+  const [forwardInitials, setForwardInitials] = useState<{ subject: string; body: string }>({ subject: '', body: '' })
   const [replyText, setReplyText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [replyAttachments, setReplyAttachments] = useState<{ id: number; name: string }[]>([])
@@ -388,14 +421,16 @@ export default function InboxPage() {
   const replyFileInputRef = useRef<HTMLInputElement>(null)
 
   // Canvas API — live conversations list
-  const { data: apiConversations, refetch: refetchConversations } = useCanvasQuery<Conversation[]>(
+  const { data: apiConversations, isLoading: conversationsLoading, isError: conversationsError, refetch: refetchConversations } = useCanvasQuery<Conversation[]>(
     '/api/v1/conversations',
-    { per_page: 50, scope: filter === 'all' ? undefined : filter } as any
+    { per_page: 50, scope: filter === 'all' ? undefined : filter === 'sent' ? 'sent' : filter } as any
   )
   
   // Canvas API - full thread for selected conversation
   const { data: apiSelectedThread, refetch: refetchThread } = useCanvasQuery<Conversation | Conversation[]>(
-    selectedId ? `/api/v1/conversations/${selectedId}` : ''
+    selectedId ? `/api/v1/conversations/${selectedId}` : '',
+    undefined,
+    { enabled: !!selectedId }
   )
 
   // Current user — needed to identify self in message threads
@@ -406,23 +441,7 @@ export default function InboxPage() {
 
   // Filter conversations
   const filteredConversations = useMemo(() => {
-    let list = [...conversations]
-
-    if (filter === 'unread') list = list.filter(c => c.workflow_state === 'unread')
-    else if (filter === 'starred') list = list.filter(c => c.starred)
-    else if (filter === 'archived') list = list.filter(c => c.workflow_state === 'archived')
-    else list = list.filter(c => c.workflow_state !== 'archived')
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter(c =>
-        c.subject.toLowerCase().includes(q) ||
-        c.last_message.toLowerCase().includes(q) ||
-        c.participants.some(p => p.name.toLowerCase().includes(q))
-      )
-    }
-
-    return list.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
+    return filterConversations(conversations, filter, searchQuery)
   }, [conversations, filter, searchQuery])
 
   const selectedListInfo = useMemo(
@@ -451,12 +470,10 @@ export default function InboxPage() {
       if (replyAttachments.length > 0) {
         body.attachment_ids = replyAttachments.map(a => a.id)
       }
-      const res = await fetch(`/api/v1/conversations/${selected.id}/add_message`, {
+      await canvasFetch(`/api/v1/conversations/${selected.id}/add_message`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body
       })
-      if (!res.ok) throw new Error('Failed to send reply')
       setReplyText('')
       setReplyAttachments([])
       refetchConversations()
@@ -487,40 +504,63 @@ export default function InboxPage() {
     }
   }
 
-  const handleCompose = useCallback(async (recipients: string[], subject: string, body: string, attachmentIds: number[]) => {
+  const handleCompose = useCallback(async (recipients: string[], subject: string, body: string, attachmentIds: number[], bulkMessage?: boolean) => {
     try {
-      const payload: any = { recipients, subject, body }
-      if (attachmentIds.length > 0) {
-        payload.attachment_ids = attachmentIds
+      const formData = new FormData()
+      recipients.forEach(r => formData.append('recipients[]', r))
+      formData.append('body', body)
+      if (subject.trim()) {
+        formData.append('subject', subject.trim())
       }
-      const res = await fetch('/api/v1/conversations', {
+      if (attachmentIds.length > 0) {
+        attachmentIds.forEach(id => formData.append('attachment_ids[]', String(id)))
+      }
+      if (bulkMessage) {
+        formData.append('bulk_message', 'true')
+      }
+      await canvasFetch('/api/v1/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData
       })
-      if (!res.ok) throw new Error('Failed to create conversation')
       showToast({
         title: 'Message Sent',
         message: 'Message sent successfully',
         type: 'success'
       })
       refetchConversations()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Compose failed:', err)
+      const errType = err?.constructor?.name || typeof err
+      const errMsg = err?.message || '(no message)'
+      const errStatus = err?.status ?? '—'
+      const debug = `${errType} [${errStatus}]: ${errMsg}`
       showToast({
         title: 'Compose Failed',
-        message: 'Failed to send message. Please try again.',
+        message: debug,
         type: 'error'
       })
     }
   }, [refetchConversations, showToast])
 
+  const handleForward = useCallback(() => {
+    if (!selected) return
+    const lastMessage = (selected.messages || []).slice(-1)[0]
+    const originalSubject = selected.subject || '(no subject)'
+    const originalDate = lastMessage ? new Date(lastMessage.created_at).toLocaleString() : ''
+    const author = lastMessage ? selected.participants.find(p => p.id === lastMessage.author_id) : undefined
+    const senderName = author?.name || 'Unknown'
+    const originalBody = lastMessage ? lastMessage.body : selected.last_message || ''
+    const fwdSubject = originalSubject.startsWith('Fwd:') ? originalSubject : `Fwd: ${originalSubject}`
+    const fwdBody = `--- Forwarded Message ---\nFrom: ${senderName}\nDate: ${originalDate}\nSubject: ${originalSubject}\n\n${originalBody}`
+    setForwardInitials({ subject: fwdSubject, body: fwdBody })
+    setForwardOpen(true)
+  }, [selected])
+
   const handleToggleStar = useCallback(async (conv: Conversation) => {
     try {
-      await fetch(`/api/v1/conversations/${conv.id}`, {
+      await canvasFetch(`/api/v1/conversations/${conv.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation: { starred: !conv.starred } })
+        body: { conversation: { starred: !conv.starred } }
       })
       refetchConversations()
       if (selectedId === conv.id) refetchThread()
@@ -532,10 +572,9 @@ export default function InboxPage() {
   const handleToggleArchive = useCallback(async (conv: Conversation) => {
     try {
       const newState = conv.workflow_state === 'archived' ? 'read' : 'archived'
-      await fetch(`/api/v1/conversations/${conv.id}`, {
+      await canvasFetch(`/api/v1/conversations/${conv.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation: { workflow_state: newState } })
+        body: { conversation: { workflow_state: newState } }
       })
       refetchConversations()
       if (selectedId === conv.id) setSelectedId(null)
@@ -554,7 +593,7 @@ export default function InboxPage() {
     })
     if (!isConfirmed) return
     try {
-      await fetch(`/api/v1/conversations/${conv.id}`, {
+      await canvasFetch(`/api/v1/conversations/${conv.id}`, {
         method: 'DELETE'
       })
       showToast({
@@ -609,7 +648,7 @@ export default function InboxPage() {
         {/* ── Left: Conversation List ── */}
         <div className="cx-inbox__list-panel">
           <div className="cx-inbox__filters" role="tablist" aria-label="Message filters">
-            {(['all', 'unread', 'starred', 'archived'] as FilterScope[]).map(scope => (
+            {(['all', 'unread', 'starred', 'sent', 'archived'] as FilterScope[]).map(scope => (
               <button
                 key={scope}
                 className={`cx-inbox__filter-btn ${filter === scope ? 'cx-inbox__filter-btn--active' : ''}`}
@@ -636,7 +675,18 @@ export default function InboxPage() {
           </div>
 
           <ul className="cx-inbox__conversations" role="listbox" aria-label="Conversations">
-            {filteredConversations.length === 0 ? (
+            {conversationsLoading ? (
+              <li style={{ padding: 24, textAlign: 'center', color: 'var(--cx-text-muted, #94a3b8)', fontSize: '0.85rem' }}>
+                Loading conversations…
+              </li>
+            ) : conversationsError ? (
+              <li style={{ padding: 24, textAlign: 'center', color: 'var(--cx-error, #ef4444)', fontSize: '0.85rem' }}>
+                Failed to load conversations.
+                <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => refetchConversations()} style={{ marginLeft: 8 }}>
+                  Retry
+                </button>
+              </li>
+            ) : filteredConversations.length === 0 ? (
               <li style={{ padding: 24, textAlign: 'center', color: 'var(--cx-text-muted, #94a3b8)', fontSize: '0.85rem' }}>
                 No conversations found
               </li>
@@ -781,6 +831,13 @@ export default function InboxPage() {
                   </button>
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
                   <button
+                    className="cx-btn cx-btn--secondary cx-btn--sm"
+                    onClick={handleForward}
+                    aria-label="Forward conversation"
+                  >
+                    <ForwardSvg /> Forward
+                  </button>
+                  <button
                     className="cx-inbox__reply-send"
                     onClick={handleReply}
                     disabled={!replyText.trim()}
@@ -796,10 +853,23 @@ export default function InboxPage() {
 
       {/* ── Compose Modal ── */}
       <ComposeModal
+        key={`compose-${composeOpen ? 'open' : 'closed'}`}
         isOpen={composeOpen}
         onClose={() => setComposeOpen(false)}
         onSend={handleCompose}
         conversations={conversations}
+      />
+
+      {/* ── Forward Modal ── */}
+      <ComposeModal
+        key={`forward-${forwardOpen ? 'open' : 'closed'}-${forwardInitials.subject}`}
+        isOpen={forwardOpen}
+        onClose={() => setForwardOpen(false)}
+        onSend={handleCompose}
+        conversations={conversations}
+        initialSubject={forwardInitials.subject}
+        initialBody={forwardInitials.body}
+        modalTitle="Forward Message"
       />
     </div>
   )

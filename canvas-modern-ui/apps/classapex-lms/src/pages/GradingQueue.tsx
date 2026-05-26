@@ -12,6 +12,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useNotification } from '../hooks/useNotification'
 import './grading.css'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ interface Submission {
     points_possible: number
     course_id: number
     due_at?: string
+    rubric_id?: number
   }
   course_name?: string
   workflow_state: 'submitted' | 'pending_review' | 'graded' | 'unsubmitted'
@@ -94,6 +96,8 @@ export default function GradingQueuePage() {
   const [rubricViewTab, setRubricViewTab] = useState<'teacher' | 'self' | 'peer'>('teacher')
   const [isModerated, setIsModerated] = useState(false)
   const [moderator, setModerator] = useState('Professor Miller')
+  // Real rubric grading state
+  const [rubricScores, setRubricScores] = useState<Record<string, { points: number; comments: string }>>({})
   
   // DocViewer Annotation States
   const [annotations, setAnnotations] = useState<{ id: string; x: number; y: number; text: string; type: string }[]>([
@@ -108,6 +112,8 @@ export default function GradingQueuePage() {
   const [recordedComment, setRecordedComment] = useState<string | null>(null)
 
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+
+  const { showToast } = useNotification()
 
   // Fetch courses to grade
   const { data: coursesData } = useCanvasQuery<any[]>(
@@ -154,6 +160,20 @@ export default function GradingQueuePage() {
     [submissions, selectedId]
   )
 
+  // Fetch real rubric for selected assignment
+  const { data: rubricData } = useCanvasQuery<any>(
+    selected?.assignment?.id && selectedCourseId
+      ? `/api/v1/courses/${selectedCourseId}/rubrics/${selected.assignment.rubric_id}`
+      : '',
+    undefined,
+    { enabled: !!(selected?.assignment?.id && selected.assignment.rubric_id && selectedCourseId) }
+  )
+
+  // Reset rubric scores when selection changes
+  React.useEffect(() => {
+    setRubricScores({})
+  }, [selectedId])
+
   // Stats
   const stats = useMemo(() => {
     const total = submissions.length
@@ -198,9 +218,30 @@ export default function GradingQueuePage() {
       })
       if (!res.ok) throw new Error('Failed to submit grade')
 
+      // Submit rubric assessment if scores entered
+      if (rubricData?.data?.length && Object.keys(rubricScores).length > 0) {
+        try {
+          const rubricAssessment: any = {}
+          rubricData.data.forEach((criterion: any) => {
+            const score = rubricScores[String(criterion.id)]
+            if (score) {
+              rubricAssessment[criterion.id] = { points: score.points, comments: score.comments }
+            }
+          })
+          await fetch(`/api/v1/courses/${selectedCourseId}/rubric_associations/${selected.assignment.rubric_id}/rubric_assessments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rubric_assessment: { user_id: selected.user_id, ...rubricAssessment } })
+          })
+        } catch (rErr) {
+          console.error('Rubric assessment failed:', rErr)
+        }
+      }
+
       setGradedLocally(prev => new Set(prev).add(selected.id))
       setGradeValue('')
       setComment('')
+      setRubricScores({})
 
       // Auto-advance to next ungraded
       const currentIndex = filteredSubmissions.findIndex(s => s.id === selected.id)
@@ -209,9 +250,9 @@ export default function GradingQueuePage() {
 
     } catch (err) {
       console.error('Grading failed:', err)
-      alert('Failed to submit grade. Please try again.')
+      showToast({ title: 'Failed to submit grade', message: 'Please try again.', type: 'error' })
     }
-  }, [selected, gradeValue, comment, filteredSubmissions, gradedLocally])
+  }, [selected, gradeValue, comment, filteredSubmissions, gradedLocally, rubricData, rubricScores, selectedCourseId])
 
   const navigateQueue = useCallback((direction: 'prev' | 'next') => {
     if (!selected) return
@@ -429,26 +470,69 @@ export default function GradingQueuePage() {
                 </div>
 
                 {rubricViewTab === 'teacher' && (
-                  <div className="cx-grading__submission-meta" style={{ marginBottom: 16 }}>
-                    <div className="cx-grading__meta-card">
-                      <div className="cx-grading__meta-label">Submitted</div>
-                      <div className="cx-grading__meta-value">
-                        {selected.submitted_at ? new Date(selected.submitted_at).toLocaleString() : '—'}
+                  <>
+                    <div className="cx-grading__submission-meta" style={{ marginBottom: 16 }}>
+                      <div className="cx-grading__meta-card">
+                        <div className="cx-grading__meta-label">Submitted</div>
+                        <div className="cx-grading__meta-value">
+                          {selected.submitted_at ? new Date(selected.submitted_at).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="cx-grading__meta-card">
+                        <div className="cx-grading__meta-label">Attempt</div>
+                        <div className="cx-grading__meta-value">#{selected.attempt}</div>
+                      </div>
+                      <div className="cx-grading__meta-card">
+                        <div className="cx-grading__meta-label">Points Possible</div>
+                        <div className="cx-grading__meta-value">{selected.assignment.points_possible}</div>
+                      </div>
+                      <div className="cx-grading__meta-card">
+                        <div className="cx-grading__meta-label">Status</div>
+                        <div className="cx-grading__meta-value">{getStatusInfo(selected).label}</div>
                       </div>
                     </div>
-                    <div className="cx-grading__meta-card">
-                      <div className="cx-grading__meta-label">Attempt</div>
-                      <div className="cx-grading__meta-value">#{selected.attempt}</div>
-                    </div>
-                    <div className="cx-grading__meta-card">
-                      <div className="cx-grading__meta-label">Points Possible</div>
-                      <div className="cx-grading__meta-value">{selected.assignment.points_possible}</div>
-                    </div>
-                    <div className="cx-grading__meta-card">
-                      <div className="cx-grading__meta-label">Status</div>
-                      <div className="cx-grading__meta-value">{getStatusInfo(selected).label}</div>
-                    </div>
-                  </div>
+                    {/* Real Rubric Grading */}
+                    {rubricData?.data && (
+                      <div className="cx-card" style={{ padding: 14, marginBottom: 16 }}>
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Rubric: {rubricData.title || 'Assignment Rubric'}</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {rubricData.data.map((criterion: any) => (
+                            <div key={criterion.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{criterion.description}</span>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)' }}>Max: {criterion.points}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input
+                                  type="number"
+                                  className="cx-input cx-input--sm"
+                                  style={{ width: 80 }}
+                                  placeholder="0"
+                                  min={0}
+                                  max={criterion.points}
+                                  value={rubricScores[String(criterion.id)]?.points ?? ''}
+                                  onChange={e => {
+                                    const val = Number(e.target.value)
+                                    setRubricScores(prev => ({ ...prev, [String(criterion.id)]: { ...prev[String(criterion.id)], points: val } }))
+                                  }}
+                                />
+                                <input
+                                  type="text"
+                                  className="cx-input cx-input--sm"
+                                  style={{ flex: 1 }}
+                                  placeholder="Criterion comment..."
+                                  value={rubricScores[String(criterion.id)]?.comments || ''}
+                                  onChange={e => {
+                                    setRubricScores(prev => ({ ...prev, [String(criterion.id)]: { ...prev[String(criterion.id)], comments: e.target.value } }))
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {rubricViewTab === 'self' && (
@@ -573,7 +657,7 @@ export default function GradingQueuePage() {
                           cursor: 'pointer'
                         }}
                         title={ann.text}
-                        onClick={e => { e.stopPropagation(); alert(`Annotation comment: "${ann.text}"`) }}
+                        onClick={e => { e.stopPropagation(); showToast({ title: 'Annotation', message: ann.text, type: 'info' }) }}
                       >
                         {ann.type === 'highlight' ? (
                           <div style={{ background: 'rgba(234, 179, 8, 0.4)', borderBottom: '2px solid rgb(234, 179, 8)', width: 60, height: 16, marginTop: 4 }} />

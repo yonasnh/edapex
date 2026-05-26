@@ -37,6 +37,7 @@ import { navItems, filterNavItemsByRole } from './navigation'
 import { AuthProvider, RequireAuth, OAuthCallbackPage, useAuth } from '@schoolapex/core'
 import { RoleProvider, useRole } from './contexts/RoleContext'
 import { RoleSwitcher } from './components/RoleSwitcher'
+import { RequireRole } from './components/RequireRole'
 
 // Logo
 import { ClassApexLogo } from './components/ClassApexLogo'
@@ -53,10 +54,12 @@ const DiscussionsPage = React.lazy(() => import('./pages/Discussions'))
 const FilesPage   = React.lazy(() => import('./pages/Files'))
 const ModulesPage = React.lazy(() => import('./pages/Modules'))
 const SyllabusPage = React.lazy(() => import('./pages/Syllabus'))
+const PublicSyllabusPage = React.lazy(() => import('./pages/PublicSyllabus'))
 const AttendancePage = React.lazy(() => import('./pages/Attendance'))
 const ConferencesPage = React.lazy(() => import('./pages/Conferences'))
 const GroupsPage  = React.lazy(() => import('./pages/Groups'))
 const NotificationsPage = React.lazy(() => import('./pages/Notifications'))
+const AnnouncementsPage = React.lazy(() => import('./pages/Announcements'))
 const SettingsPage = React.lazy(() => import('./pages/Settings'))
 const AnalyticsPage = React.lazy(() => import('./pages/Analytics'))
 const ReportsPage = React.lazy(() => import('./pages/Reports'))
@@ -64,6 +67,7 @@ const HelpPage    = React.lazy(() => import('./pages/Help'))
 const InboxPage   = React.lazy(() => import('./pages/Inbox'))
 const PlannerPage = React.lazy(() => import('./pages/Planner'))
 const GradingQueuePage = React.lazy(() => import('./pages/GradingQueue'))
+const GradebookPage = React.lazy(() => import('./pages/Gradebook'))
 const AdminUsersPage = React.lazy(() => import('./pages/admin/Users'))
 const AdminCourseManagementPage = React.lazy(() => import('./pages/admin/CourseManagement'))
 const AdminSystemSettingsPage = React.lazy(() => import('./pages/admin/SystemSettings'))
@@ -78,19 +82,37 @@ const AdminSisImportsPage = React.lazy(() => import('./pages/admin/SisImports'))
 const AdminGradeChangeAuditPage = React.lazy(() => import('./pages/admin/GradeChangeAudit'))
 const AdminDeveloperKeysPage = React.lazy(() => import('./pages/admin/DeveloperKeys'))
 const AdminAssessmentPage = React.lazy(() => import('./pages/admin/Assessment'))
+const AdminBlueprintCoursesPage = React.lazy(() => import('./pages/admin/BlueprintCourses'))
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'))
+const CourseNavigationEditorPage = React.lazy(() => import('./pages/CourseNavigationEditor'))
 const PagesPage = React.lazy(() => import('./pages/Pages'))
 const QuizzesPage = React.lazy(() => import('./pages/Quizzes'))
+const QuizBuilderPage = React.lazy(() => import('./pages/QuizBuilder'))
 const RubricsPage = React.lazy(() => import('./pages/Rubrics'))
+const WaitlistPage = React.lazy(() => import('./pages/Waitlist'))
+const CoursePeoplePage = React.lazy(() => import('./pages/CoursePeople'))
+const PriorEnrollmentsPage = React.lazy(() => import('./pages/PriorEnrollments'))
+const PeerReviewsPage = React.lazy(() => import('./pages/PeerReviews'))
+const QuestionBanksPage = React.lazy(() => import('./pages/QuestionBanks'))
+const LatePolicyPage = React.lazy(() => import('./pages/LatePolicy'))
+const CustomGradebookColumnsPage = React.lazy(() => import('./pages/CustomGradebookColumns'))
+const LearningMasteryGradebookPage = React.lazy(() => import('./pages/LearningMasteryGradebook'))
+const CourseGroupsPage = React.lazy(() => import('./pages/CourseGroups'))
+const QuizResultsPage = React.lazy(() => import('./pages/QuizResults'))
+const AssignmentGroupsPage = React.lazy(() => import('./pages/AssignmentGroups'))
+const SectionManagementPage = React.lazy(() => import('./pages/SectionManagement'))
+const CourseImportPage = React.lazy(() => import('./pages/CourseImport'))
 const OutcomesPage = React.lazy(() => import('./pages/Outcomes'))
 const ExternalToolsPage = React.lazy(() => import('./pages/ExternalTools'))
 const LtiPlayerPage = React.lazy(() => import('./pages/LtiPlayer'))
 const EPortfolioPage = React.lazy(() => import('./pages/ePortfolio'))
 const AccessibilityStatementPage = React.lazy(() => import('./pages/AccessibilityStatement'))
+const AppointmentSchedulerPage = React.lazy(() => import('./pages/AppointmentScheduler'))
 
 // Premium Accessibility, Localization, & Error Boundary (Sprint 22-24)
 import { I18nProvider } from './contexts/I18nContext'
 import { PremiumErrorBoundary } from './components/PremiumErrorBoundary'
+import { PushNotificationManager } from './components/PushNotificationManager'
 import { MobileTabBar } from './components/MobileTabBar'
 import { NotificationProvider } from './contexts/NotificationContext'
 
@@ -642,45 +664,65 @@ const AppContent = () => {
             <Route path="/grades"        element={<GradesPage />} />
             <Route path="/calendar"      element={<CalendarPage />} />
             <Route path="/inbox"         element={<InboxPage />} />
-            <Route path="/planner"       element={<PlannerPage />} />
-            <Route path="/grading"       element={<GradingQueuePage />} />
+            <Route path="/planner"       element={<RequireRole allowed={['student']}><PlannerPage /></RequireRole>} />
+            <Route path="/grading"       element={<RequireRole allowed={['teacher', 'admin']}><GradingQueuePage /></RequireRole>} />
+            <Route path="/courses/:courseId/gradebook" element={<GradebookPage />} />
             <Route path="/discussions"   element={<DiscussionsPage />} />
             <Route path="/files"         element={<FilesPage />} />
             <Route path="/groups"        element={<GroupsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings"      element={<SettingsPage />} />
             <Route path="/profile"       element={<SettingsPage />} />
-            <Route path="/analytics"     element={<AnalyticsPage />} />
-            <Route path="/reports"       element={<ReportsPage />} />
+            <Route path="/analytics"     element={<RequireRole allowed={['teacher', 'admin']}><AnalyticsPage /></RequireRole>} />
+            <Route path="/reports"       element={<RequireRole allowed={['teacher', 'admin']}><ReportsPage /></RequireRole>} />
             <Route path="/admin"        element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/admin/users"   element={<AdminUsersPage />} />
-            <Route path="/admin/courses" element={<AdminCourseManagementPage />} />
-            <Route path="/admin/settings" element={<AdminSystemSettingsPage />} />
-            <Route path="/admin/roles" element={<AdminRolesPermissionsPage />} />
-            <Route path="/admin/sub-accounts" element={<AdminSubAccountsPage />} />
-            <Route path="/admin/terms" element={<AdminTermsPage />} />
-            <Route path="/admin/feature-flags" element={<AdminFeatureFlagsPage />} />
-            <Route path="/admin/course-settings" element={<AdminCourseSettingsPage />} />
-            <Route path="/admin/notifications" element={<AdminAccountNotificationsPage />} />
-            <Route path="/admin/branding" element={<AdminBrandConfigsPage />} />
-            <Route path="/admin/sis-imports" element={<AdminSisImportsPage />} />
-            <Route path="/admin/developer-keys" element={<AdminDeveloperKeysPage />} />
-            <Route path="/admin/assessment" element={<AdminAssessmentPage />} />
-            <Route path="/admin/grade-change-audit" element={<AdminGradeChangeAuditPage />} />
+            <Route path="/admin/dashboard" element={<RequireRole allowed={['admin']}><AdminDashboardPage /></RequireRole>} />
+            <Route path="/admin/users"   element={<RequireRole allowed={['admin']}><AdminUsersPage /></RequireRole>} />
+            <Route path="/admin/courses" element={<RequireRole allowed={['admin']}><AdminCourseManagementPage /></RequireRole>} />
+            <Route path="/admin/settings" element={<RequireRole allowed={['admin']}><AdminSystemSettingsPage /></RequireRole>} />
+            <Route path="/admin/roles" element={<RequireRole allowed={['admin']}><AdminRolesPermissionsPage /></RequireRole>} />
+            <Route path="/admin/sub-accounts" element={<RequireRole allowed={['admin']}><AdminSubAccountsPage /></RequireRole>} />
+            <Route path="/admin/terms" element={<RequireRole allowed={['admin']}><AdminTermsPage /></RequireRole>} />
+            <Route path="/admin/feature-flags" element={<RequireRole allowed={['admin']}><AdminFeatureFlagsPage /></RequireRole>} />
+            <Route path="/admin/course-settings" element={<RequireRole allowed={['admin']}><AdminCourseSettingsPage /></RequireRole>} />
+            <Route path="/admin/notifications" element={<RequireRole allowed={['admin']}><AdminAccountNotificationsPage /></RequireRole>} />
+            <Route path="/admin/branding" element={<RequireRole allowed={['admin']}><AdminBrandConfigsPage /></RequireRole>} />
+            <Route path="/admin/sis-imports" element={<RequireRole allowed={['admin']}><AdminSisImportsPage /></RequireRole>} />
+            <Route path="/admin/developer-keys" element={<RequireRole allowed={['admin']}><AdminDeveloperKeysPage /></RequireRole>} />
+            <Route path="/admin/assessment" element={<RequireRole allowed={['admin']}><AdminAssessmentPage /></RequireRole>} />
+            <Route path="/admin/blueprint-courses" element={<RequireRole allowed={['admin']}><AdminBlueprintCoursesPage /></RequireRole>} />
+            <Route path="/admin/grade-change-audit" element={<RequireRole allowed={['admin']}><AdminGradeChangeAuditPage /></RequireRole>} />
             <Route path="/courses/:courseId/pages" element={<PagesPage />} />
             <Route path="/courses/:courseId/modules" element={<ModulesPage />} />
             <Route path="/courses/:courseId/syllabus" element={<SyllabusPage />} />
+            <Route path="/courses/:courseId/syllabus/public" element={<PublicSyllabusPage />} />
             <Route path="/courses/:courseId/attendance" element={<AttendancePage />} />
             <Route path="/courses/:courseId/conferences" element={<ConferencesPage />} />
             <Route path="/courses/:courseId/quizzes" element={<QuizzesPage />} />
+            <Route path="/courses/:courseId/quizzes/:quizId/builder" element={<QuizBuilderPage />} />
             <Route path="/courses/:courseId/rubrics" element={<RubricsPage />} />
+<Route path="/courses/:courseId/waitlist" element={<WaitlistPage />} />
+<Route path="/courses/:courseId/people" element={<CoursePeoplePage />} />
+<Route path="/courses/:courseId/people/prior" element={<PriorEnrollmentsPage />} />
+<Route path="/courses/:courseId/assignments/:assignmentId/peer-reviews" element={<PeerReviewsPage />} />
+<Route path="/courses/:courseId/question-banks" element={<QuestionBanksPage />} />
+<Route path="/courses/:courseId/late-policy" element={<LatePolicyPage />} />
+            <Route path="/courses/:courseId/groups" element={<CourseGroupsPage />} />
+            <Route path="/courses/:courseId/quizzes/:quizId/results" element={<QuizResultsPage />} />
+            <Route path="/courses/:courseId/assignment-groups" element={<AssignmentGroupsPage />} />
+            <Route path="/courses/:courseId/sections" element={<SectionManagementPage />} />
+            <Route path="/courses/:courseId/import" element={<CourseImportPage />} />
+<Route path="/courses/:courseId/gradebook/columns" element={<CustomGradebookColumnsPage />} />
+<Route path="/courses/:courseId/mastery" element={<LearningMasteryGradebookPage />} />
             <Route path="/courses/:courseId/outcomes" element={<OutcomesPage />} />
+            <Route path="/courses/:courseId/announcements" element={<AnnouncementsPage />} />
             <Route path="/courses/:courseId/external-tools" element={<ExternalToolsPage />} />
             <Route path="/courses/:courseId/lti" element={<LtiPlayerPage />} />
+            <Route path="/courses/:courseId/scheduler" element={<AppointmentSchedulerPage />} />
+            <Route path="/courses/:courseId/settings/navigation" element={<CourseNavigationEditorPage />} />
             <Route path="/accounts/:accountId/lti" element={<LtiPlayerPage />} />
             <Route path="/help"          element={<HelpPage />} />
-            <Route path="/eportfolios"   element={<EPortfolioPage />} />
+            <Route path="/eportfolios"   element={<RequireRole allowed={['student']}><EPortfolioPage /></RequireRole>} />
             <Route path="/accessibility-statement" element={<AccessibilityStatementPage />} />
           </Routes>
         </Suspense>
@@ -734,6 +776,7 @@ const App = () => (
                       </RequireAuth>
                     } />
                   </Routes>
+                  <PushNotificationManager />
                 </Router>
               </NotificationProvider>
             </RoleProvider>

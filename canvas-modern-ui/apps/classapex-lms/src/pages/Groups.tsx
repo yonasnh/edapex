@@ -28,7 +28,8 @@ function UserCheckSvg() { return <svg width="20" height="20" viewBox="0 0 20 20"
 function MessageSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 10a7 7 0 1112.6 4.2L17 17l-2.8-1.4A7 7 0 012 10z"/></svg>; }
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 
-import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
+import { useNotification } from '../hooks/useNotification';
 
 function GroupDetail({ groupId, onBack }: { groupId: string, onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<'members' | 'files' | 'conferences'>('members');
@@ -140,7 +141,8 @@ const GroupsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const pageSize = 9;
 
-  const { data: groupsData } = useCanvasQuery<any[]>('/api/v1/users/self/groups', { include: ['users'] } as any)
+  const { data: groupsData, refetch } = useCanvasQuery<any[]>('/api/v1/users/self/groups', { include: ['users'] } as any)
+  const { showToast } = useNotification()
   
   const groups = useMemo<GroupData[]>(() => {
     if (!Array.isArray(groupsData)) return [];
@@ -190,6 +192,26 @@ const GroupsPage: React.FC = () => {
   }), [groups]);
 
   const handleClearFilters = () => { setSearchTerm(''); setFilterJoined('all'); setPage(1); };
+
+  const handleJoin = async (group: GroupData) => {
+    try {
+      await canvasFetch(`/api/v1/groups/${group.id}/memberships`, { method: 'POST' });
+      showToast({ title: 'Joined group', type: 'success' });
+      await refetch();
+    } catch {
+      showToast({ title: 'Failed to join group', type: 'error' });
+    }
+  };
+
+  const handleLeave = async (group: GroupData) => {
+    try {
+      await canvasFetch(`/api/v1/groups/${group.id}/users/self`, { method: 'DELETE' });
+      showToast({ title: 'Left group', type: 'success' });
+      await refetch();
+    } catch {
+      showToast({ title: 'Failed to leave group', type: 'error' });
+    }
+  };
 
   if (selectedGroupId) {
     return <GroupDetail groupId={selectedGroupId} onBack={() => setSelectedGroupId(null)} />
@@ -261,9 +283,9 @@ const GroupsPage: React.FC = () => {
               unreadMessages={group.unreadMessages}
               tags={group.tags}
               onClick={() => setSelectedGroupId(group.id)}
-              onJoin={() => console.log('Join group:', group.name)}
-              onLeave={() => console.log('Leave group:', group.name)}
-              onManage={() => console.log('Manage group:', group.name)}
+              onJoin={() => handleJoin(group)}
+              onLeave={() => handleLeave(group)}
+              onManage={() => setSelectedGroupId(group.id)}
             />
           ))}
         </div>

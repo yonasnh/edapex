@@ -9,7 +9,7 @@
 
 import React, { createContext, useContext, useState, type ReactNode } from 'react'
 
-export type UserRole = 'student' | 'teacher' | 'admin'
+export type UserRole = 'student' | 'teacher' | 'admin' | 'observer'
 
 export interface RoleUser {
   id: string
@@ -48,6 +48,15 @@ const DEMO_USERS: Record<UserRole, RoleUser> = {
     avatarSeed: 'Admin',
     role: 'admin',
     title: 'IT Administration',
+  },
+  observer: {
+    id: '77',
+    name: 'Maria Gonzalez',
+    displayName: 'Maria Gonzalez',
+    email: 'maria.gonzalez@classapex.edu',
+    avatarSeed: 'Maria',
+    role: 'observer',
+    title: 'Parent / Guardian',
   },
 }
 

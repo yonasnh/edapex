@@ -27,7 +27,25 @@ export default mergeConfig(
             '@schoolapex/components'
           ]
         }
-      }
+      },
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json', 'html', 'lcov'],
+        reportsDirectory: './coverage',
+        exclude: [
+          'node_modules/',
+          'src/__tests__/**',
+          'src/pages/__tests__/**',
+          'src/widgets/__tests__/**',
+          'src/setupTests.ts',
+          'src/**/*.test.tsx',
+          'src/**/*.test.ts',
+          '**/*.d.ts',
+          'vite.config.ts',
+          'vitest.config.ts',
+          '**/*.config.*',
+        ],
+      },
     },
   })
 );

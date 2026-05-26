@@ -13,11 +13,13 @@ import { useRole, type UserRole } from '../contexts/RoleContext'
 const StudentSvg = () => <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 1L1 6l9 5 9-5-9-5z"/><path d="M4 8.5v3.5l6 3 6-3V8.5"/></svg>
 const TeacherSvg = () => <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 17v-1a3 3 0 00-3-3H7a3 3 0 00-3 3v1"/><circle cx="10" cy="6" r="3"/><path d="M14 2h4v4"/></svg>
 const AdminSvg = () => <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="2.5"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3M4.5 4.5l2 2M13.5 13.5l2 2M4.5 15.5l2-2M13.5 6.5l2-2"/></svg>
+const ObserverSvg = () => <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="2.5"/></svg>
 
 const ROLE_CONFIG: Record<UserRole, { label: string; icon: React.ReactNode; color: string; bgColor: string }> = {
-  student: { label: 'Student', icon: <StudentSvg />, color: 'var(--cx-status-assignment-fg)', bgColor: 'var(--cx-status-assignment-bg)' },
-  teacher: { label: 'Instructor', icon: <TeacherSvg />, color: 'var(--cx-status-discussion-fg)', bgColor: 'var(--cx-status-discussion-bg)' },
-  admin:   { label: 'Admin', icon: <AdminSvg />, color: 'var(--cx-status-quiz-fg)', bgColor: 'var(--cx-status-quiz-bg)' },
+  student:  { label: 'Student', icon: <StudentSvg />, color: 'var(--cx-status-assignment-fg)', bgColor: 'var(--cx-status-assignment-bg)' },
+  teacher:  { label: 'Instructor', icon: <TeacherSvg />, color: 'var(--cx-status-discussion-fg)', bgColor: 'var(--cx-status-discussion-bg)' },
+  observer: { label: 'Observer', icon: <ObserverSvg />, color: 'var(--cx-color-warning, #d97706)', bgColor: 'rgba(217,119,6,0.12)' },
+  admin:    { label: 'Admin', icon: <AdminSvg />, color: 'var(--cx-status-quiz-fg)', bgColor: 'var(--cx-status-quiz-bg)' },
 }
 
 interface RoleSwitcherProps {

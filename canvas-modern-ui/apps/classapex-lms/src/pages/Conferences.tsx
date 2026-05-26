@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function CalendarSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1.5" y="2.5" width="11" height="10" rx="1.5"/><path d="M1.5 5.5h11"/><path d="M4.5 1v3M9.5 1v3"/></svg>; }
@@ -20,6 +21,8 @@ interface Conference {
 export default function ConferencesPage() {
   const { courseId } = useParams();
   const { showToast, showConfirm } = useNotification();
+  const { role } = useRole();
+  const isTeacher = role === 'teacher' || role === 'admin';
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -121,7 +124,9 @@ export default function ConferencesPage() {
           <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', fontSize: '1.75rem', letterSpacing: '-0.02em' }}>Conferences</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--cx-text-secondary)', margin: '4px 0 0' }}>Virtual classrooms and office hours powered by BigBlueButton.</p>
         </div>
-        <button className="cx-btn cx-btn--primary" onClick={() => setShowAddModal(true)}><PlusSvg /> Conference</button>
+        {isTeacher && (
+          <button className="cx-btn cx-btn--primary" onClick={() => setShowAddModal(true)}><PlusSvg /> Conference</button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -144,7 +149,9 @@ export default function ConferencesPage() {
                     {conf.status === 'active' ? 'In Progress' : 'Ready'}
                   </span>
                   <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => handleJoin(conf)}>Join</button>
-                  <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => handleEnd(conf.id)}>End</button>
+                  {isTeacher && (
+                    <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => handleEnd(conf.id)}>End</button>
+                  )}
                 </div>
               </div>
             ))}

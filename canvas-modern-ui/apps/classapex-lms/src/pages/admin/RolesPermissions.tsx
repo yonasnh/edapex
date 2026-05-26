@@ -87,13 +87,11 @@ export default function AdminRolesPermissionsPage() {
     if (!selectedRole) return;
     setUpdatingPermission(permId);
     try {
+      const formData = new FormData()
+      formData.append(`permissions[${permId}][enabled]`, String(!enabled))
       await canvasFetch(`/api/v1/accounts/1/roles/${selectedRole.id}`, {
         method: 'PUT',
-        body: {
-          permissions: {
-            [permId]: { enabled: !enabled }
-          }
-        }
+        body: formData
       });
       setSelectedRole((prev: any) => ({
         ...prev,
@@ -105,7 +103,11 @@ export default function AdminRolesPermissionsPage() {
       showToast({ title: 'Permission Updated', message: 'The role has been updated.', type: 'success' });
       refetch();
     } catch (err: any) {
-      showToast({ title: 'Update Failed', message: err.message, type: 'error' });
+      console.error('Permission update failed:', err)
+      const errType = err?.constructor?.name || typeof err
+      const errMsg = err?.message || '(no message)'
+      const errStatus = err?.status ?? '—'
+      showToast({ title: 'Update Failed', message: `${errType} [${errStatus}]: ${errMsg}`, type: 'error' });
     } finally {
       setUpdatingPermission(null);
     }

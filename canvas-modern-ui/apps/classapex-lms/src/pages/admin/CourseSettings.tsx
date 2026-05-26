@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { canvasFetch } from '../../hooks/useCanvasQuery'
 import { useNotification } from '../../hooks/useNotification'
 import clsx from 'clsx'
@@ -657,6 +657,7 @@ export default function CourseSettingsPage() {
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 6px' }}>Sections & Cross-Listing</h3>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>
                   Manage course sections, view waitlist counts, and cross-list sections into other courses.
+                  <Link to={`/courses/${courseId}/waitlist`} className="cx-btn cx-btn--ghost cx-btn--sm" style={{ marginLeft: 8 }}>Manage Waitlist →</Link>
                 </p>
               </div>
 
