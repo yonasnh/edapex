@@ -194,7 +194,7 @@
 | **Grade Change Audit Log** | ✅ | 🟡 | Audit log view exists. Advanced filtering and export are partial. |
 | **Assessment — Institutional Question Banks** | ✅ | 🟡 | Global question bank management. Granular item types are partial. |
 | **Blueprint Courses — Admin View** | ✅ | 🟡 | Sync controls and association management exist. |
-| **Authentication — SAML / OAuth Config** | ✅ | ❌ | No authentication provider configuration UI. |
+| **Authentication — SAML / OAuth Config** | ✅ | ✅ | `AuthProviders.tsx` lists providers via Canvas API with type icons, position sorting, and delete. Creation/editing is handled via iframe to Canvas native authentication settings. |
 | **Security — Account-Level Privacy** | ✅ | ❌ | No privacy settings or data retention configuration. |
 | **Storage / Quota Management** | ✅ | ❌ | No file storage quota management. |
 | **Mobile App — Manage App Access** | ✅ | ❌ | Not applicable to web UI. |

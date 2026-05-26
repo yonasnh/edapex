@@ -81,6 +81,7 @@ const AdminBrandConfigsPage = React.lazy(() => import('./pages/admin/BrandConfig
 const AdminSisImportsPage = React.lazy(() => import('./pages/admin/SisImports'))
 const AdminGradeChangeAuditPage = React.lazy(() => import('./pages/admin/GradeChangeAudit'))
 const AdminDeveloperKeysPage = React.lazy(() => import('./pages/admin/DeveloperKeys'))
+const AdminAuthProvidersPage = React.lazy(() => import('./pages/admin/AuthProviders'))
 const AdminAssessmentPage = React.lazy(() => import('./pages/admin/Assessment'))
 const AdminBlueprintCoursesPage = React.lazy(() => import('./pages/admin/BlueprintCourses'))
 const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboard'))
@@ -695,6 +696,7 @@ const AppContent = () => {
             <Route path="/admin/assessment" element={<RequireRole allowed={['admin']}><AdminAssessmentPage /></RequireRole>} />
             <Route path="/admin/blueprint-courses" element={<RequireRole allowed={['admin']}><AdminBlueprintCoursesPage /></RequireRole>} />
             <Route path="/admin/grade-change-audit" element={<RequireRole allowed={['admin']}><AdminGradeChangeAuditPage /></RequireRole>} />
+            <Route path="/admin/auth-providers" element={<RequireRole allowed={['admin']}><AdminAuthProvidersPage /></RequireRole>} />
             <Route path="/courses/:courseId/pages" element={<PagesPage />} />
             <Route path="/courses/:courseId/modules" element={<ModulesPage />} />
             <Route path="/courses/:courseId/syllabus" element={<SyllabusPage />} />
