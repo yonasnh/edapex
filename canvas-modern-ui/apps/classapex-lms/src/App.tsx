@@ -110,6 +110,7 @@ const AccessibilityStatementPage = React.lazy(() => import('./pages/Accessibilit
 const AppointmentSchedulerPage = React.lazy(() => import('./pages/AppointmentScheduler'))
 const CollaborationsPage = React.lazy(() => import('./pages/Collaborations'))
 const CourseFeatureFlagsPage = React.lazy(() => import('./pages/CourseFeatureFlags'))
+const ZoomLtiPage = React.lazy(() => import('./pages/ZoomLtiPage'))
 
 // Premium Accessibility, Localization, & Error Boundary (Sprint 22-24)
 import { I18nProvider } from './contexts/I18nContext'
@@ -723,6 +724,7 @@ const AppContent = () => {
             <Route path="/courses/:courseId/scheduler" element={<AppointmentSchedulerPage />} />
             <Route path="/courses/:courseId/collaborations" element={<CollaborationsPage />} />
             <Route path="/courses/:courseId/features" element={<CourseFeatureFlagsPage />} />
+            <Route path="/courses/:courseId/zoom" element={<ZoomLtiPage />} />
             <Route path="/courses/:courseId/settings/navigation" element={<CourseNavigationEditorPage />} />
             <Route path="/accounts/:accountId/lti" element={<LtiPlayerPage />} />
             <Route path="/help"          element={<HelpPage />} />

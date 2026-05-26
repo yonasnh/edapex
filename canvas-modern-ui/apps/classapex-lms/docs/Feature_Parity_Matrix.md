@@ -88,7 +88,7 @@
 | **Analytics — Student Analytics** | ✅ | 🟡 | Student-level analytics exist but are less granular. |
 | **Attendance — Roll Call** | ✅ | 🟡 | Attendance page exists. Badge system and reporting are partial. |
 | **Conferences — BigBlueButton** | ✅ | 🟡 | Conference list and join links supported. Full BBB moderation tools are not surfaced. |
-| **Conferences — Zoom** | ✅ | ❌ | Zoom LTI launch is not explicitly supported. |
+| **Conferences — Zoom** | ✅ | ✅ | `ZoomLtiPage.tsx` detects Zoom LTI tool in course external tools, fetches sessionless launch URL, and embeds via iframe. Falls back to helpful message if not installed. |
 | **Settings — Profile / Avatar** | ✅ | ✅ | Avatar upload and profile editing. |
 | **Settings — Notification Preferences** | ✅ | ✅ | Full matrix UI with rows (Due Date, Grading, Invitation, Announcement, Discussion, Conversation, Submission Comment) and columns (communication channels) with frequency dropdowns (immediately / daily / weekly / never). |
 | **Settings — Communication Channels** | ✅ | ✅ | Email and SMS channel management. |
