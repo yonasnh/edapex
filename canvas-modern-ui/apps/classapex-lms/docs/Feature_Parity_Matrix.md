@@ -45,7 +45,7 @@
 | **Quizzes — Classic Quiz Taking** | ✅ | ✅ | Multiple choice, true/false, short answer, essay, multiple answers, matching, fill-in-multiple-blanks, numerical, formula, and file upload are supported. |
 | **Quizzes — New Quizzes** | ✅ | ✅ | New Quizzes detected via assignment API (`is_quiz_assignment` / `external_tool` filter). Embedded via `NewQuizzesIframe.tsx` pointing to `/courses/:id/new_quizzes/taking|build|moderation`. |
 | **Quizzes — Quiz Builder** | ✅ | 🟡 | Full question creation with 7 types (MC, T/F, essay, fill-in-blank, matching, multiple answers, numerical). Question groups with randomization (pick N from group) implemented. Question randomization and regrade are partial. |
-| **Quizzes — Quiz Results / Review** | ✅ | 🟡 | Results page exists. Correct-answer reveal and question-level feedback are partial. |
+| **Quizzes — Quiz Results / Review** | ✅ | ✅ | Dual-role results page. Teachers see full submission list with filters and stats. Students see their own score summary, question breakdown, and correct-answer reveal based on quiz settings (`show_correct_answers`, `hide_results`, etc.). |
 | **Discussions — Threaded Replies** | ✅ | ✅ | Nested reply threads supported. |
 | **Discussions — Ratings** | ✅ | ✅ | Wired to Canvas rating API. |
 | **Discussions — Podcast / RSS** | ✅ | ✅ | RSS 2.0 + iTunes podcast tags via `PodcastFeedGenerator.tsx`. |
@@ -230,7 +230,7 @@
 | `AssignmentEditModal.tsx` | `/courses/:id/assignments/:id/edit` | 🟡 | Edit modal with moderated grading and anonymous grading toggles. |
 | `Quizzes.tsx` | `/courses/:id/quizzes` | ✅ | Classic quiz list and taking with 10 question types. New Quizzes auto-detected and launched via `NewQuizzesIframe.tsx`. |
 | `QuizBuilder.tsx` | `/courses/:id/quizzes/:id/edit` | 🟡 | Basic builder. Missing: question groups, randomization, regrade. |
-| `QuizResults.tsx` | `/courses/:id/quizzes/:id/submissions` | 🟡 | Results view. Missing: correct-answer reveal depth. |
+| `QuizResults.tsx` | `/courses/:id/quizzes/:id/submissions` | ✅ | Teacher and student views. Correct-answer reveal with Canvas quiz setting compliance. |
 | `Discussions.tsx` | `/courses/:id/discussion_topics` | 🟡 | Threaded discussions with ratings and podcast/RSS feed. Missing: pin depth. |
 | `Pages.tsx` | `/courses/:id/pages` | ✅ | Page list + view with history/restore modal, drag-and-drop page order, and front page setting. |
 | `Announcements.tsx` | `/courses/:id/announcements` | 🟡 | Announcements list with podcast/RSS feed. Missing: full comment integration. |
