@@ -136,6 +136,7 @@ const MOCK_COURSE = {
   start_at: '2026-01-01T00:00:00Z',
   end_at: '2026-05-01T00:00:00Z',
   storage_used_mb: 5120,
+  default_view: 'modules',
 }
 
 const MOCK_MODULES = [
@@ -567,6 +568,19 @@ describe('CourseHome — Role-Based Access', () => {
 
         fireEvent.click(screen.getByText('Display the course syllabus'))
         expect(localStorage.getItem('course_home_1')).toBe('syllabus')
+      })
+
+      it('calls canvasFetch to save default_view to Canvas', async () => {
+        renderCourseHome(role)
+        fireEvent.click(screen.getByRole('button', { name: 'Customize course home page' }))
+
+        fireEvent.click(screen.getByText('Display the course syllabus'))
+        await waitFor(() => {
+          expect(canvasFetch).toHaveBeenCalledWith('/api/v1/courses/1', {
+            method: 'PUT',
+            body: { course: { default_view: 'syllabus' } },
+          })
+        })
       })
 
       it('student view toggle is visible', () => {

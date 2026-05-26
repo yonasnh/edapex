@@ -165,7 +165,7 @@
 | **Course Settings — App Integrations** | ✅ | ❌ | No course-level app placement management. |
 | **Course Settings — Feature Options** | ✅ | ❌ | No course-level feature flag toggles. |
 | **Rich Content Editor** | ✅ | ✅ | `NewRceWrapper.tsx` provides inline equation editor, table insertion, media embed, and Studio placeholder. `CanvasNativeRceModal.tsx` opens the full Canvas New RCE in an iframe for pages, assignments, discussions, announcements, and quizzes. |
-| **Course Home — Customization** | ✅ | ❌ | No front page selection or layout customization. |
+| **Course Home — Customization** | ✅ | ✅ | `CourseHome.tsx` allows teachers to set the course default_view (modules, syllabus, assignments, activity feed). Selection is persisted to Canvas API and synced on load. |
 | **Sections — Cross-Listing** | ✅ | 🟡 | Cross-listing UI exists; validation is partial. |
 | **Attendance — Teacher Marking** | ✅ | 🟡 | Attendance marking UI exists. Badge configuration is partial. |
 | **Conferences — Creation / Moderation** | ✅ | 🟡 | Conference creation exists. Moderation controls are not surfaced. |

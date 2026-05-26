@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Badge } from '@schoolapex/components'
-import { useCanvasQuery } from '../hooks/useCanvasQuery'
+import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
 import { ModuleList } from '../widgets/ModuleList'
 import { PeopleList } from '../widgets/PeopleList'
@@ -33,6 +33,7 @@ interface CourseInfo {
   start_at?: string
   end_at?: string
   storage_used_mb?: number
+  default_view?: string
 }
 
 export default function CourseHome() {
@@ -55,22 +56,44 @@ export default function CourseHome() {
   const { role } = useRole()
   const isTeacher = role === 'teacher' || role === 'admin'
 
-  const [homePage, setHomePage] = useState<HomePageOption>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(`course_home_${courseId}`) : null
-    return (saved as HomePageOption) || 'modules'
-  })
-
-  const handleHomePageChange = useCallback((option: HomePageOption) => {
-    setHomePage(option)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`course_home_${courseId}`, option)
-    }
-  }, [courseId])
+  const [homePage, setHomePage] = useState<HomePageOption>('modules')
+  const [savingHomePage, setSavingHomePage] = useState(false)
 
   const { data: course, isLoading: courseLoading } = useCanvasQuery<CourseInfo>(
     `/api/v1/courses/${courseId}`,
     { include: ['syllabus_body', 'term', 'teachers', 'total_students'] } as any
   )
+
+  // Sync homePage from Canvas course default_view when course loads
+  React.useEffect(() => {
+    if (course?.default_view) {
+      const valid = HOME_PAGE_OPTIONS.find(o => o.value === course.default_view)
+      if (valid) {
+        setHomePage(valid.value)
+      }
+    }
+  }, [course])
+
+  const handleHomePageChange = useCallback(async (option: HomePageOption) => {
+    setHomePage(option)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`course_home_${courseId}`, option)
+    }
+    // Persist to Canvas
+    if (courseId) {
+      setSavingHomePage(true)
+      try {
+        await canvasFetch(`/api/v1/courses/${courseId}`, {
+          method: 'PUT',
+          body: { course: { default_view: option } },
+        })
+      } catch {
+        // Silent fail — localStorage already saved the preference
+      } finally {
+        setSavingHomePage(false)
+      }
+    }
+  }, [courseId])
 
   // Record course visited history in localStorage (recent tracking)
   React.useEffect(() => {
