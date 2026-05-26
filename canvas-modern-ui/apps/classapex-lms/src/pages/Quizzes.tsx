@@ -15,6 +15,7 @@ import { useParams, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
+import NewQuizzesIframe from '../components/NewQuizzesIframe'
 import './assignment.css'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -31,6 +32,10 @@ interface Quiz {
   due_at?: string
   workflow_state: 'published' | 'unpublished'
   locked_for_user?: boolean
+  /** True if this is a Canvas New Quiz (LTI assignment) */
+  is_new_quiz?: boolean
+  /** The assignment ID for New Quizzes (may differ from quiz id) */
+  assignment_id?: number
 }
 
 interface MatchingPair {
@@ -923,6 +928,7 @@ export default function QuizzesPage() {
   const [selectedQuizId, setSelectedQuizId] = useState<number | null>(() => {
     return quizIdFromQuery ? parseInt(quizIdFromQuery, 10) : null
   })
+  const [selectedNewQuiz, setSelectedNewQuiz] = useState<Quiz | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newQuiz, setNewQuiz] = useState({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
   const [creatingQuiz, setCreatingQuiz] = useState(false)
@@ -941,15 +947,69 @@ export default function QuizzesPage() {
 
   const handleExit = useCallback(() => {
     setSelectedQuizId(null)
+    setSelectedNewQuiz(null)
     if (courseId) {
       navigate(`/courses/${courseId}/quizzes`, { replace: true })
     }
   }, [courseId, navigate])
 
-  const { data: quizzes, isLoading, refetch } = useCanvasQuery<Quiz[]>(
+  const { data: classicQuizzes, isLoading: classicLoading, refetch: refetchClassic } = useCanvasQuery<Quiz[]>(
     courseId ? `/api/v1/courses/${courseId}/quizzes` : '',
     { per_page: 50 } as any
   )
+
+  // Fetch New Quizzes — they are assignments with submission_types = external_tool
+  const { data: newQuizAssignments, isLoading: newQuizLoading } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/assignments?per_page=100` : '',
+    undefined,
+    {
+      select: (data: any[]) =>
+        data
+          .filter((a: any) => a.is_quiz_assignment || a.submission_types?.includes('external_tool'))
+          .map((a: any) => ({
+            id: a.id,
+            title: a.name,
+            description: a.description,
+            quiz_type: 'assignment' as const,
+            time_limit: a.time_limit_minutes,
+            allowed_attempts: a.allowed_attempts || 1,
+            question_count: a.question_count || 0,
+            points_possible: a.points_possible || 0,
+            due_at: a.due_at,
+            workflow_state: a.published ? 'published' : 'unpublished',
+            locked_for_user: a.locked_for_user,
+            is_new_quiz: true,
+            assignment_id: a.id,
+          })),
+    } as any
+  )
+
+  const quizzes: Quiz[] | undefined =
+    classicQuizzes || newQuizAssignments
+      ? [
+          ...(classicQuizzes || []),
+          ...(newQuizAssignments || []).filter(
+            (nq) => !(classicQuizzes || []).some((cq) => cq.id === nq.id)
+          ),
+        ]
+      : undefined
+
+  const isLoading = classicLoading || newQuizLoading
+
+  const refetch = () => {
+    refetchClassic()
+  }
+
+  if (selectedNewQuiz && courseId && selectedNewQuiz.assignment_id) {
+    return (
+      <NewQuizzesIframe
+        courseId={courseId}
+        assignmentId={selectedNewQuiz.assignment_id}
+        mode={isTeacher ? 'build' : 'take'}
+        onExit={handleExit}
+      />
+    )
+  }
 
   if (selectedQuizId && courseId) {
     return (
@@ -991,10 +1051,19 @@ export default function QuizzesPage() {
               key={quiz.id}
               className="cx-quiz-card"
               style={{ cursor: quiz.locked_for_user ? 'not-allowed' : 'pointer', opacity: quiz.locked_for_user ? 0.6 : 1 }}
-              onClick={() => !quiz.locked_for_user && setSelectedQuizId(quiz.id)}
+              onClick={() => {
+                if (quiz.locked_for_user) return
+                if (quiz.is_new_quiz) {
+                  setSelectedNewQuiz(quiz)
+                } else {
+                  setSelectedQuizId(quiz.id)
+                }
+              }}
             >
               <div style={{ flexShrink: 0, color: 'var(--cx-text-secondary)' }}>
-                {quiz.quiz_type === 'practice_quiz' ? (
+                {quiz.is_new_quiz ? (
+                  <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                ) : quiz.quiz_type === 'practice_quiz' ? (
                   <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2z"/><path d="M7 10h6M10 7v6"/></svg>
                 ) : quiz.quiz_type === 'survey' ? (
                   <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 18h16"/><rect x="4" y="10" width="3" height="8" rx="0.5"/><rect x="8.5" y="6" width="3" height="12" rx="0.5"/><rect x="13" y="3" width="3" height="15" rx="0.5"/></svg>
@@ -1003,7 +1072,12 @@ export default function QuizzesPage() {
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginBottom: 2 }}>{quiz.title}</div>
+                <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {quiz.title}
+                  {quiz.is_new_quiz && (
+                    <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 10, background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Quiz</span>
+                  )}
+                </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--cx-text-tertiary)' }}>
                   {quiz.question_count} questions · {quiz.points_possible} pts
                   {quiz.time_limit ? ` · ${quiz.time_limit} min` : ''}
@@ -1011,7 +1085,7 @@ export default function QuizzesPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                {isTeacher && (
+                {isTeacher && !quiz.is_new_quiz && (
                   <Link
                     to={`/courses/${courseId}/quizzes/${quiz.id}/builder`}
                     className="cx-btn cx-btn--ghost cx-btn--sm"

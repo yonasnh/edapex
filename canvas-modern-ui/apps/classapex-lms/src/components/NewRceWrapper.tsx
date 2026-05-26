@@ -1,15 +1,24 @@
 import React, { useRef, useState } from 'react';
 import RichEditor, { Props as RichEditorProps } from './RichEditor';
+import CanvasNativeRceModal, { CanvasContentType } from './CanvasNativeRceModal';
 
-export type NewRceWrapperProps = RichEditorProps;
+export interface NewRceWrapperProps extends RichEditorProps {
+  /** If provided, shows a "Launch Full Canvas Editor" button */
+  courseId?: string;
+  contentType?: CanvasContentType;
+  contentId?: number | string;
+  pageUrl?: string;
+}
 
 export default function NewRceWrapper(props: NewRceWrapperProps) {
+  const { courseId, contentType, contentId, pageUrl, ...richEditorProps } = props;
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const [showEquation, setShowEquation] = useState(false);
   const [equationLatex, setEquationLatex] = useState('');
   const [showMediaEmbed, setShowMediaEmbed] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
+  const [showCanvasEditor, setShowCanvasEditor] = useState(false);
 
   const saveSelection = () => {
     const sel = window.getSelection();
@@ -147,6 +156,20 @@ export default function NewRceWrapper(props: NewRceWrapperProps) {
         >
           🎬
         </button>
+        {courseId && contentType && contentId && (
+          <button
+            type="button"
+            className="cx-btn cx-btn--sm"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowCanvasEditor(true);
+            }}
+            title="Launch Full Canvas Editor"
+            style={{ marginLeft: 'auto', background: 'var(--cx-color-primary)', color: '#fff' }}
+          >
+            📝 Canvas Editor
+          </button>
+        )}
       </div>
 
       {showEquation && (
@@ -243,7 +266,18 @@ export default function NewRceWrapper(props: NewRceWrapperProps) {
         </div>
       )}
 
-      <RichEditor ref={editorRef} {...props} />
+      <RichEditor ref={editorRef} {...richEditorProps} />
+
+      {courseId && contentType && contentId && (
+        <CanvasNativeRceModal
+          courseId={courseId}
+          contentType={contentType}
+          contentId={contentId}
+          pageUrl={pageUrl}
+          isOpen={showCanvasEditor}
+          onClose={() => setShowCanvasEditor(false)}
+        />
+      )}
     </div>
   );
 }

@@ -43,7 +43,7 @@
 | **Assignments — Submission Types** | ✅ | 🟡 | File upload, text entry, URL, and media recording supported. Studio embed and Office 365 are not supported. |
 | **Assignments — Peer Reviews** | ✅ | 🟡 | Peer review list and submission UI exists. Anonymous peer reviews and rubric-based peer grading are partial. |
 | **Quizzes — Classic Quiz Taking** | ✅ | ✅ | Multiple choice, true/false, short answer, essay, multiple answers, matching, fill-in-multiple-blanks, numerical, formula, and file upload are supported. |
-| **Quizzes — New Quizzes** | ✅ | ❌ | No New Quizzes support. |
+| **Quizzes — New Quizzes** | ✅ | ✅ | New Quizzes detected via assignment API (`is_quiz_assignment` / `external_tool` filter). Embedded via `NewQuizzesIframe.tsx` pointing to `/courses/:id/new_quizzes/taking|build|moderation`. |
 | **Quizzes — Quiz Builder** | ✅ | 🟡 | Basic quiz creation exists. Question randomization, question groups, moderation, and regrade are partial or missing. |
 | **Quizzes — Quiz Results / Review** | ✅ | 🟡 | Results page exists. Correct-answer reveal and question-level feedback are partial. |
 | **Discussions — Threaded Replies** | ✅ | ✅ | Nested reply threads supported. |
@@ -164,7 +164,7 @@
 | **Course Settings — Navigation** | ✅ | ✅ | Drag-and-drop tab reordering and visibility toggle at `/courses/:courseId/settings/navigation`. |
 | **Course Settings — App Integrations** | ✅ | ❌ | No course-level app placement management. |
 | **Course Settings — Feature Options** | ✅ | ❌ | No course-level feature flag toggles. |
-| **Rich Content Editor** | ✅ | 🟡 | `NewRceWrapper.tsx` now replaces `RichEditor` in all content-editing pages (Assignments, Announcements, Discussions, Syllabus, QuizBuilder). Adds equation editor, table insertion, media embed, and Studio placeholder. Still not the full native Canvas New RCE. |
+| **Rich Content Editor** | ✅ | ✅ | `NewRceWrapper.tsx` provides inline equation editor, table insertion, media embed, and Studio placeholder. `CanvasNativeRceModal.tsx` opens the full Canvas New RCE in an iframe for pages, assignments, discussions, announcements, and quizzes. |
 | **Course Home — Customization** | ✅ | ❌ | No front page selection or layout customization. |
 | **Sections — Cross-Listing** | ✅ | 🟡 | Cross-listing UI exists; validation is partial. |
 | **Attendance — Teacher Marking** | ✅ | 🟡 | Attendance marking UI exists. Badge configuration is partial. |
@@ -228,7 +228,7 @@
 | `Assignments.tsx` / `AssignmentList.tsx` | `/courses/:id/assignments` | ✅ | List with filters. |
 | `AssignmentDetail.tsx` | `/courses/:id/assignments/:id` | ✅ | Detail + submission. |
 | `AssignmentEditModal.tsx` | `/courses/:id/assignments/:id/edit` | 🟡 | Edit modal with moderated grading and anonymous grading toggles. |
-| `Quizzes.tsx` | `/courses/:id/quizzes` | 🟡 | Classic quiz list and taking with matching, numerical, formula, file upload, and fill-in-multiple-blanks support. Missing: New Quizzes. |
+| `Quizzes.tsx` | `/courses/:id/quizzes` | ✅ | Classic quiz list and taking with 10 question types. New Quizzes auto-detected and launched via `NewQuizzesIframe.tsx`. |
 | `QuizBuilder.tsx` | `/courses/:id/quizzes/:id/edit` | 🟡 | Basic builder. Missing: question groups, randomization, regrade. |
 | `QuizResults.tsx` | `/courses/:id/quizzes/:id/submissions` | 🟡 | Results view. Missing: correct-answer reveal depth. |
 | `Discussions.tsx` | `/courses/:id/discussion_topics` | 🟡 | Threaded discussions with ratings and podcast/RSS feed. Missing: pin depth. |
@@ -321,8 +321,8 @@ Features that **would block institutional adoption** if ClassApex were positione
 
 | Gap | Severity | Impact |
 |-----|:--------:|--------|
-| **No New Quizzes Support** | 🔴 Critical | Institutions migrating to or already using New Quizzes cannot use ClassApex for quiz workflows. |
-| **Limited Rich Content Editor** | 🟡 High | `NewRceWrapper.tsx` improves on the old `RichEditor` with equation editor, tables, media embed, and Studio placeholder, but is still an iframe wrapper rather than the full native Canvas New RCE. |
+| ~~No New Quizzes Support~~ | ✅ Resolved | New Quizzes embedded via iframe to Canvas native routes. |
+| ~~Limited Rich Content Editor~~ | ✅ Resolved | Inline `NewRceWrapper` for quick edits + `CanvasNativeRceModal` for full Canvas New RCE via iframe. |
 | **No Collaborations (Google/Office)** | 🟡 High | Group work often depends on Google Docs / Office 365 integrations. |
 | **No Authentication Provider Config** | 🟡 High | Admin cannot configure SAML/OAuth without returning to native Canvas. |
 | **Document Annotation (DocViewer)** | 🟡 High | `DocViewerWrapper.tsx` provides iframe-based preview/annotation, but full native Crocodoc/Canvadocs integration is not yet available. |
@@ -334,8 +334,8 @@ Features that **would block institutional adoption** if ClassApex were positione
 
 ### Phase 1 — Blockers (Must have for pilot)
 
-1. **Integrate Canvas New RCE** — Replace `RichEditor` with Instructure's New Rich Content Editor (or embed it via LTI/iframe) to unlock equation editing, media embed, tables, and Studio integration. *(Partial — `NewRceWrapper.tsx` implemented with equation editor, tables, media embed, and Studio placeholder.)*
-2. **Add New Quizzes Support** — Build New Quizzes player UI or embed the native New Quizzes experience.
+1. ~~**Integrate Canvas New RCE**~~ — ✅ Resolved. Inline `NewRceWrapper` for quick edits + `CanvasNativeRceModal` for full Canvas New RCE via iframe.
+2. ~~**Add New Quizzes Support**~~ — ✅ Resolved. New Quizzes auto-detected from assignments API and embedded via `NewQuizzesIframe.tsx`.
 3. ~~**Document Annotation Bridge** — Embed Crocodoc/DocViewer or Canvadocs iframe in `GradingQueue` for PDF annotation.~~ *(Partial — `DocViewerWrapper.tsx` iframe wrapper implemented.)*
 4. ~~**Media Comments** — Add WebRTC-based audio/video recording to `GradingQueue` and `Inbox`.~~ *(Completed — `MediaCommentRecorder.tsx` implemented.)*
 5. ~~**Expand Quiz Question Types** — Implement matching, fill-in-multiple-blanks, numerical, formula, and file-upload question renderers.~~ *(Completed)*
