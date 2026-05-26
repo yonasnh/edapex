@@ -196,8 +196,8 @@
 | **Blueprint Courses — Admin View** | ✅ | 🟡 | Sync controls and association management exist. |
 | **Authentication — SAML / OAuth Config** | ✅ | ✅ | `AuthProviders.tsx` lists providers via Canvas API with type icons, position sorting, and delete. Creation/editing is handled via iframe to Canvas native authentication settings. |
 | **Security — Account-Level Privacy** | ✅ | ❌ | No privacy settings or data retention configuration. |
-| **Storage / Quota Management** | ✅ | ❌ | No file storage quota management. |
-| **Mobile App — Manage App Access** | ✅ | ❌ | Not applicable to web UI. |
+| **Storage / Quota Management** | ✅ | ✅ | `StorageQuotas.tsx` admin page for default course, user, and group storage quotas. Reads and writes via Canvas account API. |
+| **Mobile App — Manage App Access** | ✅ | N/A | Web UI cannot manage native mobile app access. |
 | **Global Search (Cmd+K)** | ✅ | ➕ | ClassApex adds a global Cmd+K command palette with Canvas search API integration and action shortcuts. |
 | **Theme — Dark Mode** | ✅ | ➕ | ClassApex has first-class dark mode with system preference detection. Native Canvas dark mode is limited. |
 | **Theme — High Contrast** | ✅ | ➕ | ClassApex has a dedicated high-contrast mode toggle with reduced-motion support. |
