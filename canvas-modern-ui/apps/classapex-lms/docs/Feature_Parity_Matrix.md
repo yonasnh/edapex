@@ -116,8 +116,8 @@
 | **Collaborations** | ✅ | ✅ | `Collaborations.tsx` lists collaborations via API. `CollaborationIframeModal.tsx` embeds Canvas native LTI collaborations for creation. Open/delete with permission checks. |
 | **Mobile Web Experience** | ✅ | ✅ | MobileTabBar, responsive layouts, and touch-friendly UI. |
 | **Push Notifications** | ✅ | ✅ | `PushNotificationManager.tsx` with service worker and Web Push support. |
-| **Offline Mode Detection** | ❌ | ➕ | ClassApex detects offline state and shows cached data banner. |
-| **AI Assistant Companion** | ❌ | ➕ | Global floating AI drawer with context-aware suggestions. |
+| **Offline Mode Detection** | N/A | ➕ | ClassApex addition: detects offline state and shows cached data banner. Not a native Canvas feature. |
+| **AI Assistant Companion** | N/A | ➕ | ClassApex addition: global floating AI drawer with context-aware suggestions. Not a native Canvas feature. |
 
 ---
 
@@ -201,8 +201,8 @@
 | **Global Search (Cmd+K)** | ✅ | ➕ | ClassApex adds a global Cmd+K command palette with Canvas search API integration and action shortcuts. |
 | **Theme — Dark Mode** | ✅ | ➕ | ClassApex has first-class dark mode with system preference detection. Native Canvas dark mode is limited. |
 | **Theme — High Contrast** | ✅ | ➕ | ClassApex has a dedicated high-contrast mode toggle with reduced-motion support. |
-| **Tenant Configuration** | ❌ | ➕ | ClassApex supports multi-tenant UI configuration (dashboard layout, branding, locale) via `TenantContext`. |
-| **AI Assistant — Admin Insights** | ❌ | ➕ | AI drawer provides context-aware help and navigation suggestions not available in native Canvas. |
+| **Tenant Configuration** | N/A | ➕ | ClassApex addition: multi-tenant UI configuration (dashboard layout, branding, locale) via `TenantContext`. Not a native Canvas feature. |
+| **AI Assistant — Admin Insights** | N/A | ➕ | ClassApex addition: AI drawer provides context-aware help and navigation. Not a native Canvas feature. |
 
 ---
 
