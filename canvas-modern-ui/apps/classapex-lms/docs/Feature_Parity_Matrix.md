@@ -195,7 +195,7 @@
 | **Assessment — Institutional Question Banks** | ✅ | 🟡 | Global question bank management. Granular item types are partial. |
 | **Blueprint Courses — Admin View** | ✅ | 🟡 | Sync controls and association management exist. |
 | **Authentication — SAML / OAuth Config** | ✅ | ✅ | `AuthProviders.tsx` lists providers via Canvas API with type icons, position sorting, and delete. Creation/editing is handled via iframe to Canvas native authentication settings. |
-| **Security — Account-Level Privacy** | ✅ | ❌ | No privacy settings or data retention configuration. |
+| **Security — Account-Level Privacy** | ✅ | ✅ | `PrivacySettings.tsx` shows terms of service and privacy policy status with direct links. Data retention info with iframe access to Canvas native account settings for configuration. |
 | **Storage / Quota Management** | ✅ | ✅ | `StorageQuotas.tsx` admin page for default course, user, and group storage quotas. Reads and writes via Canvas account API. |
 | **Mobile App — Manage App Access** | ✅ | N/A | Web UI cannot manage native mobile app access. |
 | **Global Search (Cmd+K)** | ✅ | ➕ | ClassApex adds a global Cmd+K command palette with Canvas search API integration and action shortcuts. |

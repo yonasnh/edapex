@@ -81,6 +81,7 @@ export const navItems: NavigationItem[] = [
       { id: 'developer-keys', label: 'Developer Keys', icon: KeyIcon, href: '/admin/developer-keys', description: 'Manage LTI and API keys', roles: ['admin'] },
       { id: 'auth-providers', label: 'Auth Providers', icon: ShieldIcon, href: '/admin/auth-providers', description: 'Configure SAML, OAuth, and LDAP authentication', roles: ['admin'] },
       { id: 'storage-quotas', label: 'Storage Quotas', icon: CloudIcon, href: '/admin/storage-quotas', description: 'Manage file storage limits for courses, users, and groups', roles: ['admin'] },
+      { id: 'privacy', label: 'Privacy & Security', icon: ShieldIcon, href: '/admin/privacy', description: 'Manage privacy policies, terms, and data retention', roles: ['admin'] },
       { id: 'assessment', label: 'Institutional Assessment', icon: ReportIcon, href: '/admin/assessment', description: 'Manage global question banks and outcomes', roles: ['admin'] },
       { id: 'blueprint-courses', label: 'Blueprint Courses', icon: CloudIcon, href: '/admin/blueprint-courses', description: 'Manage blueprint templates and course sync', roles: ['admin'] },
       { id: 'theme-branding', label: 'Theme & Branding', icon: PaletteIcon, href: '/admin/branding', description: 'Configure platform visual appearance', roles: ['admin'] },
