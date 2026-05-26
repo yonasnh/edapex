@@ -44,7 +44,7 @@
 | **Assignments — Peer Reviews** | ✅ | 🟡 | Peer review list and submission UI exists. Anonymous peer reviews and rubric-based peer grading are partial. |
 | **Quizzes — Classic Quiz Taking** | ✅ | ✅ | Multiple choice, true/false, short answer, essay, multiple answers, matching, fill-in-multiple-blanks, numerical, formula, and file upload are supported. |
 | **Quizzes — New Quizzes** | ✅ | ✅ | New Quizzes detected via assignment API (`is_quiz_assignment` / `external_tool` filter). Embedded via `NewQuizzesIframe.tsx` pointing to `/courses/:id/new_quizzes/taking|build|moderation`. |
-| **Quizzes — Quiz Builder** | ✅ | 🟡 | Basic quiz creation exists. Question randomization, question groups, moderation, and regrade are partial or missing. |
+| **Quizzes — Quiz Builder** | ✅ | 🟡 | Full question creation with 7 types (MC, T/F, essay, fill-in-blank, matching, multiple answers, numerical). Question groups with randomization (pick N from group) implemented. Question randomization and regrade are partial. |
 | **Quizzes — Quiz Results / Review** | ✅ | 🟡 | Results page exists. Correct-answer reveal and question-level feedback are partial. |
 | **Discussions — Threaded Replies** | ✅ | ✅ | Nested reply threads supported. |
 | **Discussions — Ratings** | ✅ | ✅ | Wired to Canvas rating API. |
@@ -392,8 +392,8 @@ This matrix was constructed by:
 | Category | Count |
 |----------|-------|
 | Total ClassApex Pages | 65 |
-| Full Parity (✅) | ~53 |
-| Partial (🟡) | ~20 |
+| Full Parity (✅) | ~54 |
+| Partial (🟡) | ~19 |
 | Missing (❌) | ~4 |
 | Out of Scope (🚫) | ~3 |
 | ClassApex Exceeds (➕) | ~8 |

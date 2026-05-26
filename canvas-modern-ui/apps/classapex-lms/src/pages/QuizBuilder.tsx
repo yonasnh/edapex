@@ -23,6 +23,13 @@ interface QuestionForm {
   answers: any[]
 }
 
+interface QuestionGroup {
+  id: number
+  name: string
+  pick_count: number
+  question_points: number
+}
+
 const QUESTION_TYPE_OPTIONS: { value: QuestionType; label: string }[] = [
   { value: 'multiple_choice_question', label: 'Multiple Choice' },
   { value: 'true_false_question', label: 'True / False' },
@@ -82,11 +89,21 @@ export default function QuizBuilderPage() {
     { per_page: 100 } as any
   )
 
+  const { data: groupsData, isLoading: groupsLoading, refetch: refetchGroups } = useCanvasQuery<QuestionGroup[]>(
+    courseId && quizId ? `/api/v1/courses/${courseId}/quizzes/${quizId}/groups` : '',
+    { per_page: 50 } as any
+  )
+
   const [saving, setSaving] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<QuestionForm | null>(null)
   const [showModal, setShowModal] = useState(false)
 
+  const [showGroupModal, setShowGroupModal] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<Partial<QuestionGroup> | null>(null)
+  const [groupSaving, setGroupSaving] = useState(false)
+
   const questions = questionsData || []
+  const groups = groupsData || []
 
   useEffect(() => {
     if (!isTeacher) {
@@ -208,6 +225,69 @@ export default function QuizBuilderPage() {
     }
   }
 
+  const openGroupCreate = () => {
+    setEditingGroup({ name: '', pick_count: 1, question_points: 1 })
+    setShowGroupModal(true)
+  }
+
+  const openGroupEdit = (g: QuestionGroup) => {
+    setEditingGroup({ ...g })
+    setShowGroupModal(true)
+  }
+
+  const handleSaveGroup = async () => {
+    if (!editingGroup || !editingGroup.name?.trim()) {
+      showToast({ title: 'Group name is required', type: 'warning' })
+      return
+    }
+    setGroupSaving(true)
+    try {
+      const payload = {
+        quiz_groups: [{
+          name: editingGroup.name.trim(),
+          pick_count: Math.max(1, Number(editingGroup.pick_count) || 1),
+          question_points: Number(editingGroup.question_points) || 1,
+        }]
+      }
+      if (editingGroup.id) {
+        await canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}/groups/${editingGroup.id}`, {
+          method: 'PUT',
+          body: payload,
+        })
+        showToast({ title: 'Group updated', type: 'success' })
+      } else {
+        await canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}/groups`, {
+          method: 'POST',
+          body: payload,
+        })
+        showToast({ title: 'Group created', type: 'success' })
+      }
+      setShowGroupModal(false)
+      refetchGroups()
+    } catch (err: any) {
+      showToast({ title: 'Failed to save group', message: err?.message || 'Please try again.', type: 'error' })
+    } finally {
+      setGroupSaving(false)
+    }
+  }
+
+  const handleDeleteGroup = async (id: number) => {
+    const confirmed = await showConfirm({
+      title: 'Delete Group?',
+      message: 'Questions in this group will remain but will no longer be randomized.',
+      type: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!confirmed) return
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}/groups/${id}`, { method: 'DELETE' })
+      showToast({ title: 'Group deleted', type: 'success' })
+      refetchGroups()
+    } catch (err: any) {
+      showToast({ title: 'Failed to delete group', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }
+
   const handleTypeChange = (type: QuestionType) => {
     if (!editingQuestion) return
     setEditingQuestion({ ...editingQuestion, question_type: type, answers: emptyAnswers(type) })
@@ -231,7 +311,7 @@ export default function QuizBuilderPage() {
     setEditingQuestion({ ...editingQuestion, answers: editingQuestion.answers.filter((_, i) => i !== idx) })
   }
 
-  if (quizLoading || questionsLoading) {
+  if (quizLoading || questionsLoading || groupsLoading) {
     return (
       <div className="cx-page">
         <div className="cx-loading" role="status" aria-label="Loading quiz builder">
@@ -255,10 +335,43 @@ export default function QuizBuilderPage() {
         </div>
       </div>
 
-      {questions.length === 0 ? (
+      {/* Question Groups */}
+      {groups.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Question Groups</h3>
+            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={openGroupCreate}>+ Add Group</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {groups.map(g => (
+              <div key={g.id} className="cx-assignment-card" style={{ padding: '12px 16px', background: 'var(--cx-bg-surface-raised)', borderLeft: '3px solid var(--cx-color-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--cx-text-primary)' }}>{g.name}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
+                      Pick {g.pick_count} of {questions.filter((q: any) => q.quiz_group_id === g.id).length} questions · {g.question_points} pts each
+                      <span style={{ marginLeft: 8, fontSize: '0.7rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 600 }}>Randomized</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Edit group" onClick={() => openGroupEdit(g)}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Delete group" onClick={() => handleDeleteGroup(g.id)} style={{ color: 'var(--cx-color-danger)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {questions.length === 0 && groups.length === 0 ? (
         <div className="cx-assignment-list__empty">
           <p className="cx-assignment-list__empty-text">No questions yet</p>
-          <p className="cx-assignment-list__empty-hint">Add your first question to build this quiz.</p>
+          <p className="cx-assignment-list__empty-hint">Add your first question or create a question group to build this quiz.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -267,13 +380,18 @@ export default function QuizBuilderPage() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <span style={{
-                    background: 'var(--cx-color-primary)', color: '#fff', borderRadius: '50%', width: 28, height: 28,
+                    background: q.quiz_group_id ? 'var(--cx-color-secondary, #8b5cf6)' : 'var(--cx-color-primary)', color: '#fff', borderRadius: '50%', width: 28, height: 28,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
                   }}>{idx + 1}</span>
                   <div>
                     <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)', fontSize: 'var(--cx-text-sm)' }} dangerouslySetInnerHTML={{ __html: q.question_text || q.question_name }} />
                     <div style={{ fontSize: 'var(--cx-text-xs)', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
                       {q.question_type.replace(/_/g, ' ')} · {q.points_possible} pts
+                      {q.quiz_group_id && (
+                        <span style={{ marginLeft: 8, fontSize: '0.7rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 600 }}>
+                          In Group: {groups.find((g: any) => g.id === q.quiz_group_id)?.name || 'Group'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -288,6 +406,42 @@ export default function QuizBuilderPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showGroupModal && editingGroup && (
+        <div className="cx-modal-overlay" onClick={() => setShowGroupModal(false)}>
+          <div className="cx-modal" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">{editingGroup.id ? 'Edit Question Group' : 'New Question Group'}</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => setShowGroupModal(false)} aria-label="Close">
+                <svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" strokeWidth="1.5"><path d="M1 1l12 12M13 1L1 13"/></svg>
+              </button>
+            </div>
+            <div className="cx-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Group Name <span style={{ color: 'var(--cx-color-danger)' }}>*</span></label>
+                <input type="text" className="cx-input" style={{ width: '100%' }} value={editingGroup.name || ''} onChange={e => setEditingGroup({ ...editingGroup, name: e.target.value })} placeholder="e.g. Random Section A" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Questions to Pick</label>
+                  <input type="number" className="cx-input" style={{ width: '100%' }} min={1} value={editingGroup.pick_count || 1} onChange={e => setEditingGroup({ ...editingGroup, pick_count: Number(e.target.value) })} />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', margin: '4px 0 0' }}>Number randomly selected from group</p>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Points per Question</label>
+                  <input type="number" className="cx-input" style={{ width: '100%' }} min={0} step={0.5} value={editingGroup.question_points || 1} onChange={e => setEditingGroup({ ...editingGroup, question_points: Number(e.target.value) })} />
+                </div>
+              </div>
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary" onClick={() => setShowGroupModal(false)} disabled={groupSaving}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={handleSaveGroup} disabled={groupSaving || !editingGroup.name?.trim()}>
+                {groupSaving ? 'Saving…' : editingGroup.id ? 'Update Group' : 'Create Group'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
