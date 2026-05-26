@@ -1,6 +1,6 @@
 # ClassApex vs. Native Canvas LMS — Feature Parity Matrix
 
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Date:** 2026-05-25  
 > **Scope:** ClassApex modern React UI (`canvas-modern-ui/apps/classapex-lms`) compared against native Canvas LMS (Instructure hosted/open-source).  
 > **Assessment Method:** Codebase analysis of 64 page components, 28 shared components, hooks, and GraphQL/REST API integration layers.
@@ -325,7 +325,7 @@ Features that **would block institutional adoption** if ClassApex were positione
 | ~~Limited Rich Content Editor~~ | ✅ Resolved | Inline `NewRceWrapper` for quick edits + `CanvasNativeRceModal` for full Canvas New RCE via iframe. |
 | **No Collaborations (Google/Office)** | 🟡 High | Group work often depends on Google Docs / Office 365 integrations. |
 | **No Authentication Provider Config** | 🟡 High | Admin cannot configure SAML/OAuth without returning to native Canvas. |
-| **Document Annotation (DocViewer)** | 🟡 High | `DocViewerWrapper.tsx` provides iframe-based preview/annotation, but full native Crocodoc/Canvadocs integration is not yet available. |
+| **Document Annotation (DocViewer)** | 🟡 Medium | `DocViewerWrapper.tsx` provides iframe-based preview/annotation via Canvas native DocViewer. Full native Crocodoc/Canvadocs integration depth is partial.
 | **No Native Mobile Apps** | 🟡 Medium | iOS/Android apps are expected by students for push and offline access. |
 
 ---
@@ -372,8 +372,8 @@ Features that **would block institutional adoption** if ClassApex were positione
 24. ~~**Prior Enrollments** — Concluded enrollment view with read-only access.~~ *(Completed — `PriorEnrollments.tsx` implemented.)*
 25. **Advanced Analytics** — Participations, page views, and department-level rollups.
 26. **Peer Review Anonymous Mode** — Anonymous assignment and rubric-based peer grading.
-27. **Moderated Grading** — Second-grader workflow and final-grader selection.
-28. **Anonymous Grading** — Hide student names during grading.
+27. ~~**Moderated Grading**~~ — ✅ Resolved. Toggle with grader count and final grader selector in `AssignmentEditModal.tsx`.
+28. ~~**Anonymous Grading**~~ — ✅ Resolved. Toggle with help text in `AssignmentEditModal.tsx`.
 
 ---
 
@@ -392,9 +392,9 @@ This matrix was constructed by:
 | Category | Count |
 |----------|-------|
 | Total ClassApex Pages | 65 |
-| Full Parity (✅) | ~50 |
-| Partial (🟡) | ~23 |
-| Missing (❌) | ~5 |
+| Full Parity (✅) | ~53 |
+| Partial (🟡) | ~20 |
+| Missing (❌) | ~4 |
 | Out of Scope (🚫) | ~3 |
 | ClassApex Exceeds (➕) | ~8 |
 
