@@ -113,7 +113,7 @@
 | **Waitlist** | ✅ | 🟡 | Waitlist page exists. Auto-enrollment and priority logic are partial. |
 | **Course Import** | ✅ | 🟡 | Import UI exists. Actual content migration progress polling is partial. |
 | **Section Management** | ✅ | 🟡 | Section list and cross-listing UI exist. Bulk section operations are partial. |
-| **Collaborations** | ✅ | ❌ | No Google Docs or Office 365 collaboration integration. |
+| **Collaborations** | ✅ | ✅ | `Collaborations.tsx` lists collaborations via API. `CollaborationIframeModal.tsx` embeds Canvas native LTI collaborations for creation. Open/delete with permission checks. |
 | **Mobile Web Experience** | ✅ | ✅ | MobileTabBar, responsive layouts, and touch-friendly UI. |
 | **Push Notifications** | ✅ | ✅ | `PushNotificationManager.tsx` with service worker and Web Push support. |
 | **Offline Mode Detection** | ❌ | ➕ | ClassApex detects offline state and shows cached data banner. |
@@ -323,7 +323,7 @@ Features that **would block institutional adoption** if ClassApex were positione
 |-----|:--------:|--------|
 | ~~No New Quizzes Support~~ | ✅ Resolved | New Quizzes embedded via iframe to Canvas native routes. |
 | ~~Limited Rich Content Editor~~ | ✅ Resolved | Inline `NewRceWrapper` for quick edits + `CanvasNativeRceModal` for full Canvas New RCE via iframe. |
-| **No Collaborations (Google/Office)** | 🟡 High | Group work often depends on Google Docs / Office 365 integrations. |
+| ~~No Collaborations (Google/Office)~~ | ✅ Resolved | `Collaborations.tsx` lists, opens, and deletes collaborations. Creation is handled via iframe to Canvas native LTI collaborations. |
 | **No Authentication Provider Config** | 🟡 High | Admin cannot configure SAML/OAuth without returning to native Canvas. |
 | **Document Annotation (DocViewer)** | 🟡 Medium | `DocViewerWrapper.tsx` provides iframe-based preview/annotation via Canvas native DocViewer. Full native Crocodoc/Canvadocs integration depth is partial.
 | **No Native Mobile Apps** | 🟡 Medium | iOS/Android apps are expected by students for push and offline access. |
@@ -348,7 +348,7 @@ Features that **would block institutional adoption** if ClassApex were positione
 9. ~~**What-If Scores** — Enable hypothetical score entry in `Grades`.~~ *(Completed)*
 10. ~~**Course Navigation Editor** — Drag-and-drop tab visibility and ordering.~~ *(Completed)*
 11. ~~**Usage Rights Manager** — Add copyright status and usage rights fields to `Files`.~~ *(Completed)*
-12. **Collaborations Integration** — Google Docs / Office 365 LTI launch and document list.
+12. ~~**Collaborations Integration**~~ — ✅ Resolved. `Collaborations.tsx` page with API list, open, delete, and iframe-based creation via Canvas native LTI collaborations.
 
 ### Phase 3 — Calendar & Scheduling
 
