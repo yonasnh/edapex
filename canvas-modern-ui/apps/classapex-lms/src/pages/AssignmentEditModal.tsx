@@ -25,9 +25,9 @@ const SUBMISSION_TYPE_OPTIONS = [
   { value: 'media_recording', label: 'Media Recording' },
   { value: 'student_annotation', label: 'Student Annotation' },
   { value: 'on_paper', label: 'On Paper' },
-  { value: 'none', label: 'No Submission' },
-  { value: 'not_graded', label: 'Not Graded' },
+  { value: 'online_quiz', label: 'Online Quiz' },
   { value: 'external_tool', label: 'External Tool' },
+  { value: 'none', label: 'No Submission' },
 ]
 
 const GRADING_TYPE_OPTIONS = [
@@ -128,7 +128,12 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
         due_at: toDatetimeLocal(assignment.due_at),
         lock_at: toDatetimeLocal(assignment.lock_at),
         unlock_at: toDatetimeLocal(assignment.unlock_at),
-        submission_types: Array.isArray(assignment.submission_types) ? assignment.submission_types : ['none'],
+        submission_types: Array.isArray(assignment.submission_types)
+          ? assignment.submission_types.filter((t: string) =>
+              ['none', 'on_paper', 'online_quiz', 'online_upload', 'online_text_entry',
+               'online_url', 'external_tool', 'media_recording', 'student_annotation'].includes(t)
+            )
+          : ['none'],
         allowed_extensions: (assignment.allowed_extensions || []).join(', '),
         assignment_group_id: assignment.assignment_group_id ? String(assignment.assignment_group_id) : '',
         published: assignment.published ?? false,
@@ -168,8 +173,18 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
   const handleToggleSubmissionType = (value: string) => {
     setForm(prev => {
       const set = new Set(prev.submission_types)
-      if (set.has(value)) set.delete(value)
-      else set.add(value)
+      if (set.has(value)) {
+        set.delete(value)
+      } else {
+        // 'none' is mutually exclusive with all other submission types
+        if (value === 'none') {
+          set.clear()
+          set.add('none')
+        } else {
+          set.delete('none')
+          set.add(value)
+        }
+      }
       return { ...prev, submission_types: Array.from(set) }
     })
   }
@@ -231,13 +246,21 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
 
     setSaving(true)
     try {
+      const validSubmissionTypes = [
+        'none', 'on_paper', 'online_quiz', 'online_upload', 'online_text_entry',
+        'online_url', 'external_tool', 'media_recording', 'student_annotation'
+      ]
+      const sanitizedSubmissionTypes = form.submission_types
+        .filter((t: string) => validSubmissionTypes.includes(t))
+        .filter((t: string, i: number, arr: string[]) => arr.indexOf(t) === i) // dedupe
+
       const payload: Record<string, any> = {
         assignment: {
           name: form.name.trim(),
           description: form.description,
           points_possible: Number(form.points_possible) || 0,
           grading_type: form.grading_type,
-          submission_types: form.submission_types.length > 0 ? form.submission_types : ['none'],
+          submission_types: sanitizedSubmissionTypes.length > 0 ? sanitizedSubmissionTypes : ['none'],
           published: form.published,
           peer_reviews: form.peer_reviews,
           automatic_peer_reviews: form.automatic_peer_reviews,
@@ -249,8 +272,8 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
       if (form.due_at) payload.assignment.due_at = new Date(form.due_at).toISOString()
       if (form.lock_at) payload.assignment.lock_at = new Date(form.lock_at).toISOString()
       if (form.unlock_at) payload.assignment.unlock_at = new Date(form.unlock_at).toISOString()
-      if (form.assignment_group_id) payload.assignment.assignment_group_id = form.assignment_group_id
-      if (form.rubric_id) payload.assignment.rubric_id = form.rubric_id
+      if (form.assignment_group_id) payload.assignment.assignment_group_id = Number(form.assignment_group_id)
+      if (form.rubric_id) payload.assignment.rubric_id = Number(form.rubric_id)
 
       if (form.submission_types.includes('online_upload') && form.allowed_extensions.trim()) {
         payload.assignment.allowed_extensions = form.allowed_extensions.split(',').map(s => s.trim()).filter(Boolean)
