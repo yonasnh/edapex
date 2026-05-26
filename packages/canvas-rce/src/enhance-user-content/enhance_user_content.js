@@ -225,7 +225,7 @@ export function enhanceUserContent(container = document, opts = {}) {
       // if the image file is unpublished it's replaced with the lock image
       // and canvas adds hidden=1 to the URL.
       // we also need to strip the alt text
-      if (/hidden=1$/.test(src)) {
+      if (src.endsWith('hidden=1')) {
         img.setAttribute('alt', formatMessage('This image is currently unavailable'))
       }
     })

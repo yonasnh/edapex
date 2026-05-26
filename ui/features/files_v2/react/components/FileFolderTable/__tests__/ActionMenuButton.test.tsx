@@ -244,10 +244,11 @@ describe('ActionMenuButton', () => {
       const user = userEvent.setup()
       renderComponent({
         ...defaultProps,
-        row: {
-          ...FAKE_FILES[0],
-          ...{restricted_by_master_course: true, is_master_course_child_content: true},
-        },
+        row: ({
+	...FAKE_FILES[0],
+	restricted_by_master_course: true,
+	is_master_course_child_content: true
+}),
       })
 
       const button = screen.getByTestId('action-menu-button-large')

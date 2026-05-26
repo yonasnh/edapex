@@ -31,7 +31,7 @@ export default class GradeEntry {
 
   constructor(options: GradeEntryOptions) {
     this.options = {
-      ...(options || {}),
+      ...options,
     }
   }
 

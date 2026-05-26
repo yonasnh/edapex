@@ -41,7 +41,7 @@ export default class SyllabusPlannerCollection extends PaginatedCollection {
 
   fetch(options: SyllabusFetchOptions = {}) {
     const mergedData = {
-      ...(options.data ?? {}),
+      ...options.data,
       context_codes: this.context_codes,
       filter: 'all_ungraded_todo_items',
     }

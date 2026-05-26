@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
-import RichEditor from '../components/RichEditor'
+import NewRceWrapper from '../components/NewRceWrapper'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
 
@@ -304,7 +304,7 @@ export default function QuizBuilderPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Question Text <span style={{ color: 'var(--cx-color-danger)' }}>*</span></label>
-                  <RichEditor
+                  <NewRceWrapper
                     value={editingQuestion.question_text || ''}
                     onChange={html => setEditingQuestion({ ...editingQuestion, question_text: html })}
                     placeholder="Enter your question..."

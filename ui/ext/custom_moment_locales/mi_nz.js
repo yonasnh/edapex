@@ -28,10 +28,10 @@ export default moment.defineLocale('mi-nz', {
   monthsShort: ['Hān', 'Pēp', 'Māe', 'Āpe', 'Mei', 'Hun', 'Hūr', 'Āku', 'Hep', 'Oke', 'Noe', 'Tīh'],
   // regexes taken from moment 2.22.2's moment/locale/mi.js
   // and modified to include unicode characters from our customized monthsShort
-  monthsRegex: /(?:['a-z\u0101\u014D\u016B]+\-?){1,3}/i,
-  monthsStrictRegex: /(?:['a-z\u0101\u014D\u016B]+\-?){1,3}/i,
-  monthsShortRegex: /(?:['a-z\u0101\u014D\u016B\u0113\u012B]+\-?){1,3}/i,
-  monthsShortStrictRegex: /(?:['a-z\u0101\u014D\u016B]+\-?){1,2}/i,
+  monthsRegex: /(?:['a-z\u0101\u014D\u016B]+-?){1,3}/i,
+  monthsStrictRegex: /(?:['a-z\u0101\u014D\u016B]+-?){1,3}/i,
+  monthsShortRegex: /(?:['a-z\u0101\u014D\u016B\u0113\u012B]+-?){1,3}/i,
+  monthsShortStrictRegex: /(?:['a-z\u0101\u014D\u016B]+-?){1,2}/i,
   weekdays: 'Rātapu_Mane_Tūrei_Wenerei_Tāite_Paraire_Hātarei'.split('_'),
   weekdaysShort: 'Ta_Ma_Tū_We_Tāi_Pa_Hā'.split('_'),
   weekdaysMin: 'Ta_Ma_Tū_We_Tāi_Pa_Hā'.split('_'),

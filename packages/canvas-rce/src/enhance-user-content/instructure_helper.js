@@ -55,7 +55,7 @@ export function isExternalLink(element, canvasOrigin = window.location.origin) {
   return !!(
     href &&
     href.length &&
-    !href.match(/^(mailto\:|javascript\:)/) &&
+    !href.match(/^(mailto:|javascript:)/) &&
     element.hostname &&
     getTld(element.hostname) !== getTld(canvasHost)
   )

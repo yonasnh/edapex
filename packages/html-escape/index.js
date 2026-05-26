@@ -84,7 +84,7 @@ const ENTITIES = {
  */
 export function htmlEscape(str) {
   if (typeof str === 'undefined') return ''
-  return str.replace(/[&<>"'\/`=]/g, c => ENTITIES[c])
+  return str.replace(/[&<>"'/`=]/g, c => ENTITIES[c])
 }
 
 /**

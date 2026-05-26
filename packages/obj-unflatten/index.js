@@ -33,7 +33,7 @@ export default function unflatten(obj) {
 
       // If the first keys part contains [ and the last ends with ], then []
       // are correctly balanced.
-      if (/\[/.test(keys[0]) && /\]$/.test(keys[lastKey])) {
+      if (/\[/.test(keys[0]) && keys[lastKey].endsWith(']')) {
         // Remove the trailing ] from the last keys part.
         keys[lastKey] = keys[lastKey].replace(/\]$/, '')
 

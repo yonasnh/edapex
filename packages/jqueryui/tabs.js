@@ -299,7 +299,7 @@ import './widget'
     },
 
     _sanitizeSelector: function( hash ) {
-      return hash ? hash.replace( /[!"$%&'()*+,.\/:;<=>?@\[\]\^`{|}~]/g, "\\$&" ) : "";
+      return hash ? hash.replace( /[!"$%&'()*+,./:;<=>?@[\]^`{|}~]/g, "\\$&" ) : "";
     },
 
     refresh: function() {
@@ -1123,7 +1123,7 @@ import './widget'
         var a = tab.is( "li" ) ? tab.find( "a[href]" ) : tab;
         a = a[0];
         return $( a ).closest( "li" ).attr( "aria-controls" ) ||
-          a.title && a.title.replace( /\s/g, "_" ).replace( /[^\w\u00c0-\uFFFF\-]/g, "" ) ||
+          a.title && a.title.replace( /\s/g, "_" ).replace( /[^\w\u00c0-\uFFFF-]/g, "" ) ||
           this.options.idPrefix + getNextTabId();
       }
     });

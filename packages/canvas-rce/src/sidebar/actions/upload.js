@@ -128,7 +128,7 @@ export function allUploadCompleteActions(results, fileMetaProps, contextType) {
   actions.push(files.createAddFile(fileProps))
   actions.push(files.createInsertFile(fileMetaProps.parentFolderId, results.id))
 
-  if (/^image\//.test(results['content-type'])) {
+  if (results['content-type'].startsWith('image/')) {
     actions.push(images.createAddImage(results, contextType))
   }
   return actions
@@ -410,7 +410,7 @@ function readUploadedFileAsDataURL(file, reader = new FileReader()) {
 }
 
 export function generateThumbnailUrl(results, fileDOMObject, reader) {
-  if (/^image\//.test(results['content-type'])) {
+  if (results['content-type'].startsWith('image/')) {
     return readUploadedFileAsDataURL(fileDOMObject, reader).then(result => {
       results.thumbnail_url = result
       return results

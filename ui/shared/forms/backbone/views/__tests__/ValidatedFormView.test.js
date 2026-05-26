@@ -48,11 +48,9 @@ class MyForm extends ValidatedFormView {
 }
 
 const server = setupServer(
-  ...[
-    http.post('/fail', () => {
+  http.post('/fail', () => {
       return new HttpResponse('', {status: 200})
     }),
-  ],
 )
 
 describe('ValidatedFormView', () => {

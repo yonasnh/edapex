@@ -388,7 +388,7 @@ export class UploadMediaModal extends React.Component {
   render() {
     const {CLOSE_TEXT, UPLOAD_MEDIA_LABEL} = this.props.uploadMediaTranslations.UploadMediaStrings
     const dataProps = Object.keys(this.props)
-      .filter(p => /^data-/.test(p))
+      .filter(p => p.startsWith('data-'))
       .reduce((obj, key) => {
         obj[key] = this.props[key]
         return obj

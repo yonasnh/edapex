@@ -34,13 +34,11 @@ const renderComponent = () =>
 describe('BlueprintIconButton', () => {
   beforeEach(() => {
     defaultProps = {
-      item: {
-        ...FAKE_FILES[0],
-        ...{
-          restricted_by_master_course: true,
-          is_master_course_master_content: true,
-        },
-      },
+      item: ({
+	...FAKE_FILES[0],
+	restricted_by_master_course: true,
+	is_master_course_master_content: true
+}),
     }
   })
 

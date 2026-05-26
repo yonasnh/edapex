@@ -85,14 +85,22 @@ describe('Carousel', () => {
   })
 
   test('focuses right arrow on right arrow click when both arrows are displayed', async function () {
-    subject({...props, ...{displayLeftArrow: true, displayRightArrow: true}})
+    subject(({
+	...props,
+	displayLeftArrow: true,
+	displayRightArrow: true
+}))
     const rightButton = screen.getByRole('button', {name: 'Next'})
     await userEvent.click(rightButton)
     expect(rightButton.matches(':focus')).toBe(true)
   })
 
   test('focuses left arrow on left arrow click when both arrows are displayed', async function () {
-    subject({...props, ...{displayLeftArrow: true, displayRightArrow: true}})
+    subject(({
+	...props,
+	displayLeftArrow: true,
+	displayRightArrow: true
+}))
     const leftButton = screen.getByRole('button', {name: 'Previous'})
     await userEvent.click(leftButton)
     expect(leftButton.matches(':focus')).toBe(true)
@@ -117,32 +125,56 @@ describe('Carousel', () => {
   })
 
   test('left button is not disabled', function () {
-    subject({...props, ...{displayLeftArrow: true, disabled: false}})
+    subject(({
+	...props,
+	displayLeftArrow: true,
+	disabled: false
+}))
     expect(screen.getByRole('button', {name: 'Previous'})).not.toBeDisabled()
   })
 
   test('right button is not disabled', function () {
-    subject({...props, ...{displayRightArrow: true, disabled: false}})
+    subject(({
+	...props,
+	displayRightArrow: true,
+	disabled: false
+}))
     expect(screen.getByRole('button', {name: 'Next'})).not.toBeDisabled()
   })
 
   test('left button can be disabled', function () {
-    subject({...props, ...{displayLeftArrow: true, disabled: true}})
+    subject(({
+	...props,
+	displayLeftArrow: true,
+	disabled: true
+}))
     expect(screen.getByRole('button', {name: 'Previous'})).toBeDisabled()
   })
 
   test('right button is disabled', function () {
-    subject({...props, ...{displayRightArrow: true, disabled: true}})
+    subject(({
+	...props,
+	displayRightArrow: true,
+	disabled: true
+}))
     expect(screen.getByRole('button', {name: 'Next'})).toBeDisabled()
   })
 
   test('adds a VO description for the left arrow button', function () {
-    subject({...props, ...{displayLeftArrow: true, leftArrowDescription: 'Previous record'}})
+    subject(({
+	...props,
+	displayLeftArrow: true,
+	leftArrowDescription: 'Previous record'
+}))
     expect(screen.getByText('Previous record')).toBeInTheDocument()
   })
 
   test('adds a VO description for the right arrow button', function () {
-    subject({...props, ...{displayRightArrow: true, rightArrowDescription: 'Next record'}})
+    subject(({
+	...props,
+	displayRightArrow: true,
+	rightArrowDescription: 'Next record'
+}))
     expect(screen.getByText('Next record')).toBeInTheDocument()
   })
 })

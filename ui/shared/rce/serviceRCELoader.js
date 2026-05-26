@@ -142,7 +142,7 @@ const RCELoader = {
     if (height) {
       tinyMCEInitOptions.tinyOptions = {
         height,
-        ...(tinyMCEInitOptions.tinyOptions || {}),
+        ...tinyMCEInitOptions.tinyOptions,
       }
     }
 

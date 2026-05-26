@@ -121,7 +121,7 @@ describe('SearchResults', () => {
       'Current',
     ]
     const wrapper = render(<SearchResultsComponent {...defaultProps()} />)
-    const headers = [...Array.from(wrapper.container.querySelectorAll('thead tr th'))].map(n => n.textContent)
+    const headers = Array.from(wrapper.container.querySelectorAll('thead tr th')).map(n => n.textContent)
 
     expect(headers).toEqual(expectedHeaders)
   })

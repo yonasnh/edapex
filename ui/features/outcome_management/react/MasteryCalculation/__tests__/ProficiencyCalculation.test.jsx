@@ -63,7 +63,7 @@ describe('ProficiencyCalculation', () => {
     method: {
       calculationMethod: 'decaying_average',
       calculationInt: 75,
-      ...(overrides.method || {}),
+      ...overrides.method,
     },
   })
 

@@ -167,7 +167,7 @@ const GradebookSettingsModal = (props: GradebookSettingsModalProps) => {
       .then(() => {
         // can be cast because latePolicy.data exists
         const newLatePolicy = {
-          ...(latePolicy.data || {}),
+          ...latePolicy.data,
           ...latePolicy.changes,
         } as LatePolicyCamelized
         return props.onLatePolicyUpdate(newLatePolicy)

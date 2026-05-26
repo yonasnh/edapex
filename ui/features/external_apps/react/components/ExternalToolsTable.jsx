@@ -121,7 +121,7 @@ export class ExternalToolsTable extends React.Component {
   render() {
     // only in account settings (not course), but not site_admin, and with the feature on, and with permissions
     const show_lti_favorite_toggles =
-      /^account_/.test(ENV.context_asset_string) &&
+      ENV.context_asset_string.startsWith('account_') &&
       !ENV.ACCOUNT?.site_admin &&
       (this.props.canAdd || this.props.canEdit || this.props.canDelete)
     const show_top_nav_toggles = !!ENV.FEATURES?.top_navigation_placement

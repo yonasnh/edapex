@@ -14,6 +14,7 @@ import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { SearchIcon } from '../navigation'
 import './inbox.css'
+import MediaCommentRecorder from '../components/MediaCommentRecorder'
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -419,6 +420,7 @@ export default function InboxPage() {
   const [replyAttachments, setReplyAttachments] = useState<{ id: number; name: string }[]>([])
   const [uploadingReplyAttachment, setUploadingReplyAttachment] = useState(false)
   const replyFileInputRef = useRef<HTMLInputElement>(null)
+  const [showMediaRecorder, setShowMediaRecorder] = useState(false)
 
   // Canvas API — live conversations list
   const { data: apiConversations, isLoading: conversationsLoading, isError: conversationsError, refetch: refetchConversations } = useCanvasQuery<Conversation[]>(
@@ -829,7 +831,9 @@ export default function InboxPage() {
                   <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment" onClick={() => replyFileInputRef.current?.click()} disabled={uploadingReplyAttachment}>
                     <PaperclipSvg />
                   </button>
-                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Media" onClick={() => setShowMediaRecorder(true)}>
+                    🎙️ Record
+                  </button>
                   <button
                     className="cx-btn cx-btn--secondary cx-btn--sm"
                     onClick={handleForward}
@@ -845,6 +849,19 @@ export default function InboxPage() {
                     Send
                   </button>
                 </div>
+                {showMediaRecorder && (
+                  <div style={{ marginTop: 12 }}>
+                    <MediaCommentRecorder
+                      mode="audio"
+                      maxDuration={300}
+                      onRecordComplete={(url, mediaType) => {
+                        setReplyAttachments(prev => [...prev, { id: Date.now(), name: `Media recording (${mediaType})` }])
+                        setShowMediaRecorder(false)
+                      }}
+                      onCancel={() => setShowMediaRecorder(false)}
+                    />
+                  </div>
+                )}
               </div>
             </>
           )}

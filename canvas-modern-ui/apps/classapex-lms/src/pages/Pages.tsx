@@ -15,6 +15,7 @@ import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
 import { useNotification } from '../hooks/useNotification'
 import { MediaLibrary } from '../widgets/MediaLibrary'
+import PageHistoryModal from '../components/PageHistoryModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -464,6 +465,7 @@ function DraggablePageRow({
   onDelete,
   onSetFrontPage,
   onReorder,
+  onViewHistory,
 }: {
   page: WikiPage
   index: number
@@ -474,6 +476,7 @@ function DraggablePageRow({
   onDelete: (url: string) => void
   onSetFrontPage: (url: string) => void
   onReorder: (fromIndex: number, toIndex: number) => void
+  onViewHistory: (url: string) => void
 }) {
   const [dragging, setDragging] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -608,6 +611,13 @@ function DraggablePageRow({
           </button>
           <button
             className="cx-btn cx-btn--ghost cx-btn--sm"
+            onClick={() => onViewHistory(page.url)}
+            title="View page history"
+          >
+            History
+          </button>
+          <button
+            className="cx-btn cx-btn--ghost cx-btn--sm"
             onClick={() => onDelete(page.url)}
             disabled={deletingId === page.url}
             title="Delete page"
@@ -635,6 +645,8 @@ export default function Pages() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [orderedPages, setOrderedPages] = useState<WikiPage[] | null>(null)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [historyPageUrl, setHistoryPageUrl] = useState('')
   const refetchRef = useRef<(() => void) | null>(null)
 
   const { data: pages, isLoading, refetch } = useCanvasQuery<WikiPage[]>(
@@ -804,6 +816,10 @@ export default function Pages() {
               onDelete={handleDelete}
               onSetFrontPage={handleSetFrontPage}
               onReorder={handleReorder}
+              onViewHistory={(url) => {
+                setHistoryPageUrl(url)
+                setHistoryModalOpen(true)
+              }}
             />
           ))}
         </ul>
@@ -811,6 +827,12 @@ export default function Pages() {
       <p style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', marginTop: 12, textAlign: 'right' }}>
         {filtered.length} page{filtered.length !== 1 ? 's' : ''}
       </p>
+      <PageHistoryModal
+        courseId={courseId || ''}
+        pageUrl={historyPageUrl}
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+      />
     </div>
   )
 }

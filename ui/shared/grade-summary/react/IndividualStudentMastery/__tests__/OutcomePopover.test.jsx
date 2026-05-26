@@ -160,10 +160,10 @@ describe('selected rating', () => {
 
 describe('friendly description', () => {
   it('renders the friendly description if the outcome has one', () => {
-    const friendlyDescription = {
-      ...defaultProps().outcome,
-      ...{friendly_description: 'A friendly description'},
-    }
+    const friendlyDescription = ({
+	...defaultProps().outcome,
+	friendly_description: 'A friendly description'
+})
     const {baseElement, getByRole} = render(
       <OutcomePopover {...defaultProps({outcome: friendlyDescription})} />,
     )

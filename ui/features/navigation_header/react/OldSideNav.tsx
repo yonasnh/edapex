@@ -48,7 +48,7 @@ const groupsNavLink = document.querySelector(`#global_nav_groups_link`)
 const profileNavLink = document.querySelector(`#global_nav_profile_link`)
 // const helpNavLink = document.querySelector(`#global_nav_help_link`)
 
-const EXTERNAL_TOOLS_REGEX = /^\/accounts\/[^\/]*\/(external_tools)/
+const EXTERNAL_TOOLS_REGEX = /^\/accounts\/[^/]*\/(external_tools)/
 const ACTIVE_ROUTE_REGEX =
   /^\/(courses|groups|accounts|grades|calendar|conversations|profile)|^#history/
 // learning_passport is a temporary flag for a prototpye

@@ -44,19 +44,17 @@ export const addAccountsToTree = (
       delete allAccounts[account.id]
     }
 
-    allAccounts[account.id] = {
-      ...account,
-      ...{
-        heading: I18n.t('%{accountName} (%{accountCount})', {
-          accountName: account.name,
-          accountCount: account.sub_account_count + 1, // to include parent account in the count
-        }),
-        label: I18n.t('%{accountName}, %{accountCount} accounts', {
-          accountName: account.name,
-          accountCount: account.sub_account_count + 1, // to include parent account in the count
-        }),
-      },
-    }
+    allAccounts[account.id] = ({
+	...account,
+	heading: I18n.t('%{accountName} (%{accountCount})', {
+		accountName: account.name,
+		accountCount: account.sub_account_count + 1
+	}),
+	label: I18n.t('%{accountName}, %{accountCount} accounts', {
+		accountName: account.name,
+		accountCount: account.sub_account_count + 1
+	})
+})
 
     if (
       account.parent_account_id &&

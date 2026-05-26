@@ -180,7 +180,7 @@ import './widget'
         preventDefault = true;
 
       function escape( value ) {
-        return value.replace( /[\-\[\]{}()*+?.,\\\^$|#\s]/g, "\\$&" );
+        return value.replace( /[-\[\]{}()*+?.,\\^$|#\s]/g, "\\$&" );
       }
 
       switch ( event.keyCode ) {
@@ -375,7 +375,7 @@ import './widget'
       }
 
       nested = item.children( ".ui-menu" );
-      if ( nested.length && ( /^mouse/.test( event.type ) ) ) {
+      if ( nested.length && ( event.type.startsWith('mouse') ) ) {
         this._startOpening(nested);
       }
       this.activeMenu = item.parent();

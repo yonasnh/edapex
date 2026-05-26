@@ -304,32 +304,28 @@ describe('useSvgSettings()', () => {
 
     describe('parses the SVG settings from a legacy SVG metadata structure', () => {
       const bodyGenerator = overrideParams => `
-        ${JSON.stringify({
-          ...{
-            name: 'Test Icon',
-            alt: 'a test image',
-            shape: 'triangle',
-            size: 'large',
-            color: '#FF2717',
-            outlineColor: '#06A3B7',
-            outlineSize: 'small',
-            text: 'Some Text',
-            textSize: 'medium',
-            textColor: '#009606',
-            textBackgroundColor: '#06A3B7',
-            textPosition: 'below',
-            imageSettings: {
-              cropperSettings: null,
-              icon: {
-                label: 'Art Icon',
-              },
-              iconFillColor: '#FFFFFF',
-              image: 'Art Icon',
-              mode: 'SingleColor',
-            },
-          },
-          ...overrideParams,
-        })}`
+        ${JSON.stringify(({
+	name: 'Test Icon',
+	alt: 'a test image',
+	shape: 'triangle',
+	size: 'large',
+	color: '#FF2717',
+	outlineColor: '#06A3B7',
+	outlineSize: 'small',
+	text: 'Some Text',
+	textSize: 'medium',
+	textColor: '#009606',
+	textBackgroundColor: '#06A3B7',
+	textPosition: 'below',
+	imageSettings: {
+		cropperSettings: null,
+		icon: { label: 'Art Icon' },
+		iconFillColor: '#FFFFFF',
+		image: 'Art Icon',
+		mode: 'SingleColor'
+	},
+	...overrideParams
+}))}`
 
       beforeEach(() => {
         // Legacy metadata structure

@@ -42,12 +42,18 @@ describe('GradeSummary PageNavigation', () => {
   })
 
   test('excludes the button for "Next Page" when on the last page', () => {
-    render(<PageNavigation {...{...props, ...{currentPage: 10}}} />)
+    render(<PageNavigation {...({
+	...props,
+	currentPage: 10
+})} />)
     expect(screen.queryByText('Next Page')).not.toBeInTheDocument()
   })
 
   test('includes a button for "Previous Page" when not on the first page', () => {
-    render(<PageNavigation {...{...props, ...{currentPage: 5}}} />)
+    render(<PageNavigation {...({
+	...props,
+	currentPage: 5
+})} />)
     expect(screen.getAllByText('Previous Page')[0]).toBeInTheDocument()
   })
 

@@ -40,7 +40,7 @@ const mockInternalConfiguration = (
     tool_id: 'tool_id',
     domain: 'example.com',
     custom_fields: {},
-    scopes: [...Object.values(LtiScopes)],
+    scopes: Object.values(LtiScopes),
     placements: [],
     ...overrides,
   }

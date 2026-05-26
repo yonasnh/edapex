@@ -143,7 +143,7 @@ function addContext(
   contextId: string | number,
 ): ParsedUrl {
   // if this is a http://canvas/files... url. change it to be contextual
-  if (parsedUrl.pathname && /^\/files/.test(parsedUrl.pathname)) {
+  if (parsedUrl.pathname && parsedUrl.pathname.startsWith('/files')) {
     const context = contextType.replace(/([^s])$/, '$1s') // canvas contexts are plural
     parsedUrl.pathname = `/${context}/${contextId}${parsedUrl.pathname}`
   }

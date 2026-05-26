@@ -159,7 +159,7 @@ describe('SubmissionTray', () => {
   }
 
   function studentGroupRequiredAlert() {
-    return [...Array.from(document.querySelectorAll('div'))].find($el =>
+    return Array.from(document.querySelectorAll('div')).find($el =>
       $el.textContent?.includes('you must select a student group'),
     )
   }

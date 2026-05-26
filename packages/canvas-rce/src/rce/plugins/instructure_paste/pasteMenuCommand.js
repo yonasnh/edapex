@@ -54,7 +54,7 @@ export function initPasteMenuCommand(ed, handlePasteOrDrop) {
     try {
       const cbitems = await window.navigator.clipboard.read()
       const cbitem = cbitems[0]
-      const imageType = cbitem.types.find(t => /^image\//.test(t))
+      const imageType = cbitem.types.find(t => t.startsWith('image/'))
       if (imageType) {
         const blob = await cbitem.getType(imageType)
         const file = new File([blob], imageType.replace('/', '.'), {type: imageType})
@@ -85,7 +85,7 @@ export function initPasteMenuCommand(ed, handlePasteOrDrop) {
           preventDefault: () => {},
         })
       } else {
-        const textType = cbitem.types.find(t => /^text\//.test(t))
+        const textType = cbitem.types.find(t => t.startsWith('text/'))
         if (textType) {
           const blob = await cbitem.getType(textType)
           const text = await blob.text()

@@ -599,7 +599,7 @@ Cookie.prototype.toValueString = function toValueString() {
   return this.name+"="+this.value;
 }
 
-var cookie_str_splitter=/[:](?=\s*[a-zA-Z0-9_\-]+\s*[=])/g
+var cookie_str_splitter=/[:](?=\s*[a-zA-Z0-9_-]+\s*[=])/g
 Cookie.prototype.parse = function parse(str) {
   if(this instanceof Cookie) {
       var parts=str.split(";")
@@ -1329,8 +1329,8 @@ parseUri.options = {
     parser: /(?:^|&)([^&=]*)=?([^&]*)/g
   },
   parser: {
-    strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
-    loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
+    strict: /^(?:([^:/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:/?#]*)(?::(\d*))?))?((((?:[^?#/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+    loose:  /^(?:(?![^:@]+:[^:@/]*@)([^:/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#/]*\.[^?#/.]+(?:[?#]|$)))*\/?)?([^?#/]*))(?:\?([^#]*))?(?:#(.*))?)/
   }
 };
 
@@ -1658,7 +1658,7 @@ var sprintf = (function() {
       else if ((match = /^\x25{2}/.exec(_fmt)) !== null) {
         parse_tree.push('%');
       }
-      else if ((match = /^\x25(?:([1-9]\d*)\$|\(([^\)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-fosuxX])/.exec(_fmt)) !== null) {
+      else if ((match = /^\x25(?:([1-9]\d*)\$|\(([^)]+)\))?(\+)?(0|'[^$])?(-)?(\d+)?(?:\.(\d+))?([b-fosuxX])/.exec(_fmt)) !== null) {
         if (match[2]) {
           arg_names |= 1;
           var field_list = [], replacement_field = match[2], field_match = [];
@@ -1758,11 +1758,11 @@ var Response = function(raw, request, callback) {
         continue;
       }
 
-      if (!cookieString.match(/domain\=/i)) {
+      if (!cookieString.match(/domain=/i)) {
         cookieString += '; domain=' + request.host;
       }
 
-      if (!cookieString.match(/path\=/i)) {
+      if (!cookieString.match(/path=/i)) {
         cookieString += '; path=' + request.path;
       }
 

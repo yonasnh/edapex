@@ -436,10 +436,11 @@ describe('NewKeyModal', () => {
     developerKey.redirect_uris = ''
 
     const {ref} = renderDeveloperKeyModal({
-      createOrEditDeveloperKeyState: {
-        ...createDeveloperKeyState,
-        ...{developerKey: {...developerKey}, isLtiKey: true},
-      },
+      createOrEditDeveloperKeyState: ({
+	...createDeveloperKeyState,
+	developerKey: { ...developerKey },
+	isLtiKey: true
+}),
       createLtiKeyState,
       actions: fakeActions,
     })
@@ -456,10 +457,11 @@ describe('NewKeyModal', () => {
 
     beforeEach(async () => {
       const {ref: reference} = renderDeveloperKeyModal({
-        createOrEditDeveloperKeyState: {
-          ...createDeveloperKeyState,
-          ...{developerKey: {...developerKey}, isLtiKey: true},
-        },
+        createOrEditDeveloperKeyState: ({
+	...createDeveloperKeyState,
+	developerKey: { ...developerKey },
+	isLtiKey: true
+}),
         createLtiKeyState,
         actions: fakeActions,
       })

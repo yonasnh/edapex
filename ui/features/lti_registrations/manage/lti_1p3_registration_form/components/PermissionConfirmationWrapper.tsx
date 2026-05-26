@@ -47,7 +47,7 @@ export const PermissionConfirmationWrapper = ({
         mode="new"
         appName={internalConfig.title}
         scopesSelected={state.permissions.scopes ?? []}
-        scopesSupported={scopesSupported ? scopesSupported : [...Object.values(LtiScopes)]}
+        scopesSupported={scopesSupported ? scopesSupported : Object.values(LtiScopes)}
         onScopeToggled={actions.toggleScope}
         registrationUpdateRequest={registrationUpdateRequest}
       />

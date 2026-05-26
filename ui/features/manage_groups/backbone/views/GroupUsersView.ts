@@ -183,7 +183,7 @@ export default class GroupUsersView extends PaginatedCollectionView {
 
       // @ts-expect-error - Legacy Backbone typing
       focusOnExit: item =>
-        document.querySelector(`.group[data-id=\"${item.groupId}\"] .group-heading`),
+        document.querySelector(`.group[data-id="${item.groupId}"] .group-heading`),
     }
 
     // @ts-expect-error - Backbone View property

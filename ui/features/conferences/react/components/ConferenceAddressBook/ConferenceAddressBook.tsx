@@ -102,7 +102,7 @@ export const ConferenceAddressBook = ({menuItemList, onChange, selectedItems, is
     )
     // @ts-expect-error TS7006 (typescriptify)
     setSavedAttendees(initialSelectedMenuItems.map(u => u.assetCode))
-    setSelectedMenuItems([...selectedMenuItems.concat(initialSelectedMenuItems)])
+    setSelectedMenuItems(selectedMenuItems.concat(initialSelectedMenuItems))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

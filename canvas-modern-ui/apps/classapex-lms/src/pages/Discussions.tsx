@@ -48,7 +48,7 @@ function BellSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill
 function BellOffSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1.5 1.5l11 11M7 1.5A4.5 4.5 0 002.5 6c0 2.5-.8 4-1.5 5h12"/><path d="M5.5 11a1.5 1.5 0 003 0"/></svg>; }
 
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
-import RichEditor from '../components/RichEditor';
+import NewRceWrapper from '../components/NewRceWrapper';
 import PodcastFeedGenerator from '../components/PodcastFeedGenerator';
 import { useNotification } from '../hooks/useNotification';
 import { useRole } from '../contexts/RoleContext';
@@ -651,7 +651,7 @@ const DiscussionsPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <RichEditor
+                <NewRceWrapper
                   value={discussionForm.content || ''}
                   onChange={html => setDiscussionForm(p => ({ ...p, content: html }))}
                   placeholder="Write your discussion prompt here..."

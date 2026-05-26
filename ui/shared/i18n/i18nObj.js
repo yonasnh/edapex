@@ -32,7 +32,7 @@ activateI18nliner(I18n, {
   HtmlSafeString: htmlEscape.SafeString,
 
   // handle our absolute keys
-  keyPattern: /^\#?\w+(\.\w+)+$/,
+  keyPattern: /^#?\w+(\.\w+)+$/,
 
   inferKey: (defaultValue, translateOptions) => `#${inferKey(defaultValue, translateOptions)}`,
 
@@ -171,7 +171,7 @@ I18n.strftime = function (date, format) {
           v: '%e-%b-%Y',
         })[p1],
     )
-    .replace(/%(%|\-?[a-zA-Z]|3N)/g, (str, p1) => {
+    .replace(/%(%|-?[a-zA-Z]|3N)/g, (str, p1) => {
       // check to see if we need an options object
       switch (p1) {
         case 'a':

@@ -413,7 +413,7 @@ const Grid = {
           return scaled >= r.points
         })
         idx = idx === -1 ? Grid.ratings.length - 1 : idx
-        return [`rating_${idx}`, `\#${Grid.ratings[idx].color}`, Grid.ratings[idx].description]
+        return [`rating_${idx}`, `#${Grid.ratings[idx].color}`, Grid.ratings[idx].description]
       } else {
         return Grid.View.legacyMasteryDetails(score, outcome)
       }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
-import RichEditor from '../components/RichEditor'
+import NewRceWrapper from '../components/NewRceWrapper'
 import PodcastFeedGenerator from '../components/PodcastFeedGenerator'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
@@ -255,7 +255,7 @@ export default function AnnouncementsPage() {
               </div>
               <div>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Message</label>
-                <RichEditor
+                <NewRceWrapper
                   value={form.message || ''}
                   onChange={html => setForm(p => ({ ...p, message: html }))}
                   placeholder="Write your announcement..."

@@ -94,7 +94,7 @@ export function useSvgSettings(editor, editing, canvasOrigin) {
         if (!metadata) return
 
         const metadataJson = JSON.parse(metadata)
-        const fileName = metadataJson.name.replace(/\.[^\.]+$/, '')
+        const fileName = metadataJson.name.replace(/\.[^.]+$/, '')
         metadataJson.name = fileName
         metadataJson.originalName = fileName
 

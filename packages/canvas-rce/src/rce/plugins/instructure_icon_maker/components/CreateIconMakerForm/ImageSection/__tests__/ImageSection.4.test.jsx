@@ -235,19 +235,15 @@ describe('ImageSection', () => {
       const {getByText, rerender} = subject({editing: true})
       rerender(
         <ImageSection
-          {...{
-            ...defaultProps,
-            ...{
-              settings: {
-                imageSettings: {
-                  image: 'data:image/jpg;base64,asdfasdfjksdf==',
-                  mode: 'Course',
-                  imageName: 'banana.jpg',
-                },
-              },
-              editing: true,
-            },
-          }}
+          {...({
+	...defaultProps,
+	settings: { imageSettings: {
+		image: 'data:image/jpg;base64,asdfasdfjksdf==',
+		mode: 'Course',
+		imageName: 'banana.jpg'
+	} },
+	editing: true
+})}
         />,
       )
       expect(getByText('banana.jpg')).toBeInTheDocument()
@@ -257,20 +253,18 @@ describe('ImageSection', () => {
       const {getByTestId, rerender} = subject({editing: true})
       rerender(
         <ImageSection
-          {...{
-            ...defaultProps,
-            ...{
-              settings: {
-                embedImage: 'data:image/png;base64,EMBED_IMAGE_2',
-                imageSettings: {
-                  image: 'data:image/jpg;base64,asdfasdfjksdf==',
-                  mode: 'Course',
-                  imageName: 'banana.jpg',
-                },
-              },
-              editing: true,
-            },
-          }}
+          {...({
+	...defaultProps,
+	settings: {
+		embedImage: 'data:image/png;base64,EMBED_IMAGE_2',
+		imageSettings: {
+			image: 'data:image/jpg;base64,asdfasdfjksdf==',
+			mode: 'Course',
+			imageName: 'banana.jpg'
+		}
+	},
+	editing: true
+})}
         />,
       )
       expect(getByTestId('selected-image-preview')).toHaveStyle(
@@ -282,20 +276,16 @@ describe('ImageSection', () => {
       const rendered = subject({editing: true})
       rendered.rerender(
         <ImageSection
-          {...{
-            ...defaultProps,
-            ...{
-              settings: {
-                imageSettings: {
-                  image: 'data:image/jpg;base64,asdfasdfjksdf==',
-                  imageName: 'banana.jpg',
-                  mode: 'SingleColor',
-                  icon: 'art',
-                },
-              },
-              editing: true,
-            },
-          }}
+          {...({
+	...defaultProps,
+	settings: { imageSettings: {
+		image: 'data:image/jpg;base64,asdfasdfjksdf==',
+		imageName: 'banana.jpg',
+		mode: 'SingleColor',
+		icon: 'art'
+	} },
+	editing: true
+})}
         />,
       )
       expect(
@@ -307,21 +297,17 @@ describe('ImageSection', () => {
       const rendered = subject({editing: true})
       rendered.rerender(
         <ImageSection
-          {...{
-            ...defaultProps,
-            ...{
-              settings: {
-                imageSettings: {
-                  image: 'data:image/jpg;base64,asdfasdfjksdf==',
-                  imageName: 'banana.jpg',
-                  mode: 'SingleColor',
-                  icon: 'art',
-                  iconFillColor: '#00FF00',
-                },
-              },
-              editing: true,
-            },
-          }}
+          {...({
+	...defaultProps,
+	settings: { imageSettings: {
+		image: 'data:image/jpg;base64,asdfasdfjksdf==',
+		imageName: 'banana.jpg',
+		mode: 'SingleColor',
+		icon: 'art',
+		iconFillColor: '#00FF00'
+	} },
+	editing: true
+})}
         />,
       )
       await act(async () => {

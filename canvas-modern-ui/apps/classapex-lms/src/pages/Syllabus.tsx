@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
-import RichEditor from '../components/RichEditor';
+import NewRceWrapper from '../components/NewRceWrapper';
 import { useNotification } from '../hooks/useNotification';
 
 function CalendarSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>; }
@@ -147,7 +147,7 @@ export default function SyllabusPage() {
 
       {isEditing ? (
         <div style={{ marginBottom: 32 }}>
-          <RichEditor
+          <NewRceWrapper
             value={editedBody || ''}
             onChange={html => setEditedBody(html)}
             placeholder="Write course syllabus here..."

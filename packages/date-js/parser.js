@@ -32,7 +32,7 @@ import './sugarpak.js'
         },
         token: function (s) { // whitespace-eating token
             return function (s) {
-                return _.rtoken(new RegExp("^\s*" + s + "\s*"))(s);
+                return _.rtoken(new RegExp("^s*" + s + "s*"))(s);
                 // Removed .strip()
                 // return _.rtoken(new RegExp("^\s*" + s + "\s*"))(s).strip();
             };
@@ -507,7 +507,7 @@ import './sugarpak.js'
         },
         timezone: function (s) {
             return function () {
-                var n = s.replace(/[^\d\+\-]/g, "");
+                var n = s.replace(/[^\d+\-]/g, "");
                 if (n.length) { 
                     this.timezoneOffset = Number(n); 
                 } else if(s == 'Z') {
@@ -745,10 +745,10 @@ import './sugarpak.js'
 
     var _ = $D.Parsing.Operators, g = $D.Grammar, t = $D.Translator, _fn;
 
-    g.datePartDelimiter = _.rtoken(/^([\s\-\.\,\/\x27]+)/); 
+    g.datePartDelimiter = _.rtoken(/^([\s\-.\,/\x27]+)/); 
     g.timePartDelimiter = _.stoken(":");
     g.whiteSpace = _.rtoken(/^\s*/);
-    g.generalDelimiter = _.rtoken(/^(([\s\,]|at|@|on)+)/);
+    g.generalDelimiter = _.rtoken(/^(([\s,]|at|@|on)+)/);
   
     var _C = {};
     g.ctoken = function (keys) {
@@ -781,8 +781,8 @@ import './sugarpak.js'
     // _.min(1, _.set([ g.H, g.m, g.s ], g._t));
     g.t = _.cache(_.process(g.ctoken2("shortMeridian"), t.meridian));
     g.tt = _.cache(_.process(g.ctoken2("longMeridian"), t.meridian));
-    g.z = _.cache(_.process(_.rtoken(/^((\+|\-)\s*\d\d\d\d)|((\+|\-)\d\d\:?\d\d)/), t.timezone));
-    g.zz = _.cache(_.process(_.rtoken(/^((\+|\-)\s*\d\d\d\d)|((\+|\-)\d\d\:?\d\d)/), t.timezone));
+    g.z = _.cache(_.process(_.rtoken(/^((\+|-)\s*\d\d\d\d)|((\+|-)\d\d:?\d\d)/), t.timezone));
+    g.zz = _.cache(_.process(_.rtoken(/^((\+|-)\s*\d\d\d\d)|((\+|-)\d\d:?\d\d)/), t.timezone));
     
     g.zzz = _.cache(_.process(g.ctoken2("timezone"), t.timezone));
     g.Z = _.cache(_.process(_.stoken('Z'), t.timezone));

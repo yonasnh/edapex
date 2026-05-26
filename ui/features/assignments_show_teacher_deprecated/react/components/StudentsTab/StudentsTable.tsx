@@ -106,10 +106,10 @@ export default class StudentsTable extends React.Component {
     }
 
     // @ts-expect-error
-    return submissions.map(submission => ({
-      ...submission.user,
-      ...{submission},
-    }))
+    return submissions.map(submission => (({
+	...submission.user,
+	submission
+})))
   }
 
   // @ts-expect-error

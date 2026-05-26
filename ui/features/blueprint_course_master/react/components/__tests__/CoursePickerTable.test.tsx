@@ -151,7 +151,7 @@ describe('CoursePickerTable component', () => {
   test('renders concluded pill when course is concluded', () => {
     window.ENV = {
       ...window.ENV,
-      FEATURES: {...(window.ENV.FEATURES || {}), ux_list_concluded_courses_in_bp: true},
+      FEATURES: {...window.ENV.FEATURES, ux_list_concluded_courses_in_bp: true},
     }
 
     const props = defaultProps()

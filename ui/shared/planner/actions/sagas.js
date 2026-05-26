@@ -88,7 +88,7 @@ function* loadingLoop(fromMomentFunction, actionCreator, opts = {}) {
       if (currentState.singleCourse) {
         const context_codes = getContextCodesFromState(currentState)
         if (context_codes) {
-          opts.extraParams = {...(opts.extraParams || {}), context_codes}
+          opts.extraParams = {...opts.extraParams, context_codes}
         }
       }
       const fromMoment = fromMomentFunction(currentState)

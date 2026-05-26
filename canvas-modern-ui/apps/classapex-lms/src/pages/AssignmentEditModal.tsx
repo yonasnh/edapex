@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
-import RichEditor from '../components/RichEditor'
+import NewRceWrapper from '../components/NewRceWrapper'
 import { useNotification } from '../hooks/useNotification'
 
 export interface AssignmentEditModalProps {
@@ -324,7 +324,7 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
           {/* Description */}
           <div>
             <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)', display: 'block', marginBottom: 4 }}>Description</label>
-            <RichEditor value={form.description || ''} onChange={html => setForm(p => ({ ...p, description: html }))} placeholder="Instructions or details..." minHeight={120} />
+            <NewRceWrapper value={form.description || ''} onChange={html => setForm(p => ({ ...p, description: html }))} placeholder="Instructions or details..." minHeight={120} />
           </div>
 
           {/* Points & Grading Type */}

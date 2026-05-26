@@ -52,30 +52,32 @@ const migration = {
   created_at: 'Apr 15 at 9:11pm',
 }
 
-const queuedMigration = {
-  ...migration,
-  ...{progress_url: 'https://mock.progress.url', workflow_state: 'queued'},
-}
+const queuedMigration = ({
+	...migration,
+	progress_url: 'https://mock.progress.url',
+	workflow_state: 'queued'
+})
 
-const runningMigration = {
-  ...migration,
-  ...{progress_url: 'https://mock.progress.url', workflow_state: 'running'},
-}
+const runningMigration = ({
+	...migration,
+	progress_url: 'https://mock.progress.url',
+	workflow_state: 'running'
+})
 
-const completedMigration = {
-  ...migration,
-  ...{workflow_state: 'completed'},
-}
+const completedMigration = ({
+	...migration,
+	workflow_state: 'completed'
+})
 
-const failedMigration = {
-  ...migration,
-  ...{workflow_state: 'failed'},
-}
+const failedMigration = ({
+	...migration,
+	workflow_state: 'failed'
+})
 
-const waitingForSelectMigration = {
-  ...migration,
-  ...{workflow_state: 'waiting_for_select'},
-}
+const waitingForSelectMigration = ({
+	...migration,
+	workflow_state: 'waiting_for_select'
+})
 
 const progressHit = {method: 'GET', path: 'https://mock.progress.url'}
 

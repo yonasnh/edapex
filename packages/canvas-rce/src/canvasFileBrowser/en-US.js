@@ -151,7 +151,7 @@ Date.CultureInfo = {
     future: /^next/i,
     past: /^last|past|prev(ious)?/i,
     add: /^(\+|aft(er)?|from|hence)/i,
-    subtract: /^(\-|bef(ore)?|ago)/i,
+    subtract: /^(-|bef(ore)?|ago)/i,
 
     yesterday: /^yes(terday)?/i,
     today: /^t(od(ay)?)?/i,
@@ -169,9 +169,9 @@ Date.CultureInfo = {
 
     shortMeridian: /^(a|p)/i,
     longMeridian: /^(a\.?m?\.?|p\.?m?\.?)/i,
-    timezone: /^((e(s|d)t|c(s|d)t|m(s|d)t|p(s|d)t)|((gmt)?\s*(\+|\-)\s*\d\d\d\d?)|gmt|utc)/i,
+    timezone: /^((e(s|d)t|c(s|d)t|m(s|d)t|p(s|d)t)|((gmt)?\s*(\+|-)\s*\d\d\d\d?)|gmt|utc)/i,
     ordinalSuffix: /^\s*(st|nd|rd|th)/i,
-    timeContext: /^\s*(\:|a(?!u|p)|p)/i,
+    timeContext: /^\s*(:|a(?!u|p)|p)/i,
   },
 
   timezones: [

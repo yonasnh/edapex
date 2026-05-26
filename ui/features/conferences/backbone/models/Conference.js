@@ -20,7 +20,7 @@ import {Model} from '@canvas/backbone'
 export default class Conference extends Model {
   urlRoot() {
     const url = this.get('url')
-    return url.replace(/([^\/]*$)/, '')
+    return url.replace(/([^/]*$)/, '')
   }
 
   special_urls() {

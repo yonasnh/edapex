@@ -13,6 +13,8 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
+import DocViewerWrapper from '../components/DocViewerWrapper'
+import MediaCommentRecorder from '../components/MediaCommentRecorder'
 import './grading.css'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -104,12 +106,7 @@ export default function GradingQueuePage() {
     { id: '1', x: 120, y: 110, text: 'Excellent introductory paragraph! Strong thesis statement.', type: 'note' },
     { id: '2', x: 280, y: 190, text: 'Check APA citation style formatting here.', type: 'highlight' }
   ])
-  const [annotationType, setAnnotationType] = useState<'note' | 'highlight' | 'pencil'>('note')
-  
-  // Media Recording States
-  const [isRecording, setIsRecording] = useState(false)
-  const [recordTimer, setRecordTimer] = useState(0)
-  const [recordedComment, setRecordedComment] = useState<string | null>(null)
+  const [showRecorder, setShowRecorder] = useState(false)
 
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
 
@@ -577,97 +574,17 @@ export default function GradingQueuePage() {
                 )}
 
                 {/* DocViewer Annotation Canvas (S18-06) */}
-                <div style={{ border: '1px solid var(--cx-border-subtle)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
-                  <div style={{ background: 'var(--cx-bg-surface-sunken, #f1f5f9)', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)' }}>DocViewer Inline Annotation tool</span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className={`cx-btn cx-btn--sm ${annotationType === 'note' ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
-                        onClick={() => setAnnotationType('note')}
-                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:3}}><path d="M3 1h14a2 2 0 012 2v10a2 2 0 01-2 2H7l-4 4V3a2 2 0 012-2z"/></svg>Note
-                      </button>
-                      <button
-                        className={`cx-btn cx-btn--sm ${annotationType === 'highlight' ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
-                        onClick={() => setAnnotationType('highlight')}
-                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:3}}><path d="M13 2l5 5-9 9H4v-5L13 2z"/><path d="M12 3l5 5"/></svg>Highlight
-                      </button>
-                      <button
-                        className="cx-btn cx-btn--secondary cx-btn--sm"
-                        onClick={() => setAnnotations([])}
-                        style={{ padding: '3px 8px', fontSize: '0.7rem' }}
-                      >
-                        Clear
-                      </button>
-                    </div>
+                {selected.attachments?.[0]?.url ? (
+                  <DocViewerWrapper
+                    fileUrl={selected.attachments[0].url}
+                    annotatable={true}
+                    onAnnotationSave={(newAnnotations) => setAnnotations(newAnnotations)}
+                  />
+                ) : (
+                  <div style={{ border: '1px solid var(--cx-border-subtle)', borderRadius: 8, padding: 24, marginBottom: 16, textAlign: 'center', color: 'var(--cx-text-muted)', fontSize: '0.875rem' }}>
+                    No document available for annotation.
                   </div>
-
-                  <div
-                    onClick={e => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const x = Math.round(e.clientX - rect.left)
-                      const y = Math.round(e.clientY - rect.top)
-                      const commentText = prompt('Enter annotation comment:')
-                      if (commentText) {
-                        setAnnotations(prev => [...prev, {
-                          id: `ann-${Date.now()}`,
-                          x,
-                          y,
-                          text: commentText,
-                          type: annotationType
-                        }])
-                      }
-                    }}
-                    style={{
-                      background: 'var(--cx-bg-surface)',
-                      minHeight: '220px',
-                      padding: '20px',
-                      position: 'relative',
-                      cursor: 'crosshair',
-                      fontSize: '0.8125rem',
-                      lineHeight: 1.6,
-                      color: 'var(--cx-text-primary)',
-                      fontFamily: 'serif',
-                      border: '1px solid var(--cx-border-subtle)'
-                    }}
-                  >
-                    <p style={{ margin: '0 0 12px 0' }}>
-                      <strong>Submission Document Content Preview:</strong>
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      This paper presents a modern exploration of the outcomes mastery curriculum matrices. 
-                      By integrating modular REST API paradigms directly with Canvas LMS backend adapters, 
-                      we create high-performing student evaluation pathways. We hypothesize that custom 
-                      education customizer configurations significantly enhance engagement metrics.
-                    </p>
-
-                    {/* Render Annotations overlays */}
-                    {annotations.map(ann => (
-                      <div
-                        key={ann.id}
-                        style={{
-                          position: 'absolute',
-                          left: ann.x,
-                          top: ann.y,
-                          transform: 'translate(-50%, -100%)',
-                          zIndex: 10,
-                          cursor: 'pointer'
-                        }}
-                        title={ann.text}
-                        onClick={e => { e.stopPropagation(); showToast({ title: 'Annotation', message: ann.text, type: 'info' }) }}
-                      >
-                        {ann.type === 'highlight' ? (
-                          <div style={{ background: 'rgba(234, 179, 8, 0.4)', borderBottom: '2px solid rgb(234, 179, 8)', width: 60, height: 16, marginTop: 4 }} />
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" stroke="none" style={{filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.25))',color:'var(--cx-color-primary)'}}><path d="M10 1a3 3 0 013 3c0 1.5-.7 2.8-1.8 3.6L12 16l-2 2-2-2 .8-8.4A4 4 0 017 4a3 3 0 013-3z"/></svg>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 {/* Moderated / Provisional Grading Controls (S18-07) */}
                 <div className="cx-card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -755,49 +672,27 @@ export default function GradingQueuePage() {
                   </button>
                 </div>
 
-                {/* Media Comment Voice Recorder Panel (S18-09) */}
-                <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <button
-                    className={`cx-btn cx-btn--sm ${isRecording ? 'cx-btn--primary' : 'cx-btn--secondary'}`}
-                    onClick={() => {
-                      if (!isRecording) {
-                        setIsRecording(true)
-                        setRecordTimer(0)
-                        const t = setInterval(() => {
-                          setRecordTimer(p => {
-                            if (p >= 5) {
-                              clearInterval(t)
-                              setIsRecording(false)
-                              setRecordedComment('voice-note-attempt-1.mp3')
-                              return 5
-                            }
-                            return p + 1
-                          })
-                        }, 1000)
-                      } else {
-                        setIsRecording(false)
-                        setRecordedComment('voice-note-attempt-1.mp3')
-                      }
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem' }}
-                  >
-                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:4}}><rect x="7" y="1" width="6" height="10" rx="3"/><path d="M3 10a7 7 0 0014 0M10 17v3"/></svg>
-                     {isRecording ? `Recording... 0:0${recordTimer}` : 'Record Voice Feedback'}
-                  </button>
-
-                  {isRecording && (
-                    <div style={{ display: 'flex', gap: 3, alignItems: 'center', height: 16 }}>
-                      <span style={{ width: 3, height: 10, background: 'var(--cx-color-primary)', animation: 'pulse 1s infinite' }} />
-                      <span style={{ width: 3, height: 16, background: 'var(--cx-color-primary)', animation: 'pulse 0.8s infinite' }} />
-                      <span style={{ width: 3, height: 6, background: 'var(--cx-color-primary)', animation: 'pulse 1.2s infinite' }} />
-                    </div>
-                  )}
-
-                  {recordedComment && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.72rem', color: 'var(--cx-text-secondary)' }}>
-                      <span style={{display:'flex',alignItems:'center',gap:4}}><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10a7 7 0 0014 0"/><path d="M6 10a1 1 0 00-1 1v2a1 1 0 002 0v-2a1 1 0 00-1-1z" fill="currentColor" stroke="none"/><path d="M14 10a1 1 0 00-1 1v2a1 1 0 002 0v-2a1 1 0 00-1-1z" fill="currentColor" stroke="none"/></svg>Recorded: {recordedComment} (0:05)</span>
-                      <button className="cx-btn cx-btn--ghost" onClick={() => setRecordedComment(null)} style={{ padding: '2px 4px', fontSize: '0.7rem' }}>Delete</button>
-                    </div>
+                {/* Media Comment Recorder */}
+                <div style={{ borderTop: '1px solid var(--cx-border-subtle)', paddingTop: 10 }}>
+                  {!showRecorder ? (
+                    <button
+                      className="cx-btn cx-btn--sm cx-btn--secondary"
+                      onClick={() => setShowRecorder(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem' }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginRight:4}}><rect x="7" y="1" width="6" height="10" rx="3"/><path d="M3 10a7 7 0 0014 0M10 17v3"/></svg>
+                      Record Media
+                    </button>
+                  ) : (
+                    <MediaCommentRecorder
+                      mode="audio"
+                      maxDuration={300}
+                      onRecordComplete={(url, mediaType) => {
+                        setComment(prev => prev ? `${prev}\n\n[${mediaType.toUpperCase()}]: ${url}` : `[${mediaType.toUpperCase()}]: ${url}`)
+                        setShowRecorder(false)
+                      }}
+                      onCancel={() => setShowRecorder(false)}
+                    />
                   )}
                 </div>
               </div>

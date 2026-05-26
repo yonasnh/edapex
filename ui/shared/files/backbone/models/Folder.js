@@ -25,7 +25,7 @@ import natcompare from '@canvas/util/natcompare'
 // `full_name` will be something like "course files/some folder/another".
 // For routing in the react app in the browser, we want something that will take that "course files"
 // out. because urls will end up being /courses/2/files/folder/some folder/another
-const EVERYTHING_BEFORE_THE_FIRST_SLASH = /^[^\/]+\/?/
+const EVERYTHING_BEFORE_THE_FIRST_SLASH = /^[^/]+\/?/
 let filesEnv = null
 
 function getSortProp(model, sortProp) {

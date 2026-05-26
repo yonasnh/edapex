@@ -20,4 +20,4 @@ export default function parseLinkHeader(jqXhr: {getResponseHeader(header: string
   next?: string
 }
 
-export {}
+

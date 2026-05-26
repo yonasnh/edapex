@@ -30,7 +30,7 @@ describe('useSelectedOutcomes', () => {
       }),
       {},
     )
-  const initialState = new Set([...Object.keys(generateOutcomes(2))])
+  const initialState = new Set(Object.keys(generateOutcomes(2)))
 
   test('should create custom hook with initial state', () => {
     const {result} = renderHook(() => useSelectedOutcomes(initialState))

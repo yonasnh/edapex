@@ -31,7 +31,7 @@ function validateDate(date: Date | null, nullAllowed = false) {
 function validateGradingPeriodDates(
   gradingPeriods: CamelizedGradingPeriod | CamelizedGradingPeriod[],
 ): CamelizedGradingPeriod[] {
-  if (gradingPeriods == null) throw new Error(`\'${gradingPeriods}\' must be an array or object`)
+  if (gradingPeriods == null) throw new Error(`'${gradingPeriods}' must be an array or object`)
 
   const dates = ['startDate', 'endDate', 'closeDate'] as const
   const periods = isArray(gradingPeriods) ? gradingPeriods : [gradingPeriods]

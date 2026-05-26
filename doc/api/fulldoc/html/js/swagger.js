@@ -258,7 +258,7 @@ var SwaggerResource = function(resourceObj, api) {
   this.name = parts[parts.length - 1].replace('.{format}', '');
   this.basePath = this.api.basePath;
   if (this.basePath.indexOf(".json") >= 0) {
-    this.basePath = this.basePath.replace(/[^\/]+\.json/, '');
+    this.basePath = this.basePath.replace(/[^/]+\.json/, '');
   }
   this.operations = {};
   this.operationsArray = [];
@@ -412,7 +412,7 @@ SwaggerResource.prototype.addOperations = function(resource_path, ops, consumes,
 
 SwaggerResource.prototype.sanitize = function(nickname) {
   var op;
-  op = nickname.replace(/[\s!@#$%^&*()_+=\[{\]};:<>|./?,\\'""-]/g, '_');
+  op = nickname.replace(/[\s!@#$%^&*()_+=[{\]};:<>|./?,\\'""-]/g, '_');
   //'
   op = op.replace(/((_){2,})/g, '_');
   op = op.replace(/^(_)*/g, '');
@@ -826,7 +826,7 @@ SwaggerOperation.prototype.urlify = function(args) {
     if (param.paramType === 'path') {
       if(args[param.name]) {
         // apply path params and remove from args
-        var reg = new RegExp('\{' + param.name + '[^\}]*\}', 'gi');
+        var reg = new RegExp('{' + param.name + '[^}]*}', 'gi');
         url = url.replace(reg, encodeURIComponent(args[param.name]));
         delete args[param.name];
       }

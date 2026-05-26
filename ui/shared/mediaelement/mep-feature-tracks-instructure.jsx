@@ -818,7 +818,7 @@ const I18n = createI18nScope('mepfeaturetracksinstructure')
   mejs.TrackFormatParser = {
     webvtt: {
       pattern_timecode:
-        /^((?:[0-9]{1,2}:)?[0-9]{2}:[0-9]{2}([,.][0-9]{1,3})?) --\> ((?:[0-9]{1,2}:)?[0-9]{2}:[0-9]{2}([,.][0-9]{3})?)(.*)$/,
+        /^((?:[0-9]{1,2}:)?[0-9]{2}:[0-9]{2}([,.][0-9]{1,3})?) --> ((?:[0-9]{1,2}:)?[0-9]{2}:[0-9]{2}([,.][0-9]{3})?)(.*)$/,
 
       parse(trackText) {
         let i = 0,
@@ -843,7 +843,7 @@ const I18n = createI18nScope('mepfeaturetracksinstructure')
               i++
             }
             text = $.trim(text).replace(
-              /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gi,
+              /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi,
               "<a href='$1' target='_blank'>$1</a>",
             )
             // Text is in a different array so I can use .join
@@ -910,7 +910,7 @@ const I18n = createI18nScope('mepfeaturetracksinstructure')
           if (_temp_times.start === 0) _temp_times.start = 0.2
           entries.times.push(_temp_times)
           text = $.trim(lines.eq(i).html()).replace(
-            /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gi,
+            /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi,
             "<a href='$1' target='_blank'>$1</a>",
           )
           entries.text.push(text)

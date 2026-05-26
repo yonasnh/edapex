@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
+import MessageStudentsWho from '../components/MessageStudentsWho'
 
 interface CellState {
   value: string
@@ -91,6 +92,7 @@ export default function GradebookPage() {
   const [importChanges, setImportChanges] = useState<ImportChange[]>([])
   const [importLoading, setImportLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [messageStudentsOpen, setMessageStudentsOpen] = useState(false)
 
   const { data: studentsData, isLoading: studentsLoading } = useCanvasQuery<any[]>(
     courseId ? `/api/v1/courses/${courseId}/users` : '',
@@ -412,6 +414,7 @@ export default function GradebookPage() {
           />
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportCsv}>Export CSV</button>
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => fileInputRef.current?.click()}>Import CSV</button>
+          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setMessageStudentsOpen(true)}>Message Students</button>
           <input
             ref={fileInputRef}
             type="file"
@@ -586,6 +589,19 @@ export default function GradebookPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {messageStudentsOpen && (
+        <MessageStudentsWho
+          courseId={courseId || ''}
+          students={filteredStudents.map(s => ({ id: String(s.id), name: s.name }))}
+          isOpen={messageStudentsOpen}
+          onClose={() => setMessageStudentsOpen(false)}
+          onSent={() => {
+            setMessageStudentsOpen(false)
+            showToast({ title: 'Messages sent', type: 'success' })
+          }}
+        />
       )}
 
       {showImportModal && (

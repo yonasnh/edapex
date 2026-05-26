@@ -70,7 +70,7 @@ const emitTemplate = ({name, template, dependencies, cssRegistration, partialReg
 
 const resourceName = path =>
   path
-    .replace(/^.+\/app\/views\/jst\/(?:plugins\/[^\/]*\/)?/, '')
+    .replace(/^.+\/app\/views\/jst\/(?:plugins\/[^/]*\/)?/, '')
     .replace(/\.handlebars$/, '')
     .replace(/_/g, '-')
 

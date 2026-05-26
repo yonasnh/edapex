@@ -116,7 +116,7 @@ export default class DeveloperKeyModal extends React.Component<Props, State> {
       ? {public_jwk_url: this.developerKey.public_jwk_url}
       : {}
     return {
-      ...(this.developerKey.tool_configuration || {}),
+      ...this.developerKey.tool_configuration,
       ...this.state.toolConfiguration,
       ...public_jwk,
       ...public_jwk_url,

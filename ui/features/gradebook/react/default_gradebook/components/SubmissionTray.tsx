@@ -617,15 +617,13 @@ export default class SubmissionTray extends React.Component<
         sub => sub.sub_assignment_tag === subAssignmentTag,
       )
 
-      return {
-        ...submission,
-        ...{
-          enteredGrade: subAssignmentSubmission.entered_grade,
-          enteredScore: subAssignmentSubmission.entered_score,
-          grade: subAssignmentSubmission.grade,
-          score: subAssignmentSubmission.score,
-        },
-      }
+      return ({
+	...submission,
+	enteredGrade: subAssignmentSubmission.entered_grade,
+	enteredScore: subAssignmentSubmission.entered_score,
+	grade: subAssignmentSubmission.grade,
+	score: subAssignmentSubmission.score
+})
     }
 
     const hasCheckpoints =

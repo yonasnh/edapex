@@ -34,7 +34,7 @@ export function replaceOneTag<TInput extends string | null | undefined = string>
 
   const strName = name ?? ''
   const strValue = (value ?? '').replace(/\s/g, '+')
-  const itemExpression = new RegExp(`(%7B|{){2}[\\s|%20|\+]*${strName}[\\s|%20|\+]*(%7D|}){2}`, 'g')
+  const itemExpression = new RegExp(`(%7B|{){2}[\\s|%20|+]*${strName}[\\s|%20|+]*(%7D|}){2}`, 'g')
 
   return text.replace(itemExpression, strValue) as TInput
 }

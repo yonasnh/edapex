@@ -150,7 +150,7 @@ const object = {
       return new Handlebars.SafeString(titleText)
     } else {
       return new Handlebars.SafeString(
-        `data-tooltip data-html-tooltip-title=\"${htmlEscape(titleText)}\"`,
+        `data-tooltip data-html-tooltip-title="${htmlEscape(titleText)}"`,
       )
     }
   },
@@ -696,7 +696,7 @@ const object = {
       for (key in inputProps) {
         const val = inputProps[key]
         if (val != null) {
-          result.push(`${htmlEscape(key)}=\"${htmlEscape(val)}\"`)
+          result.push(`${htmlEscape(key)}="${htmlEscape(val)}"`)
         }
       }
       return result
@@ -918,7 +918,7 @@ const object = {
 
     backboneView.render()
     onNextFrame(replace)
-    return new Handlebars.SafeString(`<span id=\"${id}\">pk</span>`)
+    return new Handlebars.SafeString(`<span id="${id}">pk</span>`)
   },
 
   // Public: yields the first non-nil argument

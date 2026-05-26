@@ -173,7 +173,7 @@ export const useAccountGradingStatuses = (accountId: string, isExtendedStatusEna
       setHasDeleteCustomStatusError(true)
       return
     }
-    setCustomStatuses(statuses => [...statuses.filter(status => status.id !== statusId)])
+    setCustomStatuses(statuses => statuses.filter(status => status.id !== statusId))
     setSuccessMessage(I18n.t('Successfully deleted custom status %{statusName}', {statusName}))
   }
 

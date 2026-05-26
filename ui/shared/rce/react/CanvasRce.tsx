@@ -64,7 +64,7 @@ const CanvasRce = forwardRef(function CanvasRce(
   const [tinymceConfig] = useState(() => {
     // tinymce is a global by now via import of CanvasRce importing tinyRCE
     const editorConfig = new EditorConfig(tinymce, window.INST, textareaId)
-    const config = {...editorConfig.defaultConfig(), ...(editorOptions ?? {})}
+    const config = {...editorConfig.defaultConfig(), ...editorOptions}
     if (editorOptions?.init_instance_callback) {
       // @ts-expect-error
       config.init_instance_callback = createChainedFunction(

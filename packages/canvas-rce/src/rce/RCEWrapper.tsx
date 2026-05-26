@@ -1445,7 +1445,7 @@ class RCEWrapper extends React.Component<RCEWrapperProps, RCEWrapperState> {
       let i = 0
       let key
       while ((key = this.storage.key(i++))) {
-        if (/^rceautosave:/.test(key)) {
+        if (key.startsWith('rceautosave:')) {
           const autosaved = this.getAutoSaved(key)
           if (autosaved && autosaved.autosaveTimestamp < expiry) {
             this.storage.removeItem(key)

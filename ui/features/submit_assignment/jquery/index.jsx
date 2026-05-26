@@ -737,7 +737,7 @@ ready(function () {
     )
   }
   function getFilename(fileInput) {
-    return fileInput.val().replace(/^.*?([^\\\/]*)$/, '$1')
+    return fileInput.val().replace(/^.*?([^\\/]*)$/, '$1')
   }
   function updateRemoveLinkAltText(fileInput) {
     let altText = I18n.t('remove empty attachment')

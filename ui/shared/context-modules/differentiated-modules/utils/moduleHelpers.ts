@@ -293,7 +293,7 @@ function updatePrerequisites(moduleElement: HTMLDivElement, moduleSettings: Sett
     // Would love to simplify this, but we need backwards compatitibility
     moduleSettings.prerequisites.forEach(prerequisite => {
       const div = document.createElement('div')
-      div.classList.add(...['prerequisite_criterion', 'context_module_criterion'])
+      div.classList.add('prerequisite_criterion', 'context_module_criterion')
       div.style.float = 'left'
 
       const idSpan = document.createElement('span')

@@ -78,7 +78,7 @@ export type ActiveTray =
   | 'history'
   | 'profile'
 
-const EXTERNAL_TOOLS_REGEX = /^\/accounts\/[^\/]*\/(external_tools)/
+const EXTERNAL_TOOLS_REGEX = /^\/accounts\/[^/]*\/(external_tools)/
 const ACTIVE_ROUTE_REGEX =
   /^\/(courses|groups|accounts|grades|calendar|conversations|profile)|^#history/
 export function getActiveItem(): ActiveTray | '' {

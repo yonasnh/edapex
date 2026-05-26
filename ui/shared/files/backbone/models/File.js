@@ -88,7 +88,7 @@ File.prototype.save = function (attrs, options) {
     }
   })(this)
   file = this.get('file')
-  const filename = (file.value || file.name).split(/[\/\\]/).pop()
+  const filename = (file.value || file.name).split(/[/\\]/).pop()
   file = file.files[0]
   const preflightData = {
     name: filename,

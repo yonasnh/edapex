@@ -73,7 +73,7 @@ export const useHandleSelections = (
   const toggleSelection = useCallback(
     (id: string) => {
       setSelectedIds(prevSelected => {
-        const newSelected = new Set([...prevSelected])
+        const newSelected = new Set(prevSelected)
         if (newSelected.has(id)) {
           newSelected.delete(id)
         } else {

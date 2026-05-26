@@ -605,7 +605,7 @@ $.toMultipartForm = function (params, callback) {
     return
   }
   function sanitizeQuotedString(text) {
-    return text.replace(/\"/g, '')
+    return text.replace(/"/g, '')
   }
   function finished() {
     result.body = body.substring(0, body.length - 2) + '--'

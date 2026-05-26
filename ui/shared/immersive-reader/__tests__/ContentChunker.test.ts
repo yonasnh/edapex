@@ -123,7 +123,7 @@ describe('ContentChunker', () => {
                         </math>
                      </span>
                   </span>
-                  <script type="math/tex" id="MathJax-Element-2">A=\pi r^2</script>
+                  <script type="math/tex" id="MathJax-Element-2">A=pi r^2</script>
               </span>
             </p>
             <p>
@@ -149,7 +149,7 @@ describe('ContentChunker', () => {
                         </math>
                      </span>
                   </span>
-                  <script type="math/tex" id="MathJax-Element-2">A=\pi r^2</script>
+                  <script type="math/tex" id="MathJax-Element-2">A=pi r^2</script>
               </span>
             </p>
             Post-math

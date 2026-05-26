@@ -323,10 +323,14 @@ describe('RceLti11ContentItem image content', () => {
 
 describe('Studio LTI content items', () => {
   it('with custom params set to false', () => {
-    const itemData = {
-      ...exampleLti11ContentItems.lti_iframe,
-      ...{custom: {source: 'studio', resizable: false, enableMediaOptions: false}},
-    }
+    const itemData = ({
+	...exampleLti11ContentItems.lti_iframe,
+	custom: {
+		source: 'studio',
+		resizable: false,
+		enableMediaOptions: false
+	}
+})
     const contentItem = RceLti11ContentItem.fromJSON(
       itemData,
       createDeepMockProxy<ExternalToolsEnv>(
@@ -344,10 +348,14 @@ describe('Studio LTI content items', () => {
   })
 
   it('with custom params set to true', () => {
-    const itemData = {
-      ...exampleLti11ContentItems.lti_iframe,
-      ...{custom: {source: 'studio', resizable: true, enableMediaOptions: true}},
-    }
+    const itemData = ({
+	...exampleLti11ContentItems.lti_iframe,
+	custom: {
+		source: 'studio',
+		resizable: true,
+		enableMediaOptions: true
+	}
+})
     const contentItem = RceLti11ContentItem.fromJSON(
       itemData,
       createDeepMockProxy<ExternalToolsEnv>(

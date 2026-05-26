@@ -100,10 +100,10 @@ export default function ThemeEditor({
     const theme = variableSchema
       .flatMap(s => s.variables)
       .reduce(
-        (acc, next) => ({
-          ...acc,
-          ...{[next.variable_name]: next.default},
-        }),
+        (acc, next) => (({
+	...acc,
+	[next.variable_name]: next.default
+})),
         {},
       )
     return {...theme, ...brandConfig.variables}
@@ -189,13 +189,16 @@ export default function ThemeEditor({
       const index = files.findIndex(x => x.variable_name === key)
       if (index !== -1) files[index] = fileStorageObject
       else files.push(fileStorageObject)
-    } else properties = {...properties, ...{[key]: value}}
+    } else properties = ({
+	...properties,
+	[key]: value
+})
 
     if (opts.resetValue) {
-      properties = {
-        ...properties,
-        ...{[key]: originalThemeProperties[key]},
-      }
+      properties = ({
+	...properties,
+	[key]: originalThemeProperties[key]
+})
       const index = files.findIndex(x => x.variable_name === key)
       if (index !== -1)
         files = files.map((f, i) => (i === index ? {...f, value: originalThemeOverrides[key]} : f))

@@ -29,11 +29,11 @@ export const NON_PREVIEWABLE_TYPES = [
 export const isPreviewable = type => !NON_PREVIEWABLE_TYPES.includes(type)
 
 export function isVideo(type) {
-  return /^video/.test(type)
+  return type.startsWith('video')
 }
 
 export function isAudio(type) {
-  return /^audio/.test(type)
+  return type.startsWith('audio')
 }
 
 // return the desired size of the video player in CSS units

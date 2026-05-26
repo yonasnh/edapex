@@ -58,7 +58,7 @@
 | **Modules — MasteryPaths** | ✅ | 🟡 | MasteryPaths UI exists with rule-based branching (remedial / standard / advanced). Full adaptive release logic is simplified. |
 | **Modules — Drag-and-Drop Reordering** | ✅ | ✅ | Both module and item-level DnD implemented. |
 | **Files — Folder Tree** | ✅ | ✅ | Breadcrumb navigation, drill-down, and root entry. |
-| **Files — Preview** | ✅ | 🟡 | FileCard shows thumbnails for images. Full document preview (DocViewer) is not integrated. |
+| **Files — Preview** | ✅ | 🟡 | FileCard shows thumbnails for images. DocViewer iframe wrapper integrated in GradingQueue for document preview and annotation. |
 | **Files — Usage Rights** | ✅ | ✅ | Usage rights editing in preview modal and bulk operations bar. |
 | **Files — Bulk Operations** | ✅ | 🟡 | Reusable `BulkOperationsBar.tsx` supports multi-select actions in Files. |
 | **Files — Upload / New Folder** | ✅ | ✅ | Drag-and-drop upload and folder creation supported. |
@@ -125,7 +125,7 @@
 
 | Feature | Native Canvas | ClassApex | Notes |
 |---------|:-------------:|:---------:|-------|
-| **SpeedGrader — Document Annotation** | ✅ | 🟡 | `DocViewerWrapper.tsx` iframe wrapper for Canvas file preview/annotation. Not full native integration. |
+| **SpeedGrader — Document Annotation** | ✅ | 🟡 | `DocViewerWrapper.tsx` iframe wrapper for Canvas file preview/annotation. Integrated in GradingQueue. Not full native integration. |
 | **SpeedGrader — Audio/Video Comments** | ✅ | ✅ | `MediaCommentRecorder.tsx` WebRTC audio/video recording. |
 | **SpeedGrader — Rubric Grading** | ✅ | 🟡 | Rubric view exists; inline rubric scoring in GradingQueue is partial. |
 | **SpeedGrader — Prev/Next Navigation** | ✅ | ✅ | Prev/Next submission navigation in GradingQueue. |
@@ -164,7 +164,7 @@
 | **Course Settings — Navigation** | ✅ | ✅ | Drag-and-drop tab reordering and visibility toggle at `/courses/:courseId/settings/navigation`. |
 | **Course Settings — App Integrations** | ✅ | ❌ | No course-level app placement management. |
 | **Course Settings — Feature Options** | ✅ | ❌ | No course-level feature flag toggles. |
-| **Rich Content Editor** | ✅ | 🟡 | `NewRceWrapper.tsx` with equation editor, table insertion, media embed, and Studio placeholder. Still an iframe wrapper, not the full native Canvas New RCE. |
+| **Rich Content Editor** | ✅ | 🟡 | `NewRceWrapper.tsx` now replaces `RichEditor` in all content-editing pages (Assignments, Announcements, Discussions, Syllabus, QuizBuilder). Adds equation editor, table insertion, media embed, and Studio placeholder. Still not the full native Canvas New RCE. |
 | **Course Home — Customization** | ✅ | ❌ | No front page selection or layout customization. |
 | **Sections — Cross-Listing** | ✅ | 🟡 | Cross-listing UI exists; validation is partial. |
 | **Attendance — Teacher Marking** | ✅ | 🟡 | Attendance marking UI exists. Badge configuration is partial. |
@@ -217,8 +217,8 @@
 | `CourseHome.tsx` | `/courses/:id` | 🟡 | Landing page. Missing: custom front page selection, layout customization. |
 | `Calendar.tsx` | `/calendar` | 🟡 | Month, week, day, and agenda views with events. ICS subscription with webcal:// support. Missing: recurring event creation. |
 | `Grades.tsx` | `/courses/:id/grades` | 🟡 | Grade summary with what-if scores. Missing: detailed rubric breakdown. |
-| `Inbox.tsx` | `/conversations` | 🟡 | Conversations list, thread, compose, media comments, forwarding. Missing: full attachment workflow. |
-| `Notifications.tsx` | `/profile/communication` | 🟡 | Notification preferences. Missing: granular policy matrix (immediate/daily/weekly per category). |
+| `Inbox.tsx` | `/conversations` | 🟡 | Conversations list, thread, compose, `MediaCommentRecorder`, forwarding. Missing: full attachment workflow. |
+| `Notifications.tsx` | `/profile/communication` | ✅ | Notification preferences with full granular policy matrix (immediate/daily/weekly per category). |
 | `Planner.tsx` | `/planner` | ✅ | Weekly task planner with day grouping. |
 | `Settings.tsx` | `/profile/settings` | 🟡 | Profile, avatar, pairing codes, channels, data export. Missing: full feature options, observee management. |
 | `Help.tsx` | `/help` | 🟡 | Help links. Missing: contextual help and ticket history. |
@@ -254,10 +254,10 @@
 
 | ClassApex Page | Native Canvas Route / Feature | Status | Notes |
 |----------------|------------------------------|--------|-------|
-| `Gradebook.tsx` | `/courses/:id/gradebook` | ✅ | Grid gradebook with final grade override, "message students who", and CSV import/export. |
+| `Gradebook.tsx` | `/courses/:id/gradebook` | ✅ | Grid gradebook with final grade override, `MessageStudentsWho` filter composer, and CSV import/export. |
 | `LearningMasteryGradebook.tsx` | `/courses/:id/gradebook?view=learning_mastery` | 🟡 | Mastery view exists. Missing: deep rollup visualization. |
 | `CustomGradebookColumns.tsx` | `/courses/:id/gradebook?view=gradebook` | 🟡 | Custom columns UI. Missing: full formula support. |
-| `GradingQueue.tsx` | `/courses/:id/gradebook/speed_grader` | 🟡 | SpeedGrader-like queue with media comments. DocViewer iframe wrapper for annotation. Missing: rubric inline scoring. |
+| `GradingQueue.tsx` | `/courses/:id/gradebook/speed_grader` | 🟡 | SpeedGrader-like queue with `MediaCommentRecorder` and `DocViewerWrapper`. Missing: rubric inline scoring. |
 | `AssignmentGroups.tsx` | `/courses/:id/assignments#assignment_groups` | ✅ | Group management with weights. |
 | `QuestionBanks.tsx` | `/courses/:id/question_banks` | 🟡 | Bank list + creation. Missing: advanced question types. |
 | `Reports.tsx` | `/courses/:id/reports` | 🟡 | Reports list. Missing: actual report download generation. |
@@ -392,8 +392,8 @@ This matrix was constructed by:
 | Category | Count |
 |----------|-------|
 | Total ClassApex Pages | 65 |
-| Full Parity (✅) | ~49 |
-| Partial (🟡) | ~24 |
+| Full Parity (✅) | ~50 |
+| Partial (🟡) | ~23 |
 | Missing (❌) | ~5 |
 | Out of Scope (🚫) | ~3 |
 | ClassApex Exceeds (➕) | ~8 |

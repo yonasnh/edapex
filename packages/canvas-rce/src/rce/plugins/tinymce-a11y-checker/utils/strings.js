@@ -17,7 +17,7 @@
  */
 
 export function filename(url) {
-  const pattern = /([^\/]*?)(\?.*)?$/
+  const pattern = /([^/]*?)(\?.*)?$/
   const result = pattern.exec(url)
   return result && result[1]
 }

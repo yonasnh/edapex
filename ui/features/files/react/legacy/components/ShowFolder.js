@@ -27,7 +27,7 @@ import Folder from '@canvas/files/backbone/models/Folder'
 
 const I18n = createI18nScope('react_files')
 
-const LEADING_SLASH_TILL_BUT_NOT_INCLUDING_NEXT_SLASH = /^\/[^\/]*/
+const LEADING_SLASH_TILL_BUT_NOT_INCLUDING_NEXT_SLASH = /^\/[^/]*/
 
 export default {
   displayName: 'ShowFolder',

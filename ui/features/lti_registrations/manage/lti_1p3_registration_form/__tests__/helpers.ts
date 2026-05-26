@@ -39,7 +39,7 @@ export const mockInternalConfiguration = (
     custom_fields: {
       foo: 'bar',
     },
-    scopes: [...Object.values(LtiScopes)],
+    scopes: Object.values(LtiScopes),
     placements: [{placement: 'course_navigation'}, {placement: 'global_navigation'}],
     ...overrides,
   }

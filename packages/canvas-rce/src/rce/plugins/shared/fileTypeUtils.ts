@@ -73,7 +73,7 @@ export function getIconFromType(type: string) {
 }
 
 export function isImage(type: string) {
-  return /^image/.test(type)
+  return type.startsWith('image')
 }
 
 export function isAudioOrVideo(type: string) {
@@ -81,15 +81,15 @@ export function isAudioOrVideo(type: string) {
 }
 
 export function isVideo(type: string) {
-  return /^video/.test(type)
+  return type.startsWith('video')
 }
 
 export function isAudio(type: string) {
-  return /^audio/.test(type)
+  return type.startsWith('audio')
 }
 
 export function isText(type: string) {
-  return /^text/.test(type)
+  return type.startsWith('text')
 }
 
 export function isIWork(filename: string) {

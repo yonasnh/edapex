@@ -50,9 +50,9 @@ describe('LatePoliciesTabPanel', () => {
      * the double render behavior.
      */
     function subject(cb: (props: any) => void = () => {}) {
-      const props: any = {...getLatePoliciesTabPanelProps(), ...{}}
+      const props: any = ({ ...getLatePoliciesTabPanelProps() })
       const container = render(<LatePoliciesTabPanel {...props} />)
-      props.latePolicy.data = {...getDefaultLatePolicyData(), ...{}}
+      props.latePolicy.data = ({ ...getDefaultLatePolicyData() })
       cb(props)
       container.rerender(<LatePoliciesTabPanel {...props} />)
       return {container, props}
@@ -162,9 +162,9 @@ describe('LatePoliciesTabPanel', () => {
      * the double render behavior.
      */
     function subject(cb: (props: any) => void = () => {}) {
-      const props: any = {...getLatePoliciesTabPanelProps(), ...{}}
+      const props: any = ({ ...getLatePoliciesTabPanelProps() })
       const {rerender} = render(<LatePoliciesTabPanel {...props} />)
-      props.latePolicy.data = {...getDefaultLatePolicyData, ...{}}
+      props.latePolicy.data = ({ ...getDefaultLatePolicyData })
       cb(props)
       rerender(<LatePoliciesTabPanel {...props} />)
     }

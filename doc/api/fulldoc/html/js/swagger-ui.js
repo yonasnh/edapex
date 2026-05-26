@@ -170,7 +170,7 @@ var Docs = {
     },
 
     escapeResourceName: function(resource) {
-        return resource.replace(/[!"#$%&'()*+,.\/:;<=>?@\[\\\]\^`{|}~]/g, "\\$&");
+        return resource.replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g, "\\$&");
     },
 
     expandOperation: function(elem) {
@@ -1823,16 +1823,16 @@ var Docs = {
             if (!content) {
                 code = $('<code />').text("no content");
                 pre = $('<pre class="json" />').append(code);
-            } else if (contentType === "application/json" || /\+json$/.test(contentType)) {
+            } else if (contentType === "application/json" || contentType.endsWith('+json')) {
                 code = $('<code />').text(JSON.stringify(JSON.parse(content), null, "  "));
                 pre = $('<pre class="json" />').append(code);
-            } else if (contentType === "application/xml" || /\+xml$/.test(contentType)) {
+            } else if (contentType === "application/xml" || contentType.endsWith('+xml')) {
                 code = $('<code />').text(this.formatXml(content));
                 pre = $('<pre class="xml" />').append(code);
             } else if (contentType === "text/html") {
                 code = $('<code />').html(content);
                 pre = $('<pre class="xml" />').append(code);
-            } else if (/^image\//.test(contentType)) {
+            } else if (contentType.startsWith('image/')) {
                 pre = $('<img>').attr('src', response.url);
             } else {
                 code = $('<code />').text(content);

@@ -183,16 +183,21 @@ describe.skip('ItemCog', () => {
   it('does not render rename/move buttons for users without manage_files_edit permission', () => {
     render(<ItemCog {...sampleProps(true, false, true)} />, {container: fixtures})
     expect(
-      buttonsEnabled({
-        ...manageFilesConfig,
-        ...{editName: false, move: false, usageRights: false},
-      }),
+      buttonsEnabled(({
+	...manageFilesConfig,
+	editName: false,
+	move: false,
+	usageRights: false
+})),
     ).toBe(true)
   })
 
   it('does not render delete button for users without manage_files_delete permission', () => {
     render(<ItemCog {...sampleProps(true, true, false)} />, {container: fixtures})
-    expect(buttonsEnabled({...manageFilesConfig, ...{deleteLink: false}})).toBe(true)
+    expect(buttonsEnabled(({
+	...manageFilesConfig,
+	deleteLink: false
+}))).toBe(true)
   })
 
   it('downloading a file returns focus back to the item cog', () => {

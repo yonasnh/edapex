@@ -1709,8 +1709,8 @@ EditView.prototype.getFormData = function () {
     const storedPeerReviewData = this.assignment.get('peer_review_data')
     if (data.peer_reviews) {
       data.peer_review = {
-        ...(data.peer_review || {}),
-        ...(storedPeerReviewData || {}),
+        ...data.peer_review,
+        ...storedPeerReviewData,
       }
       // Auto-set peer review available/until from assignment dates
       data.peer_review.unlock_at = data.due_at

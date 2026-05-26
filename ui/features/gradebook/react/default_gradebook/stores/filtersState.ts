@@ -108,7 +108,7 @@ export default (
 
   addFilters: (filters: Filter[]) => {
     const types = filters.map(c => c.type)
-    const newFilters = [...get().appliedFilters.filter(c => !types.includes(c.type))].concat(
+    const newFilters = get().appliedFilters.filter(c => !types.includes(c.type)).concat(
       filters,
     )
     get().applyFilters(newFilters)
@@ -119,7 +119,7 @@ export default (
       f => f.type === filter.type && f.value === filter.value,
     )
     set({
-      appliedFilters: [...get().appliedFilters.filter(f => f.type !== filter.type)].concat(
+      appliedFilters: get().appliedFilters.filter(f => f.type !== filter.type).concat(
         existingFilter ? [] : [filter],
       ),
     })

@@ -84,7 +84,7 @@ export const getCoursePeopleContext = ({defaultContext = false} = {}): CoursePeo
     interactions_report_url: interactionsReportUrl,
     user_services_url: userServicesUrl,
     observer_pairing_codes_url: observerPairingCodesUrl,
-    hideSectionsOnCourseUsersPage: hideSectionsOnCourseUsersPage,
+    hideSectionsOnCourseUsersPage,
     concluded: courseConcluded,
   } = course
 

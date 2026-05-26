@@ -705,7 +705,7 @@ const MessageStudentsWhoDialog = ({
         filteredStudents.reduce(
           (map, student) => {
             const observersForStudent = observersByStudentID[student.id] ?? []
-            map[student.id] = [...observersForStudent.map(observer => observer._id)]
+            map[student.id] = observersForStudent.map(observer => observer._id)
 
             return map
           },

@@ -128,7 +128,7 @@ class PostGradesDialog extends React.Component<Props> {
 
       // for handling the 'Everyone Else' scenario on the section that does have an override
       else if (
-        (original_error_assignments.length > 0 || original_error_assignments.length === 0) &&
+        (original_error_assignments.length >= 0) &&
         store.validCheck(a) &&
         a.overrideForThisSection &&
         a.currentlySelected.id.toString() === a.overrideForThisSection.course_section_id &&
@@ -153,7 +153,7 @@ class PostGradesDialog extends React.Component<Props> {
       // explicitly check for assignment for the entire course and no overrides
       else if (
         (typeof a.overrides === 'undefined' || a.overrides.length === 0) &&
-        (original_error_assignments.length > 0 || original_error_assignments.length === 0) &&
+        (original_error_assignments.length >= 0) &&
         a.due_at != null &&
         store.validCheck(a) &&
         !a.hadOriginalErrors

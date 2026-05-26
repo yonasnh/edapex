@@ -16,5 +16,5 @@
 // with this program. If not, see <http://www.gnu.org/licenses/>.
 
 export default function rEscape(string: string): string {
-  return string.replace(/[\\\^\$\*\+\?\.\(\)\|\{\}\[\]]/g, '\\$&')
+  return string.replace(/[\\^\$*\+?\.(\)|\{}\[\]]/g, '\\$&')
 }

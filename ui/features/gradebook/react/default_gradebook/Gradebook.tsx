@@ -490,7 +490,7 @@ class Gradebook extends React.Component<GradebookProps, GradebookState> {
 
   constructor(props: GradebookProps) {
     super(props)
-    this.options = {...(props.gradebookEnv || {}), ...props}
+    this.options = {...props.gradebookEnv, ...props}
     this.gradingPeriodSet = this.options.grading_period_set
       ? GradingPeriodSetsApi.deserializeSet(this.options.grading_period_set)
       : null
@@ -2693,7 +2693,7 @@ class Gradebook extends React.Component<GradebookProps, GradebookState> {
   getVisibleGridColumns = () => {
     let parentColumnIds = this.gridData.columns.frozen.filter(
       columnId =>
-        !/^custom_col_/.test(columnId) && !/^student/.test(columnId) && !/^total/.test(columnId),
+        !columnId.startsWith('custom_col_') && !columnId.startsWith('student') && !columnId.startsWith('total'),
     )
     if (this.gridDisplaySettings.showSeparateFirstLastNames) {
       parentColumnIds = ['student_lastname', 'student_firstname'].concat(parentColumnIds)
@@ -3422,7 +3422,7 @@ class Gradebook extends React.Component<GradebookProps, GradebookState> {
 
   toggleNotesColumn = () => {
     const parentColumnIds = this.gridData.columns.frozen.filter(
-      columnId => !/^custom_col_/.test(columnId),
+      columnId => !columnId.startsWith('custom_col_'),
     )
     const visibleCustomColumns = this.gradebookContent.customColumns.filter(
       column => !column.hidden,

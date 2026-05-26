@@ -94,7 +94,7 @@ const useSubmitHandlerWithQuestionBank = (
       }
 
       if (questionBankSettings) {
-        formData.settings = {...formData.settings, ...(questionBankSettings || {})}
+        formData.settings = {...formData.settings, ...questionBankSettings}
       }
 
       submit(formData, setFileError, onSubmit, file, fileInputRef)

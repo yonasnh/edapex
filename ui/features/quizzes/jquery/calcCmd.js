@@ -34,17 +34,17 @@ const calcCmd = {}
   let lastComputedResult
   const expressions = [
     {regex: /\s+/, token: 'whitespace'},
-    {regex: /[a-zA-Z][a-zA-Z0-9_\.]*/, token: 'variable'},
+    {regex: /[a-zA-Z][a-zA-Z0-9_.]*/, token: 'variable'},
     {regex: /[0-9]*\.?[0-9]+/, token: 'number'},
     {regex: /\+/, token: 'add'},
-    {regex: /\-/, token: 'subtract'},
+    {regex: /-/, token: 'subtract'},
     {regex: /\*/, token: 'multiply'},
     {regex: /\//, token: 'divide'},
     {regex: /\(/, token: 'open_paren'},
     {regex: /\)/, token: 'close_paren'},
-    {regex: /\,/, token: 'comma'},
+    {regex: /,/, token: 'comma'},
     {regex: /\^/, token: 'power'},
-    {regex: /\=/, token: 'equals'},
+    {regex: /=/, token: 'equals'},
   ]
   const parseToken = function (command, index) {
     const value = command.substring(index)
@@ -287,7 +287,7 @@ const calcCmd = {}
         }
         if (tree.value.indexOf('-') == 0) {
           // the variable is negative, e.g. '-x'
-          const absolute = tree.value.replace(/^\-/, '')
+          const absolute = tree.value.replace(/^-/, '')
           var value = predefinedVariables && predefinedVariables[absolute]
           value = value || (variables && variables[absolute])
           value = -value
