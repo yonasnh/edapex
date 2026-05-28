@@ -2,16 +2,18 @@
  * ClassApex Reports Page
  * ======================
  * Wired to Canvas Account Reports API:
- *   GET  /api/v1/accounts/1/reports/:report        — list instances
- *   POST /api/v1/accounts/1/reports/:report        — run a report
- *   GET  /api/v1/accounts/1/reports/:report/:id    — poll progress
- *   DELETE /api/v1/accounts/1/reports/:report/:id  — cancel/delete
+ *   GET  /api/v1/accounts/:accountId/reports/:report        — list instances
+ *   POST /api/v1/accounts/:accountId/reports/:report        — run a report
+ *   GET  /api/v1/accounts/:accountId/reports/:report/:id    — poll progress
+ *   DELETE /api/v1/accounts/:accountId/reports/:report/:id  — cancel/delete
  * Also uses /api/v1/courses for the course picker.
  */
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import clsx from 'clsx';
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import LogoLoader from '../components/LogoLoader'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +101,8 @@ function statusBadge(status: ReportInstance['status']) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const ReportsPage: React.FC = () => {
+  const { accountId: accountIdParam } = useParams<{ accountId: string }>()
+  const accountId = accountIdParam || '1'
   const { showConfirm, showToast } = useNotification();
   const [searchTerm, setSearchTerm]       = useState('')
   const [filterType, setFilterType]       = useState('all')
@@ -114,6 +118,10 @@ const ReportsPage: React.FC = () => {
     reportType: 'last_enrollment_activity_csv',
     courseId: '',
   })
+
+  // Per-report-type generation state
+  const [typeJobs, setTypeJobs] = useState<Record<string, ReportInstance & { polling?: boolean }>>({})
+  const [typeCourseIds, setTypeCourseIds] = useState<Record<string, string>>({})
 
   // ── Fetch all report instances for the account ──
   // Canvas returns a list-of-lists: one array per report type
@@ -132,7 +140,7 @@ const ReportsPage: React.FC = () => {
       // Fetch most-recent instances for each report type in parallel
       const results = await Promise.allSettled(
         CANVAS_REPORTS.map(r =>
-          fetch(`/api/v1/accounts/1/reports/${r.key}`, { headers: authHeaders() })
+          fetch(`/api/v1/accounts/${accountId}/reports/${r.key}`, { headers: authHeaders() })
             .then(res => res.ok ? res.json() : [])
             .catch(() => [])
         )
@@ -161,7 +169,7 @@ const ReportsPage: React.FC = () => {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [accountId])
 
   useEffect(() => { fetchAllReports() }, [fetchAllReports])
 
@@ -173,6 +181,44 @@ const ReportsPage: React.FC = () => {
     return () => clearTimeout(t)
   }, [allInstances, fetchAllReports])
 
+  // Poll per-type jobs explicitly
+  useEffect(() => {
+    const runningJobs = Object.entries(typeJobs).filter(([, job]) => job.status === 'running' || job.status === 'created')
+    if (runningJobs.length === 0) return
+    const timers: NodeJS.Timeout[] = []
+    runningJobs.forEach(([reportKey, job]) => {
+      const courseId = typeCourseIds[reportKey]
+      const timer = setInterval(async () => {
+        try {
+          const endpoint = courseId
+            ? `/api/v1/courses/${courseId}/reports/${reportKey}/${job.id}`
+            : `/api/v1/accounts/${accountId}/reports/${reportKey}/${job.id}`
+          const res = await fetch(endpoint, { headers: authHeaders() })
+          if (res.ok) {
+            const data = await res.json()
+            setTypeJobs(prev => ({
+              ...prev,
+              [reportKey]: {
+                ...prev[reportKey],
+                status: data.status,
+                progress: data.progress,
+                file_url: data.file_url,
+              },
+            }))
+            if (data.status === 'complete' || data.status === 'error') {
+              clearInterval(timer)
+              fetchAllReports(true)
+            }
+          }
+        } catch {
+          // ignore polling errors
+        }
+      }, 4000)
+      timers.push(timer)
+    })
+    return () => timers.forEach(t => clearInterval(t))
+  }, [typeJobs, typeCourseIds, fetchAllReports, accountId])
+
   // ── Generate a new report ──
   const handleGenerate = async () => {
     setGenerating(true)
@@ -181,7 +227,7 @@ const ReportsPage: React.FC = () => {
       const body: Record<string, any> = {}
       if (newReport.courseId) body.course_id = newReport.courseId
 
-      const res = await fetch(`/api/v1/accounts/1/reports/${newReport.reportType}`, {
+      const res = await fetch(`/api/v1/accounts/${accountId}/reports/${newReport.reportType}`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(body),
@@ -200,6 +246,48 @@ const ReportsPage: React.FC = () => {
     }
   }
 
+  // ── Generate a specific report type ──
+  const handleGenerateType = async (reportKey: string) => {
+    const courseId = typeCourseIds[reportKey]
+    setTypeJobs(prev => ({ ...prev, [reportKey]: { ...prev[reportKey], status: 'created', progress: 0, polling: true } }))
+    try {
+      const body: Record<string, any> = {}
+      if (courseId) body.course_id = courseId
+
+      const endpoint = courseId
+        ? `/api/v1/courses/${courseId}/reports/${reportKey}`
+        : `/api/v1/accounts/${accountId}/reports/${reportKey}`
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || `HTTP ${res.status}`)
+      }
+      const data = await res.json()
+      setTypeJobs(prev => ({
+        ...prev,
+        [reportKey]: {
+          id: data.id,
+          report: reportKey,
+          status: data.status || 'created',
+          progress: data.progress,
+          file_url: data.file_url,
+          created_at: data.created_at,
+          polling: true,
+        },
+      }))
+      showToast({ title: 'Report queued', message: `${getLabelForKey(reportKey)} is generating.`, type: 'info' })
+      fetchAllReports(true)
+    } catch (e: any) {
+      showToast({ title: 'Generation failed', message: e.message || 'Failed to generate report.', type: 'error' })
+      setTypeJobs(prev => ({ ...prev, [reportKey]: { ...prev[reportKey], status: 'error', polling: false } }))
+    }
+  }
+
   // ── Delete a report instance ──
   const handleDelete = async (reportType: string, id: number) => {
     const isConfirmed = await showConfirm({
@@ -211,7 +299,7 @@ const ReportsPage: React.FC = () => {
     });
     if (!isConfirmed) return;
     try {
-      const res = await fetch(`/api/v1/accounts/1/reports/${reportType}/${id}`, {
+      const res = await fetch(`/api/v1/accounts/${accountId}/reports/${reportType}/${id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       })
@@ -313,6 +401,67 @@ const ReportsPage: React.FC = () => {
       </div>
 
       <div className="cx-section">
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 12px' }}>Report Types</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 24 }}>
+          {CANVAS_REPORTS.map(r => {
+            const job = typeJobs[r.key]
+            const isRunning = job?.status === 'running' || job?.status === 'created'
+            return (
+              <div key={r.key} className="cx-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {renderReportIcon(r.iconKey)}
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>{r.label}</span>
+                </div>
+                <select
+                  className="cx-select cx-select--sm"
+                  style={{ width: '100%', fontSize: '0.8125rem' }}
+                  value={typeCourseIds[r.key] || ''}
+                  onChange={e => setTypeCourseIds(prev => ({ ...prev, [r.key]: e.target.value }))}
+                >
+                  <option value="">Account-wide</option>
+                  {courses.map((c: any) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                  <button
+                    className="cx-btn cx-btn--primary cx-btn--sm"
+                    style={{ flex: 1 }}
+                    onClick={() => handleGenerateType(r.key)}
+                    disabled={isRunning}
+                  >
+                    {isRunning ? <><SpinnerSvg /> Generating…</> : 'Generate'}
+                  </button>
+                  {job?.status === 'complete' && job.file_url && (
+                    <a
+                      href={job.file_url}
+                      className="cx-btn cx-btn--ghost cx-btn--sm"
+                      download
+                      title="Download"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <DownloadSvg />
+                    </a>
+                  )}
+                  {job?.status === 'error' && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--cx-color-danger)' }}>Failed</span>
+                  )}
+                </div>
+                {isRunning && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="cx-progress-bar" style={{ flex: 1 }}>
+                      <div className="cx-progress-bar__track">
+                        <div className="cx-progress-bar__fill" style={{ width: `${job.progress ?? 0}%` }} />
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem' }}>{job.progress ?? 0}%</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="cx-section">
         <div className="cx-toolbar">
           <div className="cx-search">
             <SearchSvg />
@@ -336,7 +485,7 @@ const ReportsPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="cx-loading" role="status"><div className="cx-loading__spinner" /><span>Loading reports…</span></div>
+          <LogoLoader text="Loading reports…" />
         ) : paginated.length === 0 ? (
           <div className="cx-empty">
             <ChartSvg />

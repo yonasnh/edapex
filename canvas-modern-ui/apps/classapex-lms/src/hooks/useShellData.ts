@@ -125,15 +125,6 @@ function fuzzyMatch(target: string, query: string): boolean {
   })
 }
 
-const MOCK_EXTRA_RESULTS: SearchResult[] = [
-  { id: 'assign-1', title: 'Introduction to React Hook Flows', type: 'assignment', subtitle: 'Advanced React Course', url: '/courses/1/assignments/1' },
-  { id: 'assign-2', title: 'CSS Grid & Flexbox Layout Audits', type: 'assignment', subtitle: 'Web Design Foundations', url: '/courses/2/assignments/2' },
-  { id: 'assign-3', title: 'Next.js Routing and SSR Implementations', type: 'assignment', subtitle: 'Modern Web Architectures', url: '/courses/3/assignments/3' },
-  { id: 'quiz-1', title: 'Midterm Exam - Algorithms & Structures', type: 'assignment', subtitle: 'Computer Science II (Quiz)', url: '/courses/1/quizzes/1' },
-  { id: 'page-1', title: 'Canvas API Integration Cookbook', type: 'page', subtitle: 'Wiki Resource', url: '/courses/1/pages/api-cookbook' },
-  { id: 'file-1', title: 'ClassApex Syllabus & Schedule.pdf', type: 'file', subtitle: 'Course Materials', url: '/courses/1/files/syllabus' }
-]
-
 export function useGlobalSearch() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -152,7 +143,6 @@ export function useGlobalSearch() {
     setIsSearching(true)
 
     try {
-      // Canvas search recipients (people)
       const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? ''
       const headers: HeadersInit = {
         Accept: 'application/json',
@@ -177,14 +167,6 @@ export function useGlobalSearch() {
 
       const mapped: SearchResult[] = []
 
-      // Local mock courses list in case of API failure or missing items
-      const LOCAL_MOCK_COURSES = [
-        { id: 1, name: 'Advanced React Course', course_code: 'REACT-101', term: 'Spring 2026' },
-        { id: 2, name: 'Web Design Foundations', course_code: 'HTML-CSS', term: 'Spring 2026' },
-        { id: 3, name: 'Modern Web Architectures', course_code: 'NEXT-JS', term: 'Spring 2026' },
-        { id: 4, name: 'Computer Science II', course_code: 'CS-102', term: 'Spring 2026' },
-      ]
-
       let apiCourses: any[] = []
       if (coursesRes.status === 'fulfilled' && coursesRes.value.ok) {
         try {
@@ -203,17 +185,8 @@ export function useGlobalSearch() {
         }
       }
 
-      // Merge API courses, account courses, and mock courses, de-duplicating by name
+      // De-duplicate API courses by name
       const mergedCoursesMap = new Map<string, any>()
-      
-      LOCAL_MOCK_COURSES.forEach(c => {
-        mergedCoursesMap.set(c.name.toLowerCase(), {
-          id: c.id,
-          name: c.name,
-          course_code: c.course_code,
-          term_name: c.term
-        })
-      })
 
       if (Array.isArray(apiCourses)) {
         apiCourses.forEach((c: any) => {
@@ -241,9 +214,9 @@ export function useGlobalSearch() {
         })
       }
 
-      // Filter merged courses locally by search term (fuzzy matching)
-      const filteredCourses = Array.from(mergedCoursesMap.values()).filter(c => 
-        fuzzyMatch(c.name, query) || 
+      // Filter courses locally by search term (fuzzy matching)
+      const filteredCourses = Array.from(mergedCoursesMap.values()).filter(c =>
+        fuzzyMatch(c.name, query) ||
         (c.course_code && fuzzyMatch(c.course_code, query))
       )
 
@@ -272,12 +245,6 @@ export function useGlobalSearch() {
           })
         })
       }
-
-      // Add local matches for Assignments, Quizzes, Files and Pages with fuzzy match
-      const localMatches = MOCK_EXTRA_RESULTS.filter(
-        item => fuzzyMatch(item.title, query) || (item.subtitle && fuzzyMatch(item.subtitle, query))
-      )
-      mapped.push(...localMatches)
 
       setResults(mapped)
     } catch (err: any) {

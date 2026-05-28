@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
+import { extractPath } from '../utils/urlHelpers'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import NewRceWrapper from '../components/NewRceWrapper';
 import { useNotification } from '../hooks/useNotification';
+import LogoLoader from '../components/LogoLoader'
 
 function CalendarSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>; }
 function EditSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2.5a1.5 1.5 0 012.1 2.1l-9.5 9.5H2v-2.6l9.5-9.5z"/></svg>; }
@@ -122,7 +124,7 @@ export default function SyllabusPage() {
   if (loadingCourse || loadingAssignments || loadingEvents) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     );
   }
@@ -187,10 +189,10 @@ export default function SyllabusPage() {
                 </td>
                 <td style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <a href={event.html_url || '#'} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cx-color-primary)', textDecoration: 'none', fontWeight: 500 }}>
+                    <Link to={extractPath(event.html_url || '#')} style={{ color: 'var(--cx-color-primary)', textDecoration: 'none', fontWeight: 500 }}>
                       <span style={{ marginRight: 6 }}>{event.type === 'assignment' ? '📝' : '📅'}</span>
                       {event.title}
-                    </a>
+                    </Link>
                     <span style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.8rem' }}>{event.time}</span>
                   </div>
                 </td>

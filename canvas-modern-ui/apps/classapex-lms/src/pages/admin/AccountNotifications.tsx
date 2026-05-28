@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
+import LogoLoader from '../../components/LogoLoader'
 
 function BellSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2a6 6 0 00-6 6v3.5l-2 2.5v1h16v-1l-2-2.5V8a6 6 0 00-6-6zM8.5 17a1.5 1.5 0 103 0h-3z"/></svg>; }
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
@@ -240,7 +241,7 @@ export default function AccountNotificationsPage() {
       )}
 
       {isLoading ? (
-        <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+        <LogoLoader />
       ) : !notifications || notifications.length === 0 ? (
         <div className="cx-empty">
           <BellSvg />

@@ -210,7 +210,7 @@ interface CustomRenderOptions extends RenderOptions {
 export function renderWithRouter(
   ui: React.ReactElement,
   { initialEntries = ['/'], ...options }: CustomRenderOptions = {}
-) {
+): ReturnType<typeof rtlRender> {
   return rtlRender(
     <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>,
     options

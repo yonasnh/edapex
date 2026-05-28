@@ -20,6 +20,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
+import LogoLoader from './LogoLoader'
 
 export type CanvasContentType =
   | 'page'
@@ -189,10 +190,7 @@ export default function CanvasNativeRceModal({
               zIndex: 2,
             }}
           >
-            <div className="cx-loading__spinner" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
-              Loading Canvas Editor…
-            </span>
+            <LogoLoader text="Loading Canvas Editor…" />
           </div>
         )}
 

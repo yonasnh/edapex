@@ -8,7 +8,7 @@
  *  GET /api/v1/courses/:courseId/content_migrations
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
@@ -47,6 +47,14 @@ export default function CourseImportPage() {
     courseId ? `/api/v1/courses/${courseId}/content_migrations` : '',
     { per_page: 20 } as any
   )
+
+  // Poll running migrations every 3 seconds
+  const hasRunning = migrations?.some((m: any) => m.workflow_state === 'queued' || m.workflow_state === 'running')
+  useEffect(() => {
+    if (!hasRunning) return
+    const id = setInterval(() => { refetchMigrations() }, 3000)
+    return () => clearInterval(id)
+  }, [hasRunning, refetchMigrations])
 
   const handleToggleItem = (item: string) => {
     setSelectedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item])

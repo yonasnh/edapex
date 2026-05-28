@@ -12,9 +12,6 @@ interface FeatureFlag {
   lastModified: string
 }
 
-// We will fetch this data from Canvas API instead
-// const mockFlags: FeatureFlag[] = ...
-
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function FlagSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 17V3h8l1 2h4v9H9l-1-2H4z"/></svg>; }
 function CheckSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 7l3 3 5-6"/></svg>; }

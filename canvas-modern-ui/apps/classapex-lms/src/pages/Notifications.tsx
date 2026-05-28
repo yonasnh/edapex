@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import LogoLoader from '../components/LogoLoader'
 
 interface StreamItem {
   id: number
@@ -265,10 +266,7 @@ const NotificationsPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="cx-page">
-        <div className="cx-loading" role="status" aria-label="Loading notifications">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading notifications…</span>
-        </div>
+        <LogoLoader text="Loading notifications…" />
       </div>
     )
   }
@@ -416,10 +414,7 @@ const NotificationsPage: React.FC = () => {
           </div>
 
           {channelsLoading ? (
-            <div className="cx-loading" role="status" aria-label="Loading preferences">
-              <div className="cx-loading__spinner" />
-              <span className="cx-loading__text">Loading preferences…</span>
-            </div>
+            <LogoLoader text="Loading preferences…" />
           ) : channels.length === 0 ? (
             <div className="cx-empty">
               <BellSvg />

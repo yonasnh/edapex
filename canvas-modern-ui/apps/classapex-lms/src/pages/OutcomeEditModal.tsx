@@ -22,6 +22,7 @@ interface OutcomeForm {
   description: string
   mastery_points: number
   calculation_method: 'decaying_average' | 'n_mastery' | 'latest' | 'highest'
+  calculation_int: number
   ratings: RatingForm[]
 }
 
@@ -46,6 +47,7 @@ const emptyForm = (): OutcomeForm => ({
   description: '',
   mastery_points: 3,
   calculation_method: 'highest',
+  calculation_int: 65,
   ratings: [...defaultRatings],
 })
 
@@ -63,6 +65,7 @@ export default function OutcomeEditModal({ outcome, courseId, groupId, onClose, 
         description: outcome.description || '',
         mastery_points: outcome.mastery_points ?? 3,
         calculation_method: outcome.calculation_method || 'highest',
+        calculation_int: outcome.calculation_int ?? 65,
         ratings: (outcome.ratings || defaultRatings).map((r: any) => ({
           description: r.description || '',
           points: r.points ?? 0,
@@ -102,7 +105,7 @@ export default function OutcomeEditModal({ outcome, courseId, groupId, onClose, 
 
     setSaving(true)
     try {
-      const payload = {
+      const payload: any = {
         title: form.title.trim(),
         display_name: form.display_name.trim() || undefined,
         description: form.description.trim() || undefined,
@@ -113,6 +116,9 @@ export default function OutcomeEditModal({ outcome, courseId, groupId, onClose, 
           points: r.points,
           mastery: r.mastery,
         })),
+      }
+      if (form.calculation_method === 'decaying_average' || form.calculation_method === 'n_mastery') {
+        payload.calculation_int = form.calculation_int
       }
       if (isEdit) {
         await canvasFetch(`/api/v1/courses/${courseId}/outcome_groups/${groupId}/outcomes/${outcome.id}`, {
@@ -181,6 +187,21 @@ export default function OutcomeEditModal({ outcome, courseId, groupId, onClose, 
               </select>
             </div>
           </div>
+
+          {form.calculation_method === 'decaying_average' && (
+            <div>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Decaying Average Percentage (%)</label>
+              <input type="number" className="cx-input" min={1} max={99} value={form.calculation_int} onChange={e => setForm(prev => ({ ...prev, calculation_int: Number(e.target.value) || 65 }))} style={{ width: '100%' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', margin: '4px 0 0' }}>Weight given to the most recent assessment (e.g. 65 = 65% newest, 35% previous).</p>
+            </div>
+          )}
+          {form.calculation_method === 'n_mastery' && (
+            <div>
+              <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Number of Times</label>
+              <input type="number" className="cx-input" min={1} max={10} value={form.calculation_int} onChange={e => setForm(prev => ({ ...prev, calculation_int: Number(e.target.value) || 3 }))} style={{ width: '100%' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', margin: '4px 0 0' }}>Required number of times mastery must be achieved.</p>
+            </div>
+          )}
 
           <div>
             <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Proficiency Ratings</label>

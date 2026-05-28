@@ -5,7 +5,7 @@ import canvasApi from '../services/canvasApi';
 export interface MediaCommentRecorderProps {
   mode?: 'audio' | 'video';
   maxDuration?: number;
-  onRecordComplete: (url: string, mediaType: 'audio' | 'video') => void;
+  onRecordComplete: (url: string, mediaType: 'audio' | 'video', uploaded?: any) => void;
   onCancel?: () => void;
 }
 
@@ -198,7 +198,7 @@ export default function MediaCommentRecorder({
       );
 
       const url = uploaded?.url || uploaded?.preview_url || '';
-      onRecordComplete(url, mode);
+      onRecordComplete(url, mode, uploaded);
       setStatus('idle');
       cleanup();
       setRecordedBlob(null);

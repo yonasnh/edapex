@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ApolloProvider } from '@apollo/client'
 import { FeatureFlagProvider } from '@schoolapex/core'
+import { StatusBar, Style } from '@capacitor/status-bar'
+import { SplashScreen } from '@capacitor/splash-screen'
 
 import { apolloClient } from './lib/apollo-client'
 import App from './App'
@@ -56,6 +58,21 @@ if ('serviceWorker' in navigator) {
     });
   }
 }
+
+// Initialize Capacitor native plugins when running in a native context
+const initializeNativePlugins = async () => {
+  try {
+    await StatusBar.setStyle({ style: Style.Dark })
+    await StatusBar.setBackgroundColor({ color: '#0f172a' })
+    await SplashScreen.hide()
+    console.log('[Capacitor] Native plugins initialized')
+  } catch (error) {
+    // Expected when running in a standard browser (not a native shell)
+    console.log('[Capacitor] Not in native context, skipping native plugin init')
+  }
+}
+
+initializeNativePlugins()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

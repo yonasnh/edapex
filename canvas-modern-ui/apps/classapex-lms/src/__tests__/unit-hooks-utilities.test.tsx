@@ -23,6 +23,16 @@ vi.mock('@schoolapex/core', () => ({
   useCanvasQuery: vi.fn(),
   useCanvasMutation: vi.fn(),
   createApiClient: vi.fn(),
+  useAuth: vi.fn(() => ({
+    user: {
+      id: '100',
+      name: 'Dr. Sarah Chen',
+      email: 'sarah.chen@classapex.edu',
+      avatar_url: '',
+      roles: ['teacher'],
+      title: 'Professor of Computer Science',
+    },
+  })),
 }))
 
 vi.mock('../contexts/NotificationContext', () => ({
@@ -38,6 +48,7 @@ vi.mock('../contexts/NotificationContext', () => ({
 import { useCanvasMutation } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { RoleProvider, useRole, type UserRole } from '../contexts/RoleContext'
+import { useAuth } from '@schoolapex/core'
 import {
   getLetterGrade,
   exportGradesCSV,
@@ -197,13 +208,8 @@ describe('useNotification', () => {
 })
 
 describe('useRole', () => {
-  const originalLocation = window.location
-
   beforeEach(() => {
     vi.clearAllMocks()
-    // @ts-ignore
-    delete window.location
-    window.location = { ...originalLocation, reload: vi.fn() } as any
 
     const store: Record<string, string> = {}
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => store[key] ?? null)
@@ -216,7 +222,6 @@ describe('useRole', () => {
   })
 
   afterEach(() => {
-    window.location = originalLocation
     vi.restoreAllMocks()
   })
 
@@ -225,31 +230,46 @@ describe('useRole', () => {
     ({ children }: { children: React.ReactNode }) =>
       <RoleProvider defaultRole={defaultRole}>{children}</RoleProvider>
 
-  it('returns the default role from context', () => {
+  it('returns the role derived from the authenticated user', () => {
     const { result } = renderHook(() => useRole(), { wrapper: wrapper('teacher') })
 
     expect(result.current.role).toBe('teacher')
     expect(result.current.user.name).toBe('Dr. Sarah Chen')
   })
 
-  it('returns student role when no default is provided', () => {
+  it('returns student role when auth user has no roles', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: '8', name: 'Student User', email: 'student@example.com', roles: ['student'] },
+    } as any)
+
     const { result } = renderHook(() => useRole(), { wrapper: wrapper() })
 
     expect(result.current.role).toBe('student')
-    expect(result.current.user.name).toBe('PlayStudent lMRL5n2z16')
+    expect(result.current.user.name).toBe('Student User')
+
+    // restore default mock
+    vi.mocked(useAuth).mockReturnValue({
+      user: {
+        id: '100',
+        name: 'Dr. Sarah Chen',
+        email: 'sarah.chen@classapex.edu',
+        avatar_url: '',
+        roles: ['teacher'],
+        title: 'Professor of Computer Science',
+      },
+    } as any)
   })
 
-  it('updates role when setRole is called', () => {
-    const { result } = renderHook(() => useRole(), { wrapper: wrapper('student') })
+  it('updates view role when setRole is called with an available role', () => {
+    const { result } = renderHook(() => useRole(), { wrapper: wrapper('teacher') })
 
-    expect(result.current.role).toBe('student')
+    expect(result.current.role).toBe('teacher')
 
     act(() => {
-      result.current.setRole('admin')
+      result.current.setRole('teacher')
     })
 
-    expect(localStorage.setItem).toHaveBeenCalledWith('classapex-demo-role', 'admin')
-    expect(window.location.reload).toHaveBeenCalled()
+    expect(localStorage.setItem).toHaveBeenCalledWith('classapex-view-role', 'teacher')
   })
 
   it('sets isMasquerading to false by default', () => {
@@ -259,8 +279,8 @@ describe('useRole', () => {
     expect(result.current.realUser).toEqual(result.current.user)
   })
 
-  it('masquerades as another user and updates role', () => {
-    const { result } = renderHook(() => useRole(), { wrapper: wrapper('student') })
+  it('masquerades as another user and updates role (session-only)', () => {
+    const { result } = renderHook(() => useRole(), { wrapper: wrapper('teacher') })
 
     const fakeUser = {
       id: '555',
@@ -276,32 +296,29 @@ describe('useRole', () => {
       result.current.masqueradeAs(fakeUser)
     })
 
-    expect(localStorage.setItem).toHaveBeenCalledWith(
-      'classapex-masquerade-user',
-      JSON.stringify(fakeUser)
-    )
-    expect(window.location.reload).toHaveBeenCalled()
+    // Masquerade is session-only and does not persist to localStorage
+    expect(result.current.isMasquerading).toBe(true)
+    expect(result.current.user.name).toBe('Masquerade User')
   })
 
   it('clears masquerade when masqueradeAs is called with null', () => {
-    const { result } = renderHook(() => useRole(), { wrapper: wrapper('student') })
+    const { result } = renderHook(() => useRole(), { wrapper: wrapper('teacher') })
 
     act(() => {
       result.current.masqueradeAs(null)
     })
 
-    expect(localStorage.removeItem).toHaveBeenCalledWith('classapex-masquerade-user')
-    expect(window.location.reload).toHaveBeenCalled()
+    expect(result.current.isMasquerading).toBe(false)
   })
 
   it('clears masquerade when switching roles', () => {
-    const { result } = renderHook(() => useRole(), { wrapper: wrapper('student') })
+    const { result } = renderHook(() => useRole(), { wrapper: wrapper('teacher') })
 
     act(() => {
       result.current.setRole('teacher')
     })
 
-    expect(localStorage.removeItem).toHaveBeenCalledWith('classapex-masquerade-user')
+    expect(result.current.isMasquerading).toBe(false)
   })
 })
 

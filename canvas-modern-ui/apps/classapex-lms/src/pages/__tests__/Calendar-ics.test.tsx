@@ -56,9 +56,7 @@ describe('Calendar ICS sync', () => {
     expect(screen.getByRole('button', { name: /Export iCal/i })).toBeInTheDocument()
   })
 
-  it('opens a webcal URL when Subscribe is clicked', async () => {
-    vi.mocked(URL.createObjectURL).mockReturnValue('https://mock-calendar-url/classapex-calendar')
-
+  it('opens a data URL when Subscribe is clicked', async () => {
     render(
       <MemoryRouter>
         <CalendarPage />
@@ -70,7 +68,7 @@ describe('Calendar ICS sync', () => {
 
     await waitFor(() => {
       expect(vi.mocked(window.open)).toHaveBeenCalledWith(
-        expect.stringContaining('webcal://'),
+        expect.stringContaining('data:text/calendar;base64'),
         '_blank'
       )
     })

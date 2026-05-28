@@ -236,6 +236,9 @@ describe('AssignmentList — Role-Based Access', () => {
       })
 
       it('status filter works (overdue)', () => {
+        const realDateNow = Date.now
+        Date.now = vi.fn(() => new Date('2026-05-22T12:00:00Z').getTime())
+
         renderAssignmentList(role)
 
         const filterSelect = screen.getByLabelText(/filter by status/i)
@@ -244,6 +247,8 @@ describe('AssignmentList — Role-Based Access', () => {
         expect(screen.getByText('History Essay')).toBeInTheDocument()
         expect(screen.queryByText('Math Homework')).not.toBeInTheDocument()
         expect(screen.queryByText('Science Lab')).not.toBeInTheDocument()
+
+        Date.now = realDateNow
       })
 
       it('status filter works (due soon)', () => {

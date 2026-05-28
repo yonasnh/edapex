@@ -156,14 +156,14 @@ export function filterConversations(
   return list.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
 }
 
-async function uploadCanvasFile(file: File): Promise<{ id: number; name: string }> {
+async function uploadCanvasFile(file: File, parentFolderPath = 'conversation attachments'): Promise<{ id: number; name: string }> {
   const preflight = await canvasFetch('/api/v1/users/self/files', {
     method: 'POST',
     body: {
       name: file.name,
       size: file.size,
       content_type: file.type || 'application/octet-stream',
-      parent_folder_path: 'conversations'
+      parent_folder_path: parentFolderPath
     }
   })
 
@@ -221,6 +221,8 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [], initialSubj
   const [sendAsBcc, setSendAsBcc] = useState(false)
   const [attachments, setAttachments] = useState<{ id: number; name: string }[]>([])
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [showMediaRecorder, setShowMediaRecorder] = useState(false)
+  const [mediaRecorderMode, setMediaRecorderMode] = useState<'audio' | 'video'>('audio')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Build unique participants fallback from loaded conversations
@@ -270,13 +272,15 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [], initialSubj
   if (!isOpen) return null
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
     setUploadingAttachment(true)
     try {
-      const uploaded = await uploadCanvasFile(file)
-      setAttachments(prev => [...prev, uploaded])
-      showToast({ title: 'Uploaded', message: `${file.name} attached`, type: 'success' })
+      for (const file of files) {
+        const uploaded = await uploadCanvasFile(file)
+        setAttachments(prev => [...prev, uploaded])
+        showToast({ title: 'Uploaded', message: `${file.name} attached`, type: 'success' })
+      }
     } catch (err: any) {
       showToast({ title: 'Upload Failed', message: err.message || 'Failed to attach file', type: 'error' })
     } finally {
@@ -383,13 +387,36 @@ function ComposeModal({ isOpen, onClose, onSend, conversations = [], initialSubj
             />
           </div>
         </div>
-        <div className="cx-compose__footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="cx-compose__footer" style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} />
+            <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileSelect} multiple />
             <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Add Attachment" onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}>
               <PaperclipSvg />
             </button>
-            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video"><VideoSvg /></button>
+            <button className="cx-btn cx-btn--ghost cx-btn--sm" title="Record Audio/Video" onClick={() => { setMediaRecorderMode('audio'); setShowMediaRecorder(true) }}><VideoSvg /></button>
+            {showMediaRecorder && (
+              <div style={{ position: 'absolute', bottom: '100%', left: 0, zIndex: 20, width: 320, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, padding: 12, boxShadow: 'var(--cx-shadow-md)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Record Media</span>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowMediaRecorder(false)}>&times;</button>
+                </div>
+                <MediaCommentRecorder
+                  mode={mediaRecorderMode}
+                  maxDuration={300}
+                  onRecordComplete={(_url, mediaType, uploaded) => {
+                    const fileId = uploaded?.id
+                    if (fileId) {
+                      setAttachments(prev => [...prev, { id: fileId, name: `Media recording (${mediaType})` }])
+                      showToast({ title: 'Media attached', message: `Recording attached to message`, type: 'success' })
+                    } else {
+                      showToast({ title: 'Media recorded', message: 'Recording completed but could not be attached. Try downloading and attaching manually.', type: 'warning' })
+                    }
+                    setShowMediaRecorder(false)
+                  }}
+                  onCancel={() => setShowMediaRecorder(false)}
+                />
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="cx-compose__cancel" onClick={onClose}>Cancel</button>
@@ -508,21 +535,22 @@ export default function InboxPage() {
 
   const handleCompose = useCallback(async (recipients: string[], subject: string, body: string, attachmentIds: number[], bulkMessage?: boolean) => {
     try {
-      const formData = new FormData()
-      recipients.forEach(r => formData.append('recipients[]', r))
-      formData.append('body', body)
+      const payload: Record<string, any> = {
+        recipients: recipients.join(','),
+        body,
+      }
       if (subject.trim()) {
-        formData.append('subject', subject.trim())
+        payload.subject = subject.trim()
       }
       if (attachmentIds.length > 0) {
-        attachmentIds.forEach(id => formData.append('attachment_ids[]', String(id)))
+        payload.attachment_ids = attachmentIds.join(',')
       }
       if (bulkMessage) {
-        formData.append('bulk_message', 'true')
+        payload.bulk_message = 1
       }
       await canvasFetch('/api/v1/conversations', {
         method: 'POST',
-        body: formData
+        body: payload
       })
       showToast({
         title: 'Message Sent',

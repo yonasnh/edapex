@@ -39,7 +39,7 @@ vi.mock('@schoolapex/core', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   RequireAuth: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   OAuthCallbackPage: () => <div>OAuth</div>,
-  useAuth: () => ({ token: 'test-token', isAuthenticated: true }),
+  useAuth: () => ({ token: 'test-token', isAuthenticated: true, user: { id: '1', name: 'Test User', email: 'test@example.com', roles: ['student', 'teacher', 'admin', 'observer'] } }),
 }))
 
 vi.mock('../contexts/TenantContext', () => ({
@@ -323,7 +323,7 @@ describe('Integration Tests — Industry Best Practices', () => {
     it('RoleProvider provides correct user data to consuming components', () => {
       renderWithProviders(<RoleAwareGreeting />, { role: 'teacher' })
 
-      expect(screen.getByTestId('greeting')).toHaveTextContent('Hello, Dr. Sarah Chen')
+      expect(screen.getByTestId('greeting')).toHaveTextContent('Hello, Test User')
       expect(screen.getByTestId('role-badge')).toHaveTextContent('Role: teacher')
     })
 

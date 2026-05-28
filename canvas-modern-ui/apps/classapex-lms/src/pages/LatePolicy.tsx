@@ -221,6 +221,52 @@ export default function LatePolicyPage() {
               </table>
             </div>
           </div>
+
+          {/* Deduction Preview */}
+          <div className="cx-card" style={{ padding: 20 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Deduction Preview</h3>
+            <div className="cx-table-container">
+              <table className="cx-table" style={{ fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    <th>Original Score</th>
+                    <th>Hours Late</th>
+                    <th>Deduction</th>
+                    <th>Final Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[100, 80, 60, 40].flatMap(originalScore =>
+                    [1, 24, 48, 72].map(hoursLate => {
+                      let deduction = 0
+                      let finalScore = originalScore
+                      if (form.late_submission_deduction_enabled) {
+                        const intervals = form.late_submission_interval === 'day' ? hoursLate / 24 : hoursLate
+                        if (form.late_submission_deduction_type === 'percentage') {
+                          deduction = originalScore * (form.late_submission_deduction_amount / 100) * intervals
+                        } else {
+                          deduction = form.late_submission_deduction_amount * intervals
+                        }
+                        finalScore = originalScore - deduction
+                        if (form.late_submission_minimum_percent_enabled) {
+                          finalScore = Math.max(finalScore, originalScore * (form.late_submission_minimum_percent / 100))
+                        }
+                        finalScore = Math.max(finalScore, 0)
+                      }
+                      return (
+                        <tr key={`${originalScore}-${hoursLate}`}>
+                          <td className="cx-table__cell">{originalScore}</td>
+                          <td className="cx-table__cell">{hoursLate}h</td>
+                          <td className="cx-table__cell" style={{ color: 'var(--cx-accent-error)' }}>-{deduction.toFixed(1)}</td>
+                          <td className="cx-table__cell" style={{ fontWeight: 600 }}>{finalScore.toFixed(1)}</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

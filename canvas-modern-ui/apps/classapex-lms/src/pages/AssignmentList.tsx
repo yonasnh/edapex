@@ -7,6 +7,7 @@ import { useRole } from '../contexts/RoleContext'
 import { SubmissionStatus } from '../widgets/SubmissionStatus'
 import AssignmentEditModal from './AssignmentEditModal'
 import './assignment.css'
+import LogoLoader from '../components/LogoLoader'
 
 type SortKey = 'due_at' | 'name' | 'points_possible'
 type FilterStatus = 'all' | 'open' | 'due_soon' | 'overdue' | 'submitted' | 'graded'
@@ -142,10 +143,7 @@ export default function AssignmentList() {
   if (isLoading) {
     return (
       <div className="cx-assignment-list" data-testid="loading-container">
-        <div className="cx-loading" role="status" aria-label="Loading assignments">
-          <div className="cx-loading__spinner" data-testid="loading-spinner" />
-          <span className="cx-loading__text">Loading assignments...</span>
-        </div>
+        <LogoLoader text="Loading assignments..." />
         <div className="cx-skeleton cx-skeleton--list-banner" style={{ marginTop: '24px' }} />
         <div className="cx-assignment-list__grid">
           {[1, 2, 3, 4].map(i => <div key={i} className="cx-skeleton cx-skeleton--assignment-card" />)}

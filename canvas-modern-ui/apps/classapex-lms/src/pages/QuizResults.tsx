@@ -441,7 +441,7 @@ export default function QuizResultsPage() {
     courseId && quizId ? `/api/v1/courses/${courseId}/quizzes/${quizId}` : ''
   )
 
-  const { data: submissions, isLoading: subsLoading } = useCanvasQuery<any[]>(
+  const { data: rawSubmissions, isLoading: subsLoading } = useCanvasQuery<any[]>(
     courseId && quizId ? `/api/v1/courses/${courseId}/quizzes/${quizId}/submissions` : '',
     { per_page: 100, include: ['user'] } as any
   )
@@ -455,12 +455,17 @@ export default function QuizResultsPage() {
     { per_page: 100 } as any
   )
 
+  // Canvas returns quiz_submissions array nested or flat depending on endpoint
+  const submissions = React.useMemo<QuizSubmission[] | undefined>(() => {
+    if (!Array.isArray(rawSubmissions)) return undefined
+    const list = rawSubmissions[0]?.quiz_submissions ? rawSubmissions.flatMap((s: any) => s.quiz_submissions || []) : rawSubmissions
+    return list as QuizSubmission[]
+  }, [rawSubmissions])
+
   // For students, pick their own submission
   const studentSubmission = React.useMemo(() => {
-    if (isTeacher || !Array.isArray(submissions)) return undefined
-    // Canvas returns quiz_submissions array nested or flat depending on endpoint
-    const list = submissions[0]?.quiz_submissions ? submissions.flatMap((s: any) => s.quiz_submissions || []) : submissions
-    return list[0] as QuizSubmission | undefined
+    if (isTeacher || !submissions) return undefined
+    return submissions[0] as QuizSubmission | undefined
   }, [submissions, isTeacher])
 
   return (
@@ -474,7 +479,7 @@ export default function QuizResultsPage() {
       {isTeacher ? (
         <TeacherResultsView submissions={submissions} stats={stats} isLoading={subsLoading} />
       ) : (
-        <StudentResultView quiz={quiz} submission={studentSubmission} questions={questions} isLoading={subsLoading} />
+        <StudentResultView quiz={quiz ?? undefined} submission={studentSubmission} questions={questions ?? undefined} isLoading={subsLoading} />
       )}
     </div>
   )

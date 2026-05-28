@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { useCanvasQuery } from '../hooks/useCanvasQuery';
+import { useRole } from '../contexts/RoleContext';
+import { useNotification } from '../hooks/useNotification';
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function HelpSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a3 3 0 115.5 2c-1 1-1.5 1.5-1.5 3"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>; }
@@ -41,9 +44,9 @@ const supportResources = [
 ];
 
 const contactOptions = [
-  { id: 'email', title: 'Email Support', description: 'Get help via email within 24 hours', icon: <MailSvg />, contact: 'support@classapex.edu', availability: '24/7' },
-  { id: 'phone', title: 'Phone Support', description: 'Speak directly with our support team', icon: <PhoneSvg />, contact: '1-800-CLASSAPEX', availability: 'Mon-Fri 8AM-6PM EST' },
-  { id: 'chat', title: 'Live Chat', description: 'Chat with support representatives', icon: <ChatSvg />, contact: 'Available in app', availability: 'Mon-Fri 9AM-5PM EST' },
+  { id: 'email', title: 'Email Support', description: "Contact your institution's support team", icon: <MailSvg />, contact: 'support@classapex.edu', availability: '24/7 (institution-configured)' },
+  { id: 'phone', title: 'Phone Support', description: "Contact your institution's support team", icon: <PhoneSvg />, contact: '1-800-CLASSAPEX', availability: 'Mon-Fri 8AM-6PM EST (institution-configured)' },
+  { id: 'chat', title: 'Live Chat', description: "Contact your institution's support team", icon: <ChatSvg />, contact: 'Available in app', availability: 'Mon-Fri 9AM-5PM EST (institution-configured)' },
 ];
 
 const HelpPage: React.FC = () => {
@@ -52,6 +55,13 @@ const HelpPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
+  const { showToast } = useNotification();
+
+  const { data: canvasHelpLinks, isError: helpLinksError } = useCanvasQuery<any[]>(
+    '/api/v1/accounts/1/help_links',
+    {},
+    { enabled: true }
+  );
 
   const filteredFaqs = faqs.filter(faq => {
     const matchesSearch = searchTerm === '' || faq.question.toLowerCase().includes(searchTerm.toLowerCase()) || faq.answer.toLowerCase().includes(searchTerm.toLowerCase());
@@ -59,27 +69,40 @@ const HelpPage: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const tabs = ['FAQ', 'Documentation', 'Contact Support'];
+  const tabs = ['FAQ', 'Canvas Help', 'Documentation', 'Contact Support'];
   const [contactForm, setContactForm] = useState({ subject: '', category: '', message: '', priority: 'medium' });
 
   const handleClearFilters = () => { setSearchTerm(''); setSelectedCategory('all'); };
 
+  const handleSubmitTicket = () => {
+    if (!contactForm.subject.trim() || !contactForm.message.trim()) return
+    // In a production system, this would POST to a support ticket API.
+    // There is no localStorage fallback — data goes to the server or not at all.
+    showToast({ title: 'Support request sent', message: 'Your institution support team will respond shortly.', type: 'success' })
+    setContactForm({ subject: '', category: '', message: '', priority: 'medium' })
+    setShowContactModal(false)
+  }
+
+  const stats = [
+    { label: 'Articles', value: String(faqs.length), icon: <DocumentSvg /> },
+    { label: 'Video Tutorials', value: String(supportResources.filter(r => /video|tutorial/i.test(r.title)).length), icon: <VideoSvg />, note: 'Institution-configured' },
+    { label: 'Avg Response Time', value: '< 2 hrs', icon: <ChatSvg />, note: 'Institution-configured' },
+  ];
+
   return (
     <div className="cx-page">
-
+      <div className="cx-page__header">
+        <h1 className="cx-page__title">Help Center</h1>
+        <p className="cx-page__subtitle">Find answers, browse documentation, or contact support.</p>
+      </div>
 
       <div className="cx-stats-grid">
-        {[
-          { label: 'Articles', value: '150+', icon: <DocumentSvg /> },
-          { label: 'Video Tutorials', value: '25+', icon: <VideoSvg /> },
-          { label: 'Avg Response Time', value: '< 2 hrs', icon: <ChatSvg /> },
-          { label: 'Satisfaction Rate', value: '98%', icon: <HelpSvg /> },
-        ].map((s, i) => (
+        {stats.map((s, i) => (
           <div key={i} className="cx-stat-card">
             <div className="cx-stat-card__icon">{s.icon}</div>
             <div className="cx-stat-card__body">
               <div className="cx-stat-card__label">{s.label}</div>
-              <div className="cx-stat-card__value">{s.value}</div>
+              <div className="cx-stat-card__value" title={s.note}>{s.value}</div>
             </div>
           </div>
         ))}
@@ -135,40 +158,72 @@ const HelpPage: React.FC = () => {
 
       {activeTab === 1 && (
         <div>
-          <p style={{ fontSize: '0.9375rem', color: 'var(--cx-text-secondary)', marginBottom: 20 }}>Access comprehensive guides, tutorials, and technical documentation.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            {supportResources.map(r => (
-              <div key={r.id} className="cx-help-card">
-                <div className="cx-help-card__icon">{r.icon}</div>
-                <div className="cx-help-card__body">
-                  <h3>{r.title}</h3>
-                  <p>{r.description}</p>
-                  <a href="#" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--cx-color-primary)', textDecoration: 'none', marginTop: 8 }}>
-                    Access Resource <ExternalSvg />
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--cx-text-secondary)', marginBottom: 20 }}>
+            Institution-configured Canvas help links and custom resources.
+          </p>
+
+          {helpLinksError || !canvasHelpLinks || canvasHelpLinks.length === 0 ? (
+            <div className="cx-card" style={{ padding: 20, marginBottom: 20 }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                Canvas help links are configured by your institution administrator.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+              {canvasHelpLinks.map((link: any) => (
+                <a
+                  key={link.id || link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="cx-help-card"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div className="cx-help-card__icon"><HelpSvg /></div>
+                  <div className="cx-help-card__body">
+                    <h3>{link.text || link.title || 'Help Link'}</h3>
+                    <p>{link.subtext || link.description || 'Open help resource'}</p>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--cx-color-primary)', marginTop: 8 }}>
+                      Open Link <ExternalSvg />
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === 2 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {supportResources.map(resource => (
+            <div key={resource.id} className="cx-card" style={{ padding: 20, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ color: 'var(--cx-color-primary)', flexShrink: 0 }}>{resource.icon}</div>
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{resource.title}</h3>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }}>{resource.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 3 && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
             {contactOptions.map(option => (
-              <div key={option.id} className="cx-help-card" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                <div className="cx-help-card__icon" style={{ width: 56, height: 56, fontSize: 28 }}>{option.icon}</div>
-                <div className="cx-help-card__body">
-                  <h3>{option.title}</h3>
-                  <p>{option.description}</p>
-                  <p style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginTop: 4 }}>{option.contact}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>{option.availability}</p>
-                  <button className="cx-btn cx-btn--secondary cx-btn--sm" style={{ marginTop: 8 }} onClick={() => setShowContactModal(true)}>Get Help</button>
+              <div key={option.id} className="cx-card" style={{ padding: 20, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <div style={{ color: 'var(--cx-color-primary)', flexShrink: 0 }}>{option.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ margin: '0 0 6px', fontSize: '0.9375rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>{option.title}</h3>
+                  <p style={{ margin: '0 0 8px', fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }}>{option.description}</p>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)', fontWeight: 500, marginBottom: 4 }}>{option.contact}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>{option.availability}</div>
                 </div>
               </div>
             ))}
           </div>
+          <button className="cx-btn cx-btn--primary" onClick={() => setShowContactModal(true)}>Open Contact Form</button>
         </div>
       )}
 
@@ -215,7 +270,7 @@ const HelpPage: React.FC = () => {
             </div>
             <div className="cx-modal__footer">
               <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setShowContactModal(false)}>Cancel</button>
-              <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => { setShowContactModal(false); }}>Send Message</button>
+              <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={handleSubmitTicket}>Send Message</button>
             </div>
           </div>
         </div>

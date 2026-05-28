@@ -17,6 +17,7 @@ import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
 import NewQuizzesIframe from '../components/NewQuizzesIframe'
 import './assignment.css'
+import LogoLoader from '../components/LogoLoader'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -361,7 +362,7 @@ function QuizTaker({
   if (!quiz) {
     return (
       <div className="cx-page">
-        <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+        <LogoLoader />
       </div>
     )
   }
@@ -1148,7 +1149,7 @@ export default function QuizzesPage() {
                 if (!courseId || !newQuiz.title.trim()) return
                 setCreatingQuiz(true)
                 try {
-                  await canvasFetch(`/api/v1/courses/${courseId}/quizzes`, {
+                  const createdQuiz: any = await canvasFetch(`/api/v1/courses/${courseId}/quizzes`, {
                     method: 'POST',
                     body: {
                       quiz: {
@@ -1159,6 +1160,15 @@ export default function QuizzesPage() {
                       }
                     }
                   })
+                  // Persist proctoring preference as custom_data since Canvas has no native proctoring field
+                  if (newQuiz.proctoring && createdQuiz?.id) {
+                    try {
+                      await canvasFetch(`/api/v1/courses/${courseId}/quizzes/${createdQuiz.id}/custom_data/classapex_proctoring`, {
+                        method: 'PUT',
+                        body: { data: { enabled: true, type: 'respondus_lockdown' } }
+                      })
+                    } catch (e) { /* custom_data may not be available; non-fatal */ }
+                  }
                   showToast({ title: 'Quiz Created', message: `"${newQuiz.title.trim()}" has been created.`, type: 'success' })
                   setNewQuiz({ title: '', timeLimit: '', proctoring: false, maxAttempts: 1 })
                   setShowCreateModal(false)

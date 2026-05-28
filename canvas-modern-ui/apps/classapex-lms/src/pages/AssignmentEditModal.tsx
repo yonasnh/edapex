@@ -24,6 +24,8 @@ const SUBMISSION_TYPE_OPTIONS = [
   { value: 'online_upload', label: 'File Upload' },
   { value: 'media_recording', label: 'Media Recording' },
   { value: 'student_annotation', label: 'Student Annotation' },
+  { value: 'annotated_document', label: 'Annotated Document (Office 365)' },
+  { value: 'studio_media', label: 'Canvas Studio' },
   { value: 'on_paper', label: 'On Paper' },
   { value: 'online_quiz', label: 'Online Quiz' },
   { value: 'external_tool', label: 'External Tool' },
@@ -113,6 +115,8 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
     grader_count: 2,
     final_grader_id: '',
     muted: false,
+    group_assignment: false,
+    group_count: 2,
   })
 
   const [overrides, setOverrides] = useState<Override[]>([])
@@ -146,6 +150,8 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
         grader_count: assignment.grader_count ?? 2,
         final_grader_id: assignment.final_grader_id ? String(assignment.final_grader_id) : '',
         muted: assignment.muted ?? false,
+        group_assignment: assignment.group_assignment ?? false,
+        group_count: assignment.group_count ?? 2,
       })
     }
   }, [isEdit, assignment])
@@ -176,13 +182,20 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
       if (set.has(value)) {
         set.delete(value)
       } else {
-        // 'none' is mutually exclusive with all other submission types
+        // 'none' and 'studio_media' are mutually exclusive with all other submission types
         if (value === 'none') {
           set.clear()
           set.add('none')
+        } else if (value === 'studio_media') {
+          set.clear()
+          set.add('studio_media')
         } else {
           set.delete('none')
+          set.delete('studio_media')
           set.add(value)
+          if (value === 'annotated_document') {
+            set.add('online_upload')
+          }
         }
       }
       return { ...prev, submission_types: Array.from(set) }
@@ -248,11 +261,23 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
     try {
       const validSubmissionTypes = [
         'none', 'on_paper', 'online_quiz', 'online_upload', 'online_text_entry',
-        'online_url', 'external_tool', 'media_recording', 'student_annotation'
+        'online_url', 'external_tool', 'media_recording', 'student_annotation',
+        'annotated_document', 'studio_media'
       ]
       const sanitizedSubmissionTypes = form.submission_types
         .filter((t: string) => validSubmissionTypes.includes(t))
         .filter((t: string, i: number, arr: string[]) => arr.indexOf(t) === i) // dedupe
+
+      const hasAnnotatedDocument = sanitizedSubmissionTypes.includes('annotated_document')
+      const hasStudioMedia = sanitizedSubmissionTypes.includes('studio_media')
+
+      const finalSubmissionTypes = sanitizedSubmissionTypes
+        .map((t: string) => {
+          if (t === 'annotated_document') return 'online_upload'
+          if (t === 'studio_media') return 'external_tool'
+          return t
+        })
+        .filter((t: string, i: number, arr: string[]) => arr.indexOf(t) === i)
 
       const payload: Record<string, any> = {
         assignment: {
@@ -260,13 +285,20 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
           description: form.description,
           points_possible: Number(form.points_possible) || 0,
           grading_type: form.grading_type,
-          submission_types: sanitizedSubmissionTypes.length > 0 ? sanitizedSubmissionTypes : ['none'],
+          submission_types: finalSubmissionTypes.length > 0 ? finalSubmissionTypes : ['none'],
           published: form.published,
           peer_reviews: form.peer_reviews,
           automatic_peer_reviews: form.automatic_peer_reviews,
           anonymous_grading: form.anonymous_grading,
           moderated_grading: form.moderated_grading,
         }
+      }
+
+      if (hasAnnotatedDocument) {
+        payload.assignment.annotatable = true
+      }
+      if (hasStudioMedia) {
+        payload.assignment.submission_type_external_tool_data = { tool_id: 'studio' }
       }
 
       if (form.due_at) payload.assignment.due_at = new Date(form.due_at).toISOString()
@@ -288,6 +320,11 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
         if (form.final_grader_id) {
           payload.assignment.final_grader_id = form.final_grader_id
         }
+      }
+
+      payload.assignment.group_assignment = form.group_assignment
+      if (form.group_assignment) {
+        payload.assignment.group_count = Math.max(2, Number(form.group_count) || 2)
       }
 
       let assignmentId = assignment?.id
@@ -323,7 +360,7 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
     }
   }
 
-  const showUploadOptions = form.submission_types.includes('online_upload')
+  const showUploadOptions = form.submission_types.includes('online_upload') || form.submission_types.includes('annotated_document')
 
   return (
     <div className="cx-modal-overlay" onClick={onClose}>
@@ -415,6 +452,16 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
                 </label>
               ))}
             </div>
+            {(form.submission_types.includes('annotated_document') || form.submission_types.includes('studio_media')) && (
+              <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginTop: 6, lineHeight: 1.5 }}>
+                {form.submission_types.includes('annotated_document') && (
+                  <span>Annotated Document submissions use Office 365 integration for in-browser document annotation. </span>
+                )}
+                {form.submission_types.includes('studio_media') && (
+                  <span>Canvas Studio submissions allow students to embed media directly from Canvas Studio.</span>
+                )}
+              </div>
+            )}
           </div>
 
           {showUploadOptions && (
@@ -446,7 +493,20 @@ export default function AssignmentEditModal({ courseId, assignment, onClose, onS
               <input type="checkbox" checked={form.muted} onChange={e => setForm(p => ({ ...p, muted: e.target.checked }))} style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }} />
               Muted (Hide Grades)
             </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.875rem', color: 'var(--cx-text-primary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.group_assignment} onChange={e => setForm(p => ({ ...p, group_assignment: e.target.checked }))} style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }} />
+              Group Assignment
+            </label>
           </div>
+
+          {form.group_assignment && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingLeft: 26 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)' }}>Students per Group</label>
+                <input type="number" min={2} max={50} className="cx-input" style={{ width: 70 }} value={form.group_count} onChange={e => setForm(p => ({ ...p, group_count: Math.max(2, Math.min(50, Number(e.target.value))) }))} />
+              </div>
+            </div>
+          )}
 
           {form.anonymous_grading && (
             <div style={{ paddingLeft: 26, fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', lineHeight: 1.5 }}>

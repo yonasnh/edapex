@@ -15,6 +15,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
+import LogoLoader from '../components/LogoLoader'
 
 interface ExternalTool {
   id: number
@@ -63,10 +64,7 @@ export default function ZoomLtiPage() {
   if (isLoading || loadingLaunch) {
     return (
       <div className="cx-page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '64px 0' }}>
-        <div className="cx-loading__spinner" />
-        <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
-          {isLoading ? 'Checking for Zoom…' : 'Preparing Zoom launch…'}
-        </span>
+        <LogoLoader text={isLoading ? 'Checking for Zoom…' : 'Preparing Zoom launch…'} />
       </div>
     )
   }

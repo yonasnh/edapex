@@ -9,28 +9,87 @@
  *   /accounts/:accountId/terms
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { useCanvasQuery } from '../../hooks/useCanvasQuery'
-
-interface LegalSetting {
-  id: number
-  name: string
-  url: string
-  type: 'terms_of_use' | 'privacy_policy'
-}
+import { useCanvasQuery, useCanvasMutation } from '../../hooks/useCanvasQuery'
 
 export default function PrivacySettingsPage() {
   const { accountId } = useParams<{ accountId: string }>()
   const resolvedAccountId = accountId || '1'
   const [showIframe, setShowIframe] = useState(false)
 
-  const { data: account, isLoading } = useCanvasQuery<any>(
+  const { data: account, isLoading, refetch } = useCanvasQuery<any>(
     `/api/v1/accounts/${resolvedAccountId}`
   )
 
+  const { mutate: updateAccount, isLoading: saving } = useCanvasMutation<any, any>(
+    `/api/v1/accounts/${resolvedAccountId}`,
+    'PUT'
+  )
+
+  const [name, setName] = useState('')
+  const [timeZone, setTimeZone] = useState('')
+  const [storageQuota, setStorageQuota] = useState<number | ''>('')
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    if (account) {
+      setName(account.name || '')
+      setTimeZone(account.default_time_zone || '')
+      setStorageQuota(account.default_storage_quota_mb ?? '')
+    }
+  }, [account])
+
   const termsUrl = account?.terms_of_service_url || ''
   const privacyUrl = account?.privacy_policy_url || ''
+
+  const handleSave = async () => {
+    setSaveSuccess(false)
+    setSaveError('')
+
+    const payload: any = {}
+    if (name !== (account?.name || '')) payload.name = name
+    if (timeZone !== (account?.default_time_zone || '')) payload.default_time_zone = timeZone
+    if (storageQuota !== (account?.default_storage_quota_mb ?? '')) {
+      payload.default_storage_quota_mb = Number(storageQuota)
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+      return
+    }
+
+    const result = await updateAccount(payload)
+    if (result) {
+      setSaveSuccess(true)
+      refetch()
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } else {
+      setSaveError('Failed to save account settings. Please try again.')
+      setTimeout(() => setSaveError(''), 5000)
+    }
+  }
+
+  const inpStyle: React.CSSProperties = {
+    border: '1px solid var(--cx-border-subtle)',
+    borderRadius: 'var(--radius-md)',
+    padding: '8px 12px',
+    width: '100%',
+    background: 'var(--cx-bg-surface)',
+    color: 'var(--cx-text-primary)',
+    fontFamily: 'inherit',
+    fontSize: 'var(--cx-text-sm)',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.8125rem',
+    fontWeight: 500,
+    color: 'var(--cx-text-primary)',
+    display: 'block',
+    marginBottom: 4,
+  }
 
   return (
     <div className="cx-page">
@@ -47,12 +106,78 @@ export default function PrivacySettingsPage() {
 
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[1, 2].map(i => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="cx-skeleton" style={{ height: 72, borderRadius: 10 }} />
           ))}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Editable Account Settings */}
+          <div
+            style={{
+              padding: '16px 20px',
+              borderRadius: 10,
+              background: 'var(--cx-bg-surface-elevated)',
+              border: '1px solid var(--cx-border-subtle)',
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--cx-text-primary)', marginBottom: 12 }}>
+              Account Settings
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Account Name</label>
+                <input
+                  type="text"
+                  style={inpStyle}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Default Time Zone</label>
+                <input
+                  type="text"
+                  style={inpStyle}
+                  value={timeZone}
+                  onChange={e => setTimeZone(e.target.value)}
+                  placeholder="America/New_York"
+                  disabled={saving}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Default Storage Quota (MB)</label>
+                <input
+                  type="number"
+                  style={inpStyle}
+                  min={0}
+                  value={storageQuota}
+                  onChange={e => setStorageQuota(e.target.value === '' ? '' : Number(e.target.value))}
+                  disabled={saving}
+                />
+              </div>
+
+              {saveSuccess && (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--cx-color-success)' }}>
+                  Account settings saved successfully.
+                </div>
+              )}
+              {saveError && (
+                <div style={{ fontSize: '0.8125rem', color: 'var(--cx-color-danger)' }}>
+                  {saveError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Read-only Legal URLs */}
           <div
             style={{
               padding: '16px 20px',

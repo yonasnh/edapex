@@ -10,7 +10,7 @@
  *  GET    /api/v1/courses/:id/blueprint_templates/:templateId/migrations/:migrationId
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { canvasFetch } from '../../hooks/useCanvasQuery'
 import { useNotification } from '../../hooks/useNotification'
 
@@ -32,6 +32,16 @@ interface Migration {
   created_at: string
 }
 
+interface Schedule {
+  id: string
+  templateId: number
+  frequency: 'daily' | 'weekly'
+  dayOfWeek?: number
+  time: string
+  enabled: boolean
+  lastRun?: string
+}
+
 export default function BlueprintCoursesPage() {
   const { showToast, showConfirm } = useNotification()
   const [courseId, setCourseId] = useState('')
@@ -41,7 +51,16 @@ export default function BlueprintCoursesPage() {
   const [associated, setAssociated] = useState<AssociatedCourse[]>([])
   const [migrations, setMigrations] = useState<Migration[]>([])
   const [newAssocId, setNewAssocId] = useState('')
+  const [syncComment, setSyncComment] = useState('')
+  const [syncExceptions, setSyncExceptions] = useState(false)
   const [syncing, setSyncing] = useState(false)
+
+  const [schedules, setSchedules] = useState<Schedule[]>(() => {
+    try { return JSON.parse(localStorage.getItem('classapex-blueprint-schedules') || '[]') } catch { return [] }
+  })
+  const [newScheduleFreq, setNewScheduleFreq] = useState<'daily' | 'weekly'>('daily')
+  const [newScheduleDay, setNewScheduleDay] = useState<number>(0)
+  const [newScheduleTime, setNewScheduleTime] = useState('08:00')
 
   const fetchTemplates = async () => {
     if (!courseId.trim()) return
@@ -116,21 +135,87 @@ export default function BlueprintCoursesPage() {
     }
   }
 
-  const handleSync = async () => {
-    if (!selectedTemplate) return
+  const handleSync = async (template?: BlueprintTemplate, comment?: string) => {
+    const t = template || selectedTemplate
+    if (!t) return
     setSyncing(true)
     try {
-      const result = await canvasFetch(`/api/v1/courses/${selectedTemplate.course_id}/blueprint_templates/${selectedTemplate.id}/migrations`, {
+      const body: any = { comment: comment || syncComment.trim() || 'Sync triggered from ClassApex' }
+      if (syncExceptions) {
+        body.copy_settings = true
+        body.publish_after_initial_sync = false
+      }
+      const result = await canvasFetch(`/api/v1/courses/${t.course_id}/blueprint_templates/${t.id}/migrations`, {
         method: 'POST',
-        body: { comment: 'Sync triggered from ClassApex' },
+        body,
       })
       showToast({ title: 'Sync started', type: 'success' })
       setMigrations(prev => [result, ...prev].slice(0, 5))
+      if (!template) setSyncComment('')
     } catch (err: any) {
       showToast({ title: 'Sync failed', message: err.message || 'Unknown error', type: 'error' })
     } finally {
       setSyncing(false)
     }
+  }
+
+  useEffect(() => {
+    localStorage.setItem('classapex-blueprint-schedules', JSON.stringify(schedules))
+  }, [schedules])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date()
+      setSchedules(prev => {
+        let changed = false
+        const next = prev.map(s => {
+          if (!s.enabled) return s
+          const [h, m] = s.time.split(':').map(Number)
+          if (now.getHours() !== h || now.getMinutes() !== m) return s
+          if (s.frequency === 'weekly' && s.dayOfWeek !== undefined && now.getDay() !== s.dayOfWeek) return s
+          if (s.lastRun) {
+            const lr = new Date(s.lastRun)
+            if (lr.getFullYear() === now.getFullYear() && lr.getMonth() === now.getMonth() && lr.getDate() === now.getDate()) return s
+          }
+          const tmpl = templates.find(t => t.id === s.templateId)
+          if (tmpl) {
+            const body: any = { comment: `Scheduled sync — ${s.frequency}` }
+            if (syncExceptions) {
+              body.copy_settings = true
+              body.publish_after_initial_sync = false
+            }
+            canvasFetch(`/api/v1/courses/${tmpl.course_id}/blueprint_templates/${tmpl.id}/migrations`, {
+              method: 'POST',
+              body,
+            }).then(result => {
+              showToast({ title: 'Scheduled sync started', type: 'success' })
+              setMigrations(prevMig => [result, ...prevMig].slice(0, 5))
+            }).catch((err: any) => {
+              showToast({ title: 'Scheduled sync failed', message: err.message || 'Unknown error', type: 'error' })
+            })
+            changed = true
+            return { ...s, lastRun: now.toISOString() }
+          }
+          return s
+        })
+        return changed ? next : prev
+      })
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [templates, syncExceptions])
+
+  const getNextRun = (schedule: Schedule): string => {
+    const now = new Date()
+    const [h, m] = schedule.time.split(':').map(Number)
+    let next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m)
+    if (schedule.frequency === 'daily') {
+      if (next <= now) next.setDate(next.getDate() + 1)
+    } else if (schedule.frequency === 'weekly' && schedule.dayOfWeek !== undefined) {
+      const daysUntil = (schedule.dayOfWeek - now.getDay() + 7) % 7
+      next.setDate(next.getDate() + daysUntil)
+      if (next <= now) next.setDate(next.getDate() + 7)
+    }
+    return next.toLocaleString()
   }
 
   return (
@@ -190,9 +275,24 @@ export default function BlueprintCoursesPage() {
           <div className="cx-card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Associated Courses</h3>
-              <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={syncing} onClick={handleSync}>
+              <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={syncing} onClick={() => handleSync()}>
                 {syncing ? 'Syncing…' : 'Sync Now'}
               </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              <input
+                type="text"
+                className="cx-input"
+                value={syncComment}
+                onChange={e => setSyncComment(e.target.value)}
+                placeholder="Sync comment (optional)"
+                style={{ width: '100%' }}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={syncExceptions} onChange={e => setSyncExceptions(e.target.checked)} />
+                Include settings and exceptions in sync
+              </label>
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -252,6 +352,76 @@ export default function BlueprintCoursesPage() {
                 ))}
               </ul>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Sync Schedules */}
+      {selectedTemplate && (
+        <div className="cx-card" style={{ padding: 20, marginTop: 20 }}>
+          <h3 style={{ margin: '0 0 14px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Sync Schedules</h3>
+
+          {schedules.filter(s => s.templateId === selectedTemplate.id).length === 0 ? (
+            <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', marginBottom: 16 }}>No schedules configured for this template.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {schedules.filter(s => s.templateId === selectedTemplate.id).map(schedule => (
+                <div key={schedule.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: '1px solid var(--cx-border-subtle)', background: 'var(--cx-bg-surface-raised, #f8fafc)', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={schedule.enabled} onChange={() => setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, enabled: !s.enabled } : s))} />
+                    {schedule.enabled ? 'Enabled' : 'Disabled'}
+                  </label>
+                  <select className="cx-input" style={{ fontSize: '0.8125rem', width: 100 }} value={schedule.frequency} onChange={e => setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, frequency: e.target.value as any } : s))}>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                  {schedule.frequency === 'weekly' && (
+                    <select className="cx-input" style={{ fontSize: '0.8125rem', width: 110 }} value={schedule.dayOfWeek ?? 0} onChange={e => setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, dayOfWeek: Number(e.target.value) } : s))}>
+                      <option value={0}>Sunday</option>
+                      <option value={1}>Monday</option>
+                      <option value={2}>Tuesday</option>
+                      <option value={3}>Wednesday</option>
+                      <option value={4}>Thursday</option>
+                      <option value={5}>Friday</option>
+                      <option value={6}>Saturday</option>
+                    </select>
+                  )}
+                  <input type="time" className="cx-input" style={{ fontSize: '0.8125rem', width: 120 }} value={schedule.time} onChange={e => setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, time: e.target.value } : s))} />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)' }}>Next: {getNextRun(schedule)}</span>
+                  <button className="cx-btn cx-btn--ghost cx-btn--sm" style={{ color: 'var(--cx-color-danger, #dc2626)', marginLeft: 'auto' }} onClick={() => setSchedules(prev => prev.filter(s => s.id !== schedule.id))}>Delete</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <select className="cx-input" style={{ fontSize: '0.8125rem', width: 110 }} value={newScheduleFreq} onChange={e => setNewScheduleFreq(e.target.value as any)}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+            {newScheduleFreq === 'weekly' && (
+              <select className="cx-input" style={{ fontSize: '0.8125rem', width: 110 }} value={newScheduleDay} onChange={e => setNewScheduleDay(Number(e.target.value))}>
+                <option value={0}>Sunday</option>
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+              </select>
+            )}
+            <input type="time" className="cx-input" style={{ fontSize: '0.8125rem', width: 120 }} value={newScheduleTime} onChange={e => setNewScheduleTime(e.target.value)} />
+            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => {
+              const newSchedule: Schedule = {
+                id: `sch-${Date.now()}`,
+                templateId: selectedTemplate.id,
+                frequency: newScheduleFreq,
+                dayOfWeek: newScheduleFreq === 'weekly' ? newScheduleDay : undefined,
+                time: newScheduleTime,
+                enabled: true,
+              }
+              setSchedules(prev => [...prev, newSchedule])
+            }}>Add Schedule</button>
           </div>
         </div>
       )}

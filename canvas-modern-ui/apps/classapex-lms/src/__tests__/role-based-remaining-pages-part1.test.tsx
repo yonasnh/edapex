@@ -171,7 +171,25 @@ function renderConferences(role: string) {
 function mockEPortfolioData() {
   vi.mocked(useCanvasQuery).mockImplementation((endpoint: string) => {
     if (endpoint === '/api/v1/eportfolios') {
-      return { data: [], isLoading: false, isError: false, refetch: vi.fn() } as any
+      return {
+        data: [
+          { id: 1, name: 'Jane Doe Capstone & Research Showcase', public: true, user_id: 1, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        ],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as any
+    }
+    if (endpoint?.includes('/api/v1/eportfolios/1/pages')) {
+      return {
+        data: [
+          { id: 101, eportfolio_id: 1, name: 'Introduction & Biography', content: '<p>Welcome to my academic page</p>', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+          { id: 102, eportfolio_id: 1, name: 'Biochemistry Lab Reports', content: '<p>Lab reports content</p>', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+        ],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      } as any
     }
     return { data: null, isLoading: false, isError: false, refetch: vi.fn() }
   })
@@ -445,19 +463,23 @@ describe('ePortfolio — Student Showcase', () => {
 
   it('renders ePortfolio page without crashing', () => {
     renderEPortfolio()
-    expect(screen.getByRole('heading', { name: /ePortfolios/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'ePortfolios' })).toBeInTheDocument()
   })
 
   it('displays default portfolio data', () => {
     renderEPortfolio()
-    expect(screen.getByText('Jane Doe Capstone & Research Showcase')).toBeInTheDocument()
-    expect(screen.getByText('Introduction & Biography')).toBeInTheDocument()
-    expect(screen.getByText('Biochemistry Lab Reports')).toBeInTheDocument()
+    // Portfolio name appears in the dropdown; use getAllByText
+    expect(screen.getAllByText('Jane Doe Capstone & Research Showcase').length).toBeGreaterThanOrEqual(1)
+    // Page names appear in sidebar and editor header
+    expect(screen.getAllByText('Introduction & Biography').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Biochemistry Lab Reports').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Welcome to my academic page').length).toBeGreaterThanOrEqual(1)
   })
 
   it('toggles preview mode on and off', () => {
     renderEPortfolio()
+    // Click into the portfolio first
+    fireEvent.click(screen.getByText('Jane Doe Capstone & Research Showcase'))
     const previewButton = screen.getByRole('button', { name: /Preview Portfolio/i })
     fireEvent.click(previewButton)
     expect(screen.getByRole('button', { name: /Edit Portfolio/i })).toBeInTheDocument()
@@ -472,12 +494,18 @@ describe('ePortfolio — Student Showcase', () => {
     expect(screen.getByRole('heading', { name: /Create New ePortfolio/i })).toBeInTheDocument()
   })
 
-  it('allows adding a new section', () => {
+  it('allows adding a new page', async () => {
+    const mockFetch = vi.mocked(canvasFetch).mockResolvedValue({ id: 999, name: 'New Test Page', content: '' })
     renderEPortfolio()
-    const sectionInput = screen.getByPlaceholderText(/New Section/i)
-    fireEvent.change(sectionInput, { target: { value: 'New Test Section' } })
+    const pageInput = screen.getByPlaceholderText(/New Page/i)
+    fireEvent.change(pageInput, { target: { value: 'New Test Page' } })
     fireEvent.click(screen.getByRole('button', { name: /^Add$/i }))
-    expect(screen.getByText('New Test Section')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/eportfolios/1/pages', {
+        method: 'POST',
+        body: { name: 'New Test Page', content: '' },
+      })
+    })
   })
 })
 

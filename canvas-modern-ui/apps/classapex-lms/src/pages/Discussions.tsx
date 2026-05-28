@@ -1,4 +1,25 @@
 import React, { useState, useMemo, useCallback } from 'react';
+
+const getViewStorageKey = (courseId: string, topicId: string) => `classapex-discussion-views-${courseId}-${topicId}`;
+
+const getStoredViewCount = (courseId: string, topicId: string): number => {
+  try {
+    const val = localStorage.getItem(getViewStorageKey(courseId, topicId));
+    return val ? parseInt(val, 10) || 0 : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const incrementStoredViewCount = (courseId: string, topicId: string) => {
+  try {
+    const key = getViewStorageKey(courseId, topicId);
+    const current = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    localStorage.setItem(key, String(current + 1));
+  } catch {
+    // ignore localStorage errors
+  }
+};
 import clsx from 'clsx';
 import ReplyEditor from '../widgets/ReplyEditor';
 import { MediaLibrary } from '../widgets/MediaLibrary';
@@ -23,10 +44,6 @@ interface Discussion {
   isSubscribed?: boolean;
   tags?: string[];
 }
-
-// We will fetch these from Canvas API instead
-// const initialDiscussions = ...
-// const mockCourses = ...
 
 const SearchSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>;
 const PlusSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>;
@@ -156,7 +173,7 @@ const DiscussionsPage: React.FC = () => {
     createdAt: d.posted_at || d.created_at,
     lastReplyAt: d.last_reply_at,
     replyCount: d.discussion_subentry_count || 0,
-    viewCount: 0,
+    viewCount: getStoredViewCount(filterCourse || '', String(d.id)) + (d.discussion_subentry_count || 0),
     likeCount: d.rating_count || d.rating_sum || 0,
     isLiked: !!d.rating_sum || false,
     allowRating: d.allow_rating,
@@ -367,7 +384,10 @@ const DiscussionsPage: React.FC = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {paginatedDiscussions.map(discussion => (
-            <div key={discussion.id} className="cx-discussion-card" onClick={() => setSelectedDiscussion(discussion)}>
+            <div key={discussion.id} className="cx-discussion-card" onClick={() => {
+              if (filterCourse) incrementStoredViewCount(filterCourse, discussion.id);
+              setSelectedDiscussion(discussion);
+            }}>
               <div className="cx-discussion-card__header">
                 <div className="cx-discussion-card__titles">
                   {discussion.isPinned && <span className="cx-discussion-card__pin" title="Pinned"><PinSvg /></span>}

@@ -5,6 +5,7 @@ import { useCanvasQuery, useCanvasMutation, canvasFetch } from '../hooks/useCanv
 import { useNotification } from '../hooks/useNotification';
 import { useRole } from '../contexts/RoleContext';
 import { Link } from 'react-router-dom';
+import LogoLoader from '../components/LogoLoader'
 
 
 function UserSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 17v-1a3 3 0 00-3-3H7a3 3 0 00-3 3v1"/><circle cx="10" cy="6" r="3"/></svg>; }
@@ -50,6 +51,76 @@ function ObserverPairingSection() {
         <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={generateCode} disabled={loading}>
           {loading ? 'Generating...' : 'Generate Code'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+function ObserverManageSection() {
+  const { showToast } = useNotification()
+  const [observeeId, setObserveeId] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  const { data: observees, refetch } = useCanvasQuery<any[]>('/api/v1/users/self/observees', { per_page: 50 } as any)
+
+  const handleAdd = async () => {
+    if (!observeeId.trim()) return
+    setAdding(true)
+    try {
+      await canvasFetch('/api/v1/users/self/observees', {
+        method: 'POST',
+        body: { observee: { unique_id: observeeId.trim() } },
+      })
+      showToast({ title: 'Observee added', type: 'success' })
+      setObserveeId('')
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Add failed', message: err.message || 'Unknown error', type: 'error' })
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleRemove = async (id: number) => {
+    try {
+      await canvasFetch(`/api/v1/users/self/observees/${id}`, { method: 'DELETE' })
+      showToast({ title: 'Observee removed', type: 'success' })
+      refetch()
+    } catch (err: any) {
+      showToast({ title: 'Remove failed', message: err.message || 'Unknown error', type: 'error' })
+    }
+  }
+
+  return (
+    <div className="cx-settings-section">
+      <h2 className="cx-settings-section__title"><ShieldSvg /> Observee Management</h2>
+      <div className="cx-section">
+        <div className="cx-settings-row" style={{ borderBottom: 'none' }}>
+          <div>
+            <div className="cx-settings-row__label">Linked Students</div>
+            <div className="cx-settings-row__desc">Manage students you are observing as a parent/guardian</div>
+          </div>
+          <div className="cx-settings-row__control" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input type="text" className="cx-input" style={{ width: 200 }} value={observeeId} onChange={e => setObserveeId(e.target.value)} placeholder="Student ID or email" />
+              <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={handleAdd} disabled={adding}>{adding ? 'Adding…' : 'Add'}</button>
+            </div>
+            <div style={{ width: '100%', maxWidth: 320 }}>
+              {!Array.isArray(observees) || observees.length === 0 ? (
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)', margin: 0 }}>No observees linked.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {observees.map((obs: any) => (
+                    <div key={obs.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'var(--cx-bg-surface-raised)', borderRadius: 6, border: '1px solid var(--cx-border-subtle)' }}>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }}>{obs.name}</span>
+                      <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleRemove(obs.id)} style={{ color: 'var(--cx-color-danger)' }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -127,9 +198,23 @@ const SettingsPage: React.FC = () => {
   const [bio, setBio] = useState('')
   const [timezone, setTimezone] = useState('America/New_York')
 
-  // ── Notification prefs (Canvas notification_preferences API) ──
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [pushNotifications, setPushNotifications] = useState(false)
+  // ── Notification prefs ──
+  // Canvas does not expose a single global notification enable/disable endpoint.
+  // We persist preferences to localStorage and apply them client-side.
+  const [emailNotifications, setEmailNotifications] = useState(() => {
+    try { return localStorage.getItem('classapex-email-notifications') !== 'false' } catch { return true }
+  })
+  const [pushNotifications, setPushNotifications] = useState(() => {
+    try { return localStorage.getItem('classapex-push-notifications') === 'true' } catch { return false }
+  })
+
+  React.useEffect(() => {
+    localStorage.setItem('classapex-email-notifications', String(emailNotifications))
+  }, [emailNotifications])
+
+  React.useEffect(() => {
+    localStorage.setItem('classapex-push-notifications', String(pushNotifications))
+  }, [pushNotifications])
 
   // ── Accessibility Options (S23-04, S23-05) ──
   const [highContrast, setHighContrast] = useState(() => {
@@ -338,10 +423,7 @@ const SettingsPage: React.FC = () => {
   if (userLoading) {
     return (
       <div className="cx-page">
-        <div className="cx-loading" role="status" aria-label="Loading settings">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading settings profile…</span>
-        </div>
+        <LogoLoader text="Loading settings profile…" />
       </div>
     )
   }
@@ -588,7 +670,7 @@ const SettingsPage: React.FC = () => {
                 if (!newChannel.trim()) return
                 try { await canvasFetch('/api/v1/users/self/communication_channels', { method: 'POST', body: { communication_channel: { address: newChannel.trim(), type: 'email' } } }); setNewChannel(''); refetchChannels(); showToast({ title: 'Channel added', type: 'success' }) }
                 catch (err: any) { showToast({ title: 'Add failed', message: err.message, type: 'error' }) }
-              }}>Add</button>
+              }}>Add Channel</button>
             </div>
           </div>
         </div>
@@ -811,6 +893,9 @@ const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Observee Management (observers/parents) ── */}
+      <ObserverManageSection />
 
       {/* ── Data Export ── */}
       <div className="cx-settings-section">

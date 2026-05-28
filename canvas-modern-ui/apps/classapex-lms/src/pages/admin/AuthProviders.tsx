@@ -3,14 +3,16 @@
  * ====================================
  * Canvas REST API integration:
  *   GET  /api/v1/accounts/:accountId/authentication_providers
+ *   POST /api/v1/accounts/:accountId/authentication_providers
+ *   PUT  /api/v1/accounts/:accountId/authentication_providers/:id
  *   DELETE /api/v1/accounts/:accountId/authentication_providers/:id
  *
  * Lists and manages authentication providers (SAML, OAuth, LDAP, etc.).
- * Creation and detailed editing are handled via iframe to Canvas native
- * authentication settings for security and completeness.
+ * Creation and editing are handled via native React forms; an iframe fallback
+ * to Canvas native settings is available for advanced/native-only options.
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery'
 import { useNotification } from '../../hooks/useNotification'
@@ -22,6 +24,35 @@ interface AuthProvider {
   auth_type: string
   position: number
   [key: string]: any
+}
+
+type AuthType = 'saml' | 'openid_connect' | 'google' | 'microsoft' | 'ldap'
+
+interface SamlFormData {
+  idp_entity_id: string
+  log_in_url: string
+  log_out_url: string
+  certificate_fingerprint: string
+  identifier_format: string
+  requested_authn_context: string
+}
+
+interface OauthFormData {
+  client_id: string
+  client_secret: string
+  authorize_url: string
+  token_url: string
+  scope: string
+}
+
+interface LdapFormData {
+  auth_host: string
+  auth_port: string
+  auth_base: string
+  auth_filter: string
+  auth_username: string
+  auth_password: string
+  identifier_format: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +88,318 @@ function getProviderLabel(type: string): string {
     clever: 'Clever',
   }
   return labels[type.toLowerCase()] || type
+}
+
+function isOauthType(type: string): boolean {
+  return ['openid_connect', 'google', 'microsoft'].includes(type)
+}
+
+// ─── Form Helpers ─────────────────────────────────────────────────────────────
+
+const AUTH_TYPE_OPTIONS: { value: AuthType; label: string }[] = [
+  { value: 'saml', label: 'SAML 2.0' },
+  { value: 'google', label: 'Google OAuth' },
+  { value: 'microsoft', label: 'Microsoft OAuth' },
+  { value: 'openid_connect', label: 'OpenID Connect' },
+  { value: 'ldap', label: 'LDAP' },
+]
+
+const defaultIdentifierFormat = 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
+
+function getInitialFormState(type: AuthType): Record<string, string> {
+  switch (type) {
+    case 'saml':
+      return {
+        idp_entity_id: '',
+        log_in_url: '',
+        log_out_url: '',
+        certificate_fingerprint: '',
+        identifier_format: defaultIdentifierFormat,
+        requested_authn_context: '',
+      }
+    case 'openid_connect':
+      return {
+        client_id: '',
+        client_secret: '',
+        authorize_url: '',
+        token_url: '',
+        scope: '',
+      }
+    case 'google':
+    case 'microsoft':
+      return {
+        client_id: '',
+        client_secret: '',
+        scope: '',
+      }
+    case 'ldap':
+      return {
+        auth_host: '',
+        auth_port: '389',
+        auth_base: '',
+        auth_filter: '',
+        auth_username: '',
+        auth_password: '',
+        identifier_format: '',
+      }
+    default:
+      return {}
+  }
+}
+
+function providerToFormState(provider: AuthProvider): Record<string, string> {
+  const type = provider.auth_type as AuthType
+  const state = getInitialFormState(type)
+  Object.keys(state).forEach((key) => {
+    if (provider[key] !== undefined && provider[key] !== null) {
+      state[key] = String(provider[key])
+    }
+  })
+  return state
+}
+
+// ─── Form Input ───────────────────────────────────────────────────────────────
+
+function FormField({
+  label,
+  name,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+  required,
+}: {
+  label: string
+  name: string
+  value: string
+  onChange: (val: string) => void
+  type?: string
+  placeholder?: string
+  required?: boolean
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
+        {label}
+        {required && <span style={{ color: 'var(--cx-color-danger, #ef4444)', marginLeft: 4 }}>*</span>}
+      </label>
+      <input
+        type={type}
+        className="cx-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        data-testid={`field-${name}`}
+      />
+    </div>
+  )
+}
+
+// ─── Auth Provider Form Modal ─────────────────────────────────────────────────
+
+function AuthProviderForm({
+  accountId,
+  provider,
+  onClose,
+  onSaved,
+}: {
+  accountId: string
+  provider?: AuthProvider | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { showToast } = useNotification()
+  const isEditing = !!provider
+  const [authType, setAuthType] = useState<AuthType>(provider?.auth_type as AuthType || 'saml')
+  const [fields, setFields] = useState<Record<string, string>>(() =>
+    provider ? providerToFormState(provider) : getInitialFormState('saml')
+  )
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (provider) {
+      setAuthType(provider.auth_type as AuthType)
+      setFields(providerToFormState(provider))
+    }
+  }, [provider])
+
+  const updateField = (name: string, value: string) => {
+    setFields((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleAuthTypeChange = (type: AuthType) => {
+    setAuthType(type)
+    setFields(getInitialFormState(type))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+
+    const body: Record<string, any> = { auth_type: authType }
+
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value !== '') {
+        if (key === 'auth_port') {
+          body[key] = Number(value)
+        } else {
+          body[key] = value
+        }
+      }
+    })
+
+    try {
+      if (isEditing && provider) {
+        await canvasFetch(`/api/v1/accounts/${accountId}/authentication_providers/${provider.id}`, {
+          method: 'PUT',
+          body: { authentication_provider: body },
+        })
+        showToast({ title: 'Updated', message: `${getProviderLabel(authType)} provider updated.`, type: 'success' })
+      } else {
+        await canvasFetch(`/api/v1/accounts/${accountId}/authentication_providers`, {
+          method: 'POST',
+          body: { authentication_provider: body },
+        })
+        showToast({ title: 'Created', message: `${getProviderLabel(authType)} provider added.`, type: 'success' })
+      }
+      onSaved()
+    } catch (err: any) {
+      showToast({ title: 'Save Failed', message: err?.message || 'Please try again.', type: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const renderFields = () => {
+    switch (authType) {
+      case 'saml':
+        return (
+          <>
+            <FormField label="IdP Entity ID" name="idp_entity_id" value={fields.idp_entity_id || ''} onChange={(v) => updateField('idp_entity_id', v)} required />
+            <FormField label="Login URL" name="log_in_url" value={fields.log_in_url || ''} onChange={(v) => updateField('log_in_url', v)} required />
+            <FormField label="Logout URL" name="log_out_url" value={fields.log_out_url || ''} onChange={(v) => updateField('log_out_url', v)} placeholder="Optional" />
+            <FormField label="Certificate Fingerprint" name="certificate_fingerprint" value={fields.certificate_fingerprint || ''} onChange={(v) => updateField('certificate_fingerprint', v)} required />
+            <FormField label="Identifier Format" name="identifier_format" value={fields.identifier_format || ''} onChange={(v) => updateField('identifier_format', v)} placeholder={defaultIdentifierFormat} />
+            <FormField label="Requested Authn Context" name="requested_authn_context" value={fields.requested_authn_context || ''} onChange={(v) => updateField('requested_authn_context', v)} placeholder="Optional" />
+          </>
+        )
+      case 'openid_connect':
+        return (
+          <>
+            <FormField label="Client ID" name="client_id" value={fields.client_id || ''} onChange={(v) => updateField('client_id', v)} required />
+            <FormField label="Client Secret" name="client_secret" value={fields.client_secret || ''} onChange={(v) => updateField('client_secret', v)} required />
+            <FormField label="Authorize URL" name="authorize_url" value={fields.authorize_url || ''} onChange={(v) => updateField('authorize_url', v)} required />
+            <FormField label="Token URL" name="token_url" value={fields.token_url || ''} onChange={(v) => updateField('token_url', v)} required />
+            <FormField label="Scope" name="scope" value={fields.scope || ''} onChange={(v) => updateField('scope', v)} placeholder="Optional" />
+          </>
+        )
+      case 'google':
+      case 'microsoft':
+        return (
+          <>
+            <FormField label="Client ID" name="client_id" value={fields.client_id || ''} onChange={(v) => updateField('client_id', v)} required />
+            <FormField label="Client Secret" name="client_secret" value={fields.client_secret || ''} onChange={(v) => updateField('client_secret', v)} required />
+            <FormField label="Scope" name="scope" value={fields.scope || ''} onChange={(v) => updateField('scope', v)} placeholder="Optional" />
+          </>
+        )
+      case 'ldap':
+        return (
+          <>
+            <FormField label="Host" name="auth_host" value={fields.auth_host || ''} onChange={(v) => updateField('auth_host', v)} required />
+            <FormField label="Port" name="auth_port" value={fields.auth_port || ''} onChange={(v) => updateField('auth_port', v)} type="number" required />
+            <FormField label="Base DN" name="auth_base" value={fields.auth_base || ''} onChange={(v) => updateField('auth_base', v)} required />
+            <FormField label="Filter" name="auth_filter" value={fields.auth_filter || ''} onChange={(v) => updateField('auth_filter', v)} required />
+            <FormField label="Username" name="auth_username" value={fields.auth_username || ''} onChange={(v) => updateField('auth_username', v)} placeholder="Optional" />
+            <FormField label="Password" name="auth_password" value={fields.auth_password || ''} onChange={(v) => updateField('auth_password', v)} type="password" placeholder="Optional" />
+            <FormField label="Identifier Format" name="identifier_format" value={fields.identifier_format || ''} onChange={(v) => updateField('identifier_format', v)} placeholder="Optional" />
+          </>
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(10, 10, 10, 0.6)',
+        backdropFilter: 'blur(8px)',
+      }}
+      onClick={onClose}
+      data-testid="auth-provider-form-modal"
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 520,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          background: 'var(--cx-bg-surface, #fff)',
+          border: '1px solid var(--cx-border-subtle)',
+          borderRadius: 12,
+          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--cx-border-subtle)',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--cx-text-primary)' }}>
+            {isEditing ? 'Edit Authentication Provider' : 'Add Authentication Provider'}
+          </span>
+          <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={onClose} data-testid="close-form-modal">
+            Cancel
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Provider Type</label>
+            <select
+              className="cx-select"
+              value={authType}
+              onChange={(e) => handleAuthTypeChange(e.target.value as AuthType)}
+              disabled={isEditing}
+              data-testid="auth-type-select"
+            >
+              {AUTH_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {renderFields()}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="cx-btn cx-btn--secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="cx-btn cx-btn--primary" disabled={saving} data-testid="save-provider">
+              {saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Provider'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
 }
 
 // ─── Canvas Native Settings Iframe ────────────────────────────────────────────
@@ -100,6 +443,8 @@ export default function AuthProvidersPage() {
   const { showToast, showConfirm } = useNotification()
 
   const [showIframe, setShowIframe] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editingProvider, setEditingProvider] = useState<AuthProvider | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const {
@@ -139,11 +484,34 @@ export default function AuthProvidersPage() {
     }
   }
 
+  const handleOpenCreate = () => {
+    setEditingProvider(null)
+    setShowForm(true)
+  }
+
+  const handleOpenEdit = (provider: AuthProvider) => {
+    setEditingProvider(provider)
+    setShowForm(true)
+  }
+
+  const handleCloseForm = () => {
+    setShowForm(false)
+    setEditingProvider(null)
+  }
+
+  const handleSaved = () => {
+    handleCloseForm()
+    refetch()
+  }
+
   return (
     <div className="cx-page">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)', flex: 1 }}>Authentication Providers</h2>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowIframe(true)}>
+        <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowIframe(true)}>
+          Advanced Settings
+        </button>
+        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={handleOpenCreate} data-testid="add-provider-btn">
           + Add Provider
         </button>
       </div>
@@ -167,7 +535,7 @@ export default function AuthProvidersPage() {
             </svg>
           </div>
           <p>No authentication providers configured.</p>
-          <button className="cx-btn cx-btn--primary" onClick={() => setShowIframe(true)} style={{ marginTop: 16 }}>
+          <button className="cx-btn cx-btn--primary" onClick={handleOpenCreate} style={{ marginTop: 16 }} data-testid="configure-auth-btn">
             Configure Authentication
           </button>
         </div>
@@ -205,7 +573,8 @@ export default function AuthProvidersPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <button
                   className="cx-btn cx-btn--ghost cx-btn--sm"
-                  onClick={() => setShowIframe(true)}
+                  onClick={() => handleOpenEdit(provider)}
+                  data-testid={`edit-provider-${provider.id}`}
                 >
                   Edit
                 </button>
@@ -228,6 +597,15 @@ export default function AuthProvidersPage() {
       <p style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', marginTop: 12, textAlign: 'right' }}>
         {sorted.length} provider{sorted.length !== 1 ? 's' : ''}
       </p>
+
+      {showForm && (
+        <AuthProviderForm
+          accountId={resolvedAccountId}
+          provider={editingProvider}
+          onClose={handleCloseForm}
+          onSaved={handleSaved}
+        />
+      )}
 
       {showIframe && (
         <AuthSettingsIframe

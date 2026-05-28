@@ -6,6 +6,7 @@ import PrivacySettingsPage from '../PrivacySettings'
 
 vi.mock('../../../hooks/useCanvasQuery', () => ({
   useCanvasQuery: vi.fn(),
+  useCanvasMutation: () => ({ mutate: vi.fn(), isLoading: false }),
 }))
 
 import { useCanvasQuery } from '../../../hooks/useCanvasQuery'

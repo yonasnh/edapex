@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCanvasQuery } from '../../hooks/useCanvasQuery';
 import VirtualList from '../../widgets/VirtualList';
+import LogoLoader from '../../components/LogoLoader'
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function ActivitySvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 10h4l3-6 4 12 3-6h4"/></svg>; }
@@ -23,11 +24,17 @@ export default function GradeChangeAuditPage() {
   const [courseId, setCourseId] = useState('');
   const [studentId, setStudentId] = useState('');
   const [graderId, setGraderId] = useState('');
-  
+  const [eventType, setEventType] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const queryParams: Record<string, string> = {};
   if (courseId) queryParams.course_id = courseId;
   if (studentId) queryParams.student_id = studentId;
   if (graderId) queryParams.grader_id = graderId;
+  if (eventType) queryParams.event_type = eventType;
+  if (startDate) queryParams.start_time = new Date(startDate).toISOString();
+  if (endDate) queryParams.end_time = new Date(endDate).toISOString();
 
   const { data: eventsData, isLoading } = useCanvasQuery<any>(
     '/api/v1/audit/grade_change',
@@ -35,11 +42,26 @@ export default function GradeChangeAuditPage() {
   );
 
   const events: GradeChange[] = eventsData?.events || [];
-  
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+  };
+
+  const handleExportCSV = () => {
+    if (events.length === 0) return;
+    const header = 'Date,Course ID,Assignment ID,Student ID,Grader ID,Event Type,Previous Grade,New Grade\n';
+    const rows = events.map(e =>
+      `${e.created_at},${e.course_id},${e.assignment_id},${e.student_id},${e.grader_id},${e.event_type},${e.grade_before || '—'},${e.grade_after || '—'}`
+    ).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `grade-change-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -51,7 +73,7 @@ export default function GradeChangeAuditPage() {
         </div>
       </div>
 
-      <div className="cx-toolbar" style={{ marginBottom: 24 }}>
+      <div className="cx-toolbar" style={{ marginBottom: 24, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
         <div className="cx-search">
           <SearchSvg />
           <input type="text" className="cx-search__input" placeholder="Course ID" value={courseId} onChange={e => setCourseId(e.target.value)} />
@@ -64,10 +86,21 @@ export default function GradeChangeAuditPage() {
           <SearchSvg />
           <input type="text" className="cx-search__input" placeholder="Grader ID" value={graderId} onChange={e => setGraderId(e.target.value)} />
         </div>
+        <select className="cx-select" style={{ height: 36 }} value={eventType} onChange={e => setEventType(e.target.value)}>
+          <option value="">All Events</option>
+          <option value="grade_change">Grade Change</option>
+          <option value="excused">Excused</option>
+          <option value="override">Override</option>
+        </select>
+        <input type="date" className="cx-input" style={{ height: 36, width: 140 }} value={startDate} onChange={e => setStartDate(e.target.value)} title="Start date" />
+        <input type="date" className="cx-input" style={{ height: 36, width: 140 }} value={endDate} onChange={e => setEndDate(e.target.value)} title="End date" />
+        <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportCSV} disabled={events.length === 0}>
+          Export CSV
+        </button>
       </div>
 
       {isLoading ? (
-        <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+        <LogoLoader />
       ) : events.length === 0 ? (
         <div className="cx-empty">
           <ActivitySvg />

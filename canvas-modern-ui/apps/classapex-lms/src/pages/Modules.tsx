@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
 import { useRole } from '../contexts/RoleContext';
+import LogoLoader from '../components/LogoLoader'
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function DragHandleSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 4h6M5 8h6M5 12h6"/></svg>; }
@@ -418,7 +419,7 @@ export default function ModulesPage() {
   if (isLoading) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     );
   }

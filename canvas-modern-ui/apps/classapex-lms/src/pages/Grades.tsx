@@ -23,11 +23,8 @@ interface Grade {
   isLate?: boolean;
   isMissing?: boolean;
   isExcused?: boolean;
+  rubricAssessment?: any;
 }
-
-// We will fetch this data from the Live Canvas API instead
-// const liveGrades = ...
-// const mockCourses = ...
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function TrophySvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 3h10v4a5 5 0 01-10 0V3z"/><path d="M7 3V1h6v2"/><path d="M5 14h10v2H5z"/><path d="M10 14v4"/></svg>; }
@@ -127,6 +124,7 @@ export function filterGrades(
 
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 import { useRole } from '../contexts/RoleContext';
+import LogoLoader from '../components/LogoLoader'
 
 const GradesPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -145,6 +143,17 @@ const GradesPage: React.FC = () => {
   const [whatIfMode, setWhatIfMode] = useState(false)
   const [whatIfScores, setWhatIfScores] = useState<Record<string, number | null>>({})
   const [latePolicy, setLatePolicy] = useState<LatePolicy>(defaultLatePolicy)
+  const [showRubric, setShowRubric] = useState(false)
+
+  const { data: rubricData } = useCanvasQuery<any>(
+    selectedGrade ? `/api/v1/courses/${filterCourse}/assignments/${selectedGrade.assignment.id}/rubrics` : '',
+    undefined,
+    { enabled: !!selectedGrade }
+  )
+
+  React.useEffect(() => {
+    setShowRubric(false)
+  }, [selectedGrade])
 
   // Canvas API Integrations
   const { data: coursesData } = useCanvasQuery<any[]>('/api/v1/users/self/courses', { enrollment_state: 'active' } as any)
@@ -160,7 +169,7 @@ const GradesPage: React.FC = () => {
 
   const { data: submissionsData } = useCanvasQuery<any[]>(
     filterCourse ? `/api/v1/courses/${filterCourse}/students/submissions` : '',
-    { student_ids: ['self'], include: ['assignment'], per_page: 50 },
+    { student_ids: ['self'], include: ['assignment', 'rubric_assessment'], per_page: 50 },
     { enabled: !!filterCourse }
   )
 
@@ -188,6 +197,7 @@ const GradesPage: React.FC = () => {
         isLate: sub.late,
         isMissing: sub.missing,
         isExcused: sub.excused,
+        rubricAssessment: sub.rubric_assessment,
       }
     })
   }, [submissionsData, courses, filterCourse])
@@ -628,6 +638,66 @@ const GradesPage: React.FC = () => {
                   <p style={{ color: 'var(--cx-text-secondary)', lineHeight: 1.6 }}>{selectedGrade.feedback}</p>
                 </div>
               )}
+              {selectedGrade.rubricAssessment && (
+                <div className="cx-detail-section">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h4 style={{ margin: 0 }}>Rubric</h4>
+                    <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => setShowRubric(v => !v)}>
+                      {showRubric ? 'Hide Rubric' : 'View Rubric'}
+                    </button>
+                  </div>
+                  {showRubric && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
+                            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Criterion</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Points Earned</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Comments</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const rubric = Array.isArray(rubricData) ? rubricData[0] : rubricData
+                            const criteria = rubric?.criteria || []
+                            if (!criteria.length) {
+                              return (
+                                <tr>
+                                  <td colSpan={3} style={{ padding: '12px', textAlign: 'center', color: 'var(--cx-text-tertiary)' }}>
+                                    Rubric details not available.
+                                  </td>
+                                </tr>
+                              )
+                            }
+                            return criteria.map((criterion: any) => {
+                              const assessment = selectedGrade.rubricAssessment[criterion.id] || {}
+                              const rating = criterion.ratings?.find((r: any) => r.id === assessment.rating_id)
+                              return (
+                                <tr key={criterion.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                                  <td style={{ padding: '8px 12px', verticalAlign: 'top' }}>
+                                    <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{criterion.description}</div>
+                                    {rating && (
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
+                                        {rating.description}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--cx-color-primary)', verticalAlign: 'top' }}>
+                                    {assessment.points !== undefined ? `${assessment.points} / ${criterion.points}` : `— / ${criterion.points}`}
+                                  </td>
+                                  <td style={{ padding: '8px 12px', color: 'var(--cx-text-secondary)', fontSize: '0.8rem', verticalAlign: 'top' }}>
+                                    {assessment.comments || '—'}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -645,7 +715,6 @@ const GradesPage: React.FC = () => {
 // ─── Outcomes Tab Component ───────────────────────────────────────────────────
 
 function OutcomesTab({ courseId }: { courseId: string }) {
-  const [viewMode, setViewMode] = useState<'table' | 'matrix'>('table')
   const { data: rollupsData, isLoading } = useCanvasQuery<any>(
     courseId ? `/api/v1/courses/${courseId}/outcome_rollups` : '',
     { 'user_ids[]': ['self'] } as any
@@ -662,7 +731,7 @@ function OutcomesTab({ courseId }: { courseId: string }) {
   }
 
   if (isLoading) {
-    return <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+    return <LogoLoader />
   }
 
   const rollups = rollupsData?.rollups || []
@@ -685,23 +754,17 @@ function OutcomesTab({ courseId }: { courseId: string }) {
     }
   })
 
-  // Provide fallback outcomes if none loaded to demonstrate curriculum mapping
-  const activeOutcomes = outcomesList.length > 0 ? outcomesList : [
-    { id: 101, title: 'LO-1: Critical Analysis', score: 4.5, masteryPoints: 3.0, pointsPossible: 5.0, description: 'Analyze texts critically' },
-    { id: 102, title: 'LO-2: Citation & Sources', score: 2.8, masteryPoints: 4.0, pointsPossible: 5.0, description: 'Evaluate sources and cite properly' },
-    { id: 103, title: 'LO-3: Professional Writing', score: 4.0, masteryPoints: 3.5, pointsPossible: 5.0, description: 'Produce clean professional deliverables' }
-  ]
+  if (outcomesList.length === 0) {
+    return (
+      <div className="cx-empty">
+        <h3>No learning outcomes available</h3>
+        <p>This course has no outcomes configured or no outcome data has been recorded yet.</p>
+      </div>
+    )
+  }
 
-  const masteredCount = activeOutcomes.filter((o: any) => o.score != null && o.score >= o.masteryPoints).length
-  const evaluatedCount = activeOutcomes.filter((o: any) => o.score != null).length
-
-  // Generate curriculum mapping matrix
-  const alignedAssignments = [
-    { id: 'a1', name: 'Midterm Research Essay', type: 'assignment', scores: { [activeOutcomes[0]?.id]: 4.5, [activeOutcomes[2]?.id]: 4.0 } },
-    { id: 'a2', name: 'Weekly Discussion 3: Reflection', type: 'discussion', scores: { [activeOutcomes[0]?.id]: 2.5 } },
-    { id: 'a3', name: 'Final Course Project & Presentation', type: 'project', scores: { [activeOutcomes[1]?.id]: 4.8, [activeOutcomes[2]?.id]: 4.5 } },
-    { id: 'a4', name: 'Standard Source Evaluation Quiz', type: 'quiz', scores: { [activeOutcomes[1]?.id]: 2.8 } }
-  ]
+  const masteredCount = outcomesList.filter((o: any) => o.score != null && o.score >= o.masteryPoints).length
+  const evaluatedCount = outcomesList.filter((o: any) => o.score != null).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -710,7 +773,7 @@ function OutcomesTab({ courseId }: { courseId: string }) {
           <div className="cx-stat-card__icon"><CheckSvg /></div>
           <div className="cx-stat-card__body">
             <div className="cx-stat-card__label">Mastered</div>
-            <div className="cx-stat-card__value">{masteredCount} / {activeOutcomes.length}</div>
+            <div className="cx-stat-card__value">{masteredCount} / {outcomesList.length}</div>
           </div>
         </div>
         <div className="cx-stat-card">
@@ -724,155 +787,65 @@ function OutcomesTab({ courseId }: { courseId: string }) {
           <div className="cx-stat-card__icon"><AlertSvg /></div>
           <div className="cx-stat-card__body">
             <div className="cx-stat-card__label">Needs Work</div>
-            <div className="cx-stat-card__value">{activeOutcomes.length - masteredCount}</div>
+            <div className="cx-stat-card__value">{outcomesList.length - masteredCount}</div>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
-          Learning Outcomes &amp; Mastery Alignment
-        </h3>
-        <div style={{ display: 'flex', background: 'var(--cx-bg-canvas, #f1f5f9)', padding: 3, borderRadius: 8, gap: 4 }}>
-          <button
-            className="cx-btn"
-            style={{
-              padding: '6px 12px', fontSize: '0.75rem', borderRadius: 6, border: 'none',
-              background: viewMode === 'table' ? 'var(--cx-bg-surface, #ffffff)' : 'transparent',
-              color: viewMode === 'table' ? 'var(--cx-text-primary)' : 'var(--cx-text-secondary)',
-              fontWeight: 600, cursor: 'pointer', boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-            onClick={() => setViewMode('table')}
-          >
-            Flat Outcome Table
-          </button>
-          <button
-            className="cx-btn"
-            style={{
-              padding: '6px 12px', fontSize: '0.75rem', borderRadius: 6, border: 'none',
-              background: viewMode === 'matrix' ? 'var(--cx-bg-surface, #ffffff)' : 'transparent',
-              color: viewMode === 'matrix' ? 'var(--cx-text-primary)' : 'var(--cx-text-secondary)',
-              fontWeight: 600, cursor: 'pointer', boxShadow: viewMode === 'matrix' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-            onClick={() => setViewMode('matrix')}
-          >
-            Curriculum Map Grid
-          </button>
-        </div>
-      </div>
+      <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
+        Learning Outcomes &amp; Mastery Alignment
+      </h3>
 
-      {viewMode === 'table' ? (
-        <div className="cx-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-            <thead style={{ background: 'var(--cx-bg-surface-raised)' }}>
-              <tr>
-                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Learning Outcome</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Score</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)', width: 200 }}>Progress</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeOutcomes.map((o: any) => {
-                const isMastered = o.score != null && o.score >= o.masteryPoints
-                const isEvaluated = o.score != null
-                const pct = isEvaluated ? Math.min(100, Math.round((o.score / Math.max(o.pointsPossible, 1)) * 100)) : 0
-                const masteryPct = o.pointsPossible > 0 ? (o.masteryPoints / o.pointsPossible) * 100 : 0
-                return (
-                  <tr key={o.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{o.title}</div>
-                      {o.description && <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }} dangerouslySetInnerHTML={{ __html: o.description }} />}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {isEvaluated ? (
-                        <span className={clsx('cx-badge', isMastered ? 'cx-badge--success' : 'cx-badge--warning')}>
-                          {isMastered ? 'Mastered' : 'Not Mastered'}
-                        </span>
-                      ) : (
-                        <span className="cx-badge cx-badge--neutral">Not Evaluated</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>
-                      {isEvaluated ? `${o.score.toFixed(1)} / ${o.pointsPossible}` : '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ width: '100%', height: 8, background: 'var(--cx-bg-tertiary)', borderRadius: 4, position: 'relative' }}>
-                        {masteryPct > 0 && (
-                          <div style={{ position: 'absolute', left: `${masteryPct}%`, top: -4, bottom: -4, width: 2, background: 'var(--cx-color-primary)', zIndex: 1 }} title={`Mastery threshold: ${o.masteryPoints}`} />
-                        )}
-                        {isEvaluated && (
-                          <div style={{ height: '100%', width: `${pct}%`, background: isMastered ? 'var(--cx-accent-success, #10b981)' : 'var(--cx-accent-warning, #f59e0b)', borderRadius: 4 }} />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="cx-card" style={{ padding: 0, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', minWidth: 600 }}>
-            <thead style={{ background: 'var(--cx-bg-surface-raised)' }}>
-              <tr>
-                <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)', minWidth: 220 }}>Course Deliverable / Assignment</th>
-                {activeOutcomes.map((o: any) => (
-                  <th key={o.id} style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center' }}>
-                    {o.title}
-                    <div style={{ fontSize: '0.6875rem', fontWeight: 400, color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
-                      Mastery: {o.masteryPoints} pts
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {alignedAssignments.map((a: any) => (
-                <tr key={a.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{a.name}</div>
-                    <span className="cx-badge cx-badge--neutral" style={{ fontSize: '0.6875rem', textTransform: 'capitalize', marginTop: 4, display: 'inline-block' }}>
-                      {a.type}
-                    </span>
+      <div className="cx-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+          <thead style={{ background: 'var(--cx-bg-surface-raised)' }}>
+            <tr>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Learning Outcome</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Status</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)' }}>Score</th>
+              <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--cx-text-secondary)', borderBottom: '1px solid var(--cx-border-subtle)', width: 200 }}>Progress</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outcomesList.map((o: any) => {
+              const isMastered = o.score != null && o.score >= o.masteryPoints
+              const isEvaluated = o.score != null
+              const pct = isEvaluated ? Math.min(100, Math.round((o.score / Math.max(o.pointsPossible, 1)) * 100)) : 0
+              const masteryPct = o.pointsPossible > 0 ? (o.masteryPoints / o.pointsPossible) * 100 : 0
+              return (
+                <tr key={o.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>{o.title}</div>
+                    {o.description && <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }} dangerouslySetInnerHTML={{ __html: o.description }} />}
                   </td>
-                  {activeOutcomes.map((o: any) => {
-                    const score = a.scores[o.id]
-                    if (score === undefined) {
-                      return (
-                        <td key={o.id} style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--cx-text-tertiary)', opacity: 0.4 }}>
-                          —
-                        </td>
-                      )
-                    }
-                    const mastered = score >= o.masteryPoints
-                    return (
-                      <td key={o.id} style={{ padding: '14px 16px', textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                          padding: '6px 12px', borderRadius: 8, fontSize: '0.8125rem', fontWeight: 600,
-                          background: mastered ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
-                          border: `1px solid ${mastered ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`,
-                          color: mastered ? '#059669' : '#d97706',
-                          minWidth: 70
-                        }}>
-                          <span>{score.toFixed(1)}</span>
-                          <span style={{ fontSize: '0.625rem', opacity: 0.8, fontWeight: 500, marginTop: 1 }}>
-                            {mastered ? 'Mastered' : 'Near Mastery'}
-                          </span>
-                        </span>
-                      </td>
-                    )
-                  })}
+                  <td style={{ padding: '12px 16px' }}>
+                    {isEvaluated ? (
+                      <span className={clsx('cx-badge', isMastered ? 'cx-badge--success' : 'cx-badge--warning')}>
+                        {isMastered ? 'Mastered' : 'Not Mastered'}
+                      </span>
+                    ) : (
+                      <span className="cx-badge cx-badge--neutral">Not Evaluated</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '12px 16px', color: 'var(--cx-text-secondary)' }}>
+                    {isEvaluated ? `${o.score.toFixed(1)} / ${o.pointsPossible}` : '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ width: '100%', height: 8, background: 'var(--cx-bg-tertiary)', borderRadius: 4, position: 'relative' }}>
+                      {masteryPct > 0 && (
+                        <div style={{ position: 'absolute', left: `${masteryPct}%`, top: -4, bottom: -4, width: 2, background: 'var(--cx-color-primary)', zIndex: 1 }} title={`Mastery threshold: ${o.masteryPoints}`} />
+                      )}
+                      {isEvaluated && (
+                        <div style={{ height: '100%', width: `${pct}%`, background: isMastered ? 'var(--cx-accent-success, #10b981)' : 'var(--cx-accent-warning, #f59e0b)', borderRadius: 4 }} />
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { extractPath } from '../utils/urlHelpers'
 import { formatRelativeDate } from './date-utils'
 
 export interface TodoItem {
@@ -66,9 +67,9 @@ export function TodoWidget({ items, isLoading = false, maxItems = 6 }: TodoWidge
                   {content}
                 </Link>
               ) : (
-                <a href={item.html_url} className="cx-todo-item__link">
+                <Link to={extractPath(item.html_url)} className="cx-todo-item__link">
                   {content}
-                </a>
+                </Link>
               )}
             </li>
           )

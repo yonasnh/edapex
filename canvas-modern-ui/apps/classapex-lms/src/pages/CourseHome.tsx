@@ -9,7 +9,7 @@ import { CourseSidebar } from '../widgets/CourseSidebar'
 import { MediaLibrary } from '../widgets/MediaLibrary'
 import './course-home.css'
 
-type Tab = 'modules' | 'syllabus' | 'people' | 'media'
+type Tab = 'modules' | 'syllabus' | 'people' | 'media' | 'activity'
 
 type HomePageOption = 'modules' | 'syllabus' | 'assignments' | 'feed'
 
@@ -43,13 +43,11 @@ export default function CourseHome() {
 
   const enterStudentView = () => {
     localStorage.setItem('classapex-student-view-course', courseId || '')
-    localStorage.setItem('classapex-demo-role', 'student')
     window.location.reload()
   }
 
   const exitStudentView = () => {
     localStorage.removeItem('classapex-student-view-course')
-    localStorage.setItem('classapex-demo-role', 'teacher')
     window.location.reload()
   }
   const [showCustomize, setShowCustomize] = useState(false)
@@ -123,11 +121,17 @@ export default function CourseHome() {
     { per_page: 50, include: ['bio', 'avatar_url'] } as any
   )
 
+  const { data: activityData, isLoading: activityLoading } = useCanvasQuery<any[]>(
+    `/api/v1/courses/${courseId}/activity_stream`,
+    { per_page: 20 } as any
+  )
+
   const tabs: { id: Tab; label: string }[] = [
     { id: 'modules', label: 'Modules' },
     { id: 'syllabus', label: 'Syllabus' },
     { id: 'people', label: 'People' },
     { id: 'media', label: 'Media Library' },
+    { id: 'activity', label: 'Recent Activity' },
   ]
 
   const customLabel = HOME_PAGE_OPTIONS.find(o => o.value === homePage)?.label || 'Modules'
@@ -272,6 +276,37 @@ export default function CourseHome() {
           {activeTab === 'media' && (
             <div className="cx-course-media-library" style={{ background: 'var(--cx-bg-surface)', padding: 24, borderRadius: 12, border: '1px solid var(--cx-border-subtle)' }}>
               <MediaLibrary courseId={courseId!} />
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div style={{ background: 'var(--cx-bg-surface)', padding: 24, borderRadius: 12, border: '1px solid var(--cx-border-subtle)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 16 }}>Recent Activity</h3>
+              {activityLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[1,2,3].map(i => <div key={i} className="cx-skeleton" style={{ height: 48, borderRadius: 8 }} />)}
+                </div>
+              ) : !activityData?.length ? (
+                <p style={{ color: 'var(--cx-text-tertiary)', textAlign: 'center', padding: 32 }}>No recent activity in this course.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {activityData.map((item: any) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--cx-bg-surface-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
+                        {item.type === 'Submission' ? '📝' : item.type === 'DiscussionTopic' ? '💬' : item.type === 'Announcement' ? '📢' : '📅'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--cx-text-primary)' }}>
+                          {item.title || item.message || 'Activity'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
+                          {item.user?.name || 'Unknown'} · {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

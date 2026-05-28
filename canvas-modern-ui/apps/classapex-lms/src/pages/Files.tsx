@@ -8,7 +8,7 @@ import { useNotification } from '../hooks/useNotification';
 interface FileItem {
   id: string;
   name: string;
-  type: 'folder' | 'document' | 'pdf' | 'image' | 'video' | 'audio' | 'other';
+  type: 'folder' | 'document' | 'pdf' | 'image' | 'video' | 'audio' | 'zip' | 'other';
   size?: number;
   modifiedAt: string;
   modifiedBy?: string;
@@ -28,7 +28,7 @@ interface FileItem {
 
 interface BreadcrumbEntry { id: number; name: string; }
 
-function toFileType(mimeClass: string): FileItem['type'] {
+function toFileType(mimeClass: string, contentType?: string, name?: string): FileItem['type'] {
   switch (mimeClass) {
     case 'folder': return 'folder';
     case 'pdf': return 'pdf';
@@ -36,7 +36,9 @@ function toFileType(mimeClass: string): FileItem['type'] {
     case 'video': return 'video';
     case 'audio': return 'audio';
     case 'doc': case 'xls': case 'ppt': case 'text': return 'document';
-    default: return 'other';
+    default:
+      if (contentType?.includes('zip') || name?.toLowerCase().endsWith('.zip')) return 'zip';
+      return 'other';
   }
 }
 
@@ -48,6 +50,7 @@ function GridSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill
 function ListSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="2" rx="1"/><rect x="2" y="7" width="12" height="2" rx="1"/><rect x="2" y="11" width="12" height="2" rx="1"/></svg>; }
 function FolderSvg({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h4l1.5 2H17a1 1 0 011 1z"/></svg>; }
 function DocumentSvg({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><path d="M12 2v5h5"/></svg>; }
+function ZipSvg({ size = 20 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><path d="M12 2v5h5"/><path d="M8 10h4M8 13h4M8 16h2"/></svg>; }
 function PdfSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z"/><polyline points="12,2 12,7 17,7"/><path d="M8 12h4M8 10h4M8 14h2"/></svg>; }
 function ImageSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="14" height="14" rx="2" ry="2"/><circle cx="7" cy="7" r="1.5"/><polyline points="17,12 13,8 4,17"/></svg>; }
 function VideoSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="18 6 12 10 18 14 18 6"/><rect x="1" y="4" width="11" height="12" rx="2" ry="2"/></svg>; }
@@ -331,6 +334,7 @@ function getTypeIcon(type: FileItem['type']) {
     case 'image': return <ImageSvg />;
     case 'video': return <VideoSvg />;
     case 'audio': return <AudioSvg />;
+    case 'zip': return <ZipSvg />;
     default: return <DocumentSvg />;
   }
 }
@@ -417,7 +421,7 @@ const FilesPage: React.FC = () => {
     const files: FileItem[] = Array.isArray(rawFiles) ? rawFiles.map(f => ({
       id: String(f.id),
       name: f.display_name || f.filename,
-      type: toFileType(f.mime_class || ''),
+      type: toFileType(f.mime_class || '', f.content_type, f.display_name || f.filename),
       size: f.size,
       modifiedAt: f.updated_at || f.created_at,
       modifiedBy: f.user?.name,
@@ -879,6 +883,7 @@ const FilesPage: React.FC = () => {
                     <span style={{ fontWeight: file.type === 'folder' ? 500 : 400 }}>{file.name}</span>
                     {file.isShared && <span className="cx-badge cx-badge--info" style={{ marginLeft: 6 }}>Shared</span>}
                     {file.type === 'folder' && <ChevronRightSvg />}
+                    {file.type === 'zip' && <span className="cx-badge cx-badge--warning" style={{ marginLeft: 6, fontSize: '0.65rem' }}>ZIP</span>}
                   </td>
                   <td className="cx-table__cell cx-table__cell--muted" style={{ textTransform: 'capitalize' }}>{file.type}</td>
                   <td className="cx-table__cell cx-table__cell--muted">{file.size ? formatFileSize(file.size) : '—'}</td>

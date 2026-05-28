@@ -380,10 +380,11 @@ describe('QuizResults — Role-Based Access', () => {
 
   STUDENT_LIKE_ROLES.forEach((role) => {
     describe(`role: ${role}`, () => {
-      it('shows permission denied message', () => {
+      it('shows student own result view', () => {
         renderQuizResults(role)
         expect(screen.getByText('Quiz Results')).toBeInTheDocument()
-        expect(screen.getByText('You do not have permission to view quiz results.')).toBeInTheDocument()
+        // Students see their own submission result, not a permission-denied message
+        expect(screen.getByText('Score')).toBeInTheDocument()
       })
     })
   })
@@ -542,9 +543,9 @@ describe('CourseCatalog — All Roles', () => {
     expect(screen.queryByText('Advanced Calculus')).not.toBeInTheDocument()
   })
 
-  it('shows "Enroll Now" button for each course', () => {
+  it('shows "Enroll" button for each course', () => {
     renderCourseCatalog()
-    const enrollButtons = screen.getAllByText('Enroll Now')
+    const enrollButtons = screen.getAllByText('Enroll')
     expect(enrollButtons.length).toBe(3)
   })
 

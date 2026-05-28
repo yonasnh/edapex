@@ -1,13 +1,12 @@
 /**
- * RoleContext — Demo role switching for ClassApex
- * =================================================
- * Allows switching between Student, Teacher, and Admin personas
- * to demonstrate role-aware navigation, dashboards, and features.
- *
- * In production, this would be derived from Canvas OAuth token claims.
+ * RoleContext — ClassApex
+ * ========================
+ * Derives the active role and user from the real Canvas authentication state.
+ * No demo users or mock data — all identity comes from the Canvas API via @schoolapex/core.
  */
 
 import React, { createContext, useContext, useState, type ReactNode } from 'react'
+import { useAuth } from '@schoolapex/core'
 
 export type UserRole = 'student' | 'teacher' | 'admin' | 'observer'
 
@@ -19,45 +18,6 @@ export interface RoleUser {
   avatarSeed: string
   role: UserRole
   title: string
-}
-
-const DEMO_USERS: Record<UserRole, RoleUser> = {
-  student: {
-    id: '8',
-    name: 'PlayStudent lMRL5n2z16',
-    displayName: 'PlayStudent lMRL5n2z16',
-    email: 'playstudentlMRL5n2z16@example.com',
-    avatarSeed: 'PlayStudent',
-    role: 'student',
-    title: 'Demo Student, Junior',
-  },
-  teacher: {
-    id: '100',
-    name: 'Dr. Sarah Chen',
-    displayName: 'Dr. Sarah Chen',
-    email: 'sarah.chen@classapex.edu',
-    avatarSeed: 'Sarah',
-    role: 'teacher',
-    title: 'Professor of Computer Science',
-  },
-  admin: {
-    id: '999',
-    name: 'System Admin',
-    displayName: 'System Admin',
-    email: 'admin@classapex.edu',
-    avatarSeed: 'Admin',
-    role: 'admin',
-    title: 'IT Administration',
-  },
-  observer: {
-    id: '77',
-    name: 'Maria Gonzalez',
-    displayName: 'Maria Gonzalez',
-    email: 'maria.gonzalez@classapex.edu',
-    avatarSeed: 'Maria',
-    role: 'observer',
-    title: 'Parent / Guardian',
-  },
 }
 
 interface RoleContextType {
@@ -77,50 +37,114 @@ interface RoleProviderProps {
   defaultRole?: UserRole
 }
 
-export function RoleProvider({ children, defaultRole = 'student' }: RoleProviderProps) {
-  const [role, setRole] = useState<UserRole>(() => {
-    // Persist role across page reloads during demo
-    const saved = localStorage.getItem('classapex-demo-role')
-    return (saved as UserRole) || defaultRole
-  })
+// Extracted for testability — jsdom 26 does not allow mocking window.location directly
+export const reloadPage = () => window.location.reload()
 
-  const [masqueradedUser, setMasqueradedUser] = useState<RoleUser | null>(() => {
-    const saved = localStorage.getItem('classapex-masquerade-user')
-    return saved ? JSON.parse(saved) : null
-  })
+function mapAuthUserToRoleUser(authUser: any | null): RoleUser {
+  const canvasRoles: string[] = authUser?.roles ?? []
+  const validRoles: UserRole[] = ['student', 'teacher', 'admin', 'observer']
+  // Use the first valid role from the array order (preserves test/mock control)
+  const role: UserRole = validRoles.find((r) => canvasRoles.includes(r)) || 'student'
+
+  return {
+    id: String(authUser?.id ?? ''),
+    name: authUser?.name ?? 'User',
+    displayName: authUser?.name ?? 'User',
+    email: authUser?.email ?? '',
+    avatarSeed: authUser?.name ?? 'User',
+    role,
+    title: authUser?.title ?? '',
+  }
+}
+
+export function RoleProvider({ children, defaultRole = 'student' }: RoleProviderProps) {
+  const { user: authUser } = useAuth()
+  const realUser = mapAuthUserToRoleUser(authUser)
+
+  // Compute available roles synchronously before useState initializer
+  const availableRoles = React.useMemo<UserRole[]>(() => {
+    const roles = new Set<UserRole>([realUser.role])
+    const canvasRoles: string[] = authUser?.roles ?? []
+    canvasRoles.forEach((r) => {
+      if (['student', 'teacher', 'admin', 'observer'].includes(r)) {
+        roles.add(r as UserRole)
+      }
+    })
+    return Array.from(roles)
+  }, [authUser, realUser.role])
+
+  const initialRole = React.useMemo<UserRole>(() => {
+    const saved = localStorage.getItem('classapex-view-role')
+    const savedRole = saved as UserRole
+    if (savedRole && availableRoles.includes(savedRole)) {
+      return savedRole
+    }
+    // When defaultRole is explicitly set (test environments), prefer it if available.
+    // In production defaultRole is never overridden, so realUser.role is used.
+    if (defaultRole !== 'student' && availableRoles.includes(defaultRole)) {
+      return defaultRole
+    }
+    return realUser.role || defaultRole
+  }, [availableRoles, realUser.role, defaultRole])
+
+  const [role, setRole] = useState<UserRole>(initialRole)
+
+  const [masqueradedUser, setMasqueradedUser] = useState<RoleUser | null>(null)
 
   const handleSetRole = (newRole: UserRole) => {
+    // Only allow switching to roles the user actually has
+    if (!availableRoles.includes(newRole)) {
+      console.warn(`[RoleContext] User does not have role: ${newRole}`)
+      return
+    }
     setRole(newRole)
-    localStorage.setItem('classapex-demo-role', newRole)
+    localStorage.setItem('classapex-view-role', newRole)
     // If switching role, cancel masquerade
     setMasqueradedUser(null)
-    localStorage.removeItem('classapex-masquerade-user')
-    window.location.reload()
+    reloadPage()
   }
 
   const handleMasquerade = (user: RoleUser | null) => {
     setMasqueradedUser(user)
-    if (user) {
-      localStorage.setItem('classapex-masquerade-user', JSON.stringify(user))
-    } else {
-      localStorage.removeItem('classapex-masquerade-user')
-    }
-    window.location.reload()
+    // Masquerade state is session-only; it does not persist to localStorage.
+    // Real Canvas masquerade should use the server-side /users/:id/masquerade endpoint.
+    reloadPage()
   }
 
-  const realUser = DEMO_USERS[role]
-  const currentUser = masqueradedUser || realUser
+  // currentUser reflects the active role view, even if it differs from the auth user's primary role
+  const currentUser = React.useMemo<RoleUser>(() => {
+    const base = masqueradedUser || realUser
+    return { ...base, role }
+  }, [masqueradedUser, realUser, role])
+
+  // allUsers is retained for compatibility with RoleSwitcher, but only contains the real user
+  const allUsers = React.useMemo<Record<UserRole, RoleUser>>(() => {
+    const base: Record<UserRole, RoleUser> = {
+      student: realUser,
+      teacher: realUser,
+      admin: realUser,
+      observer: realUser,
+    }
+    // If the user has multiple roles, we still show the same real user object
+    // under each available role key so the switcher can list them.
+    availableRoles.forEach((r) => {
+      base[r] = { ...realUser, role: r }
+    })
+    return base
+  }, [realUser, availableRoles])
 
   return (
-    <RoleContext.Provider value={{
-      role: currentUser.role,
-      user: currentUser,
-      setRole: handleSetRole,
-      allUsers: DEMO_USERS,
-      masqueradeAs: handleMasquerade,
-      isMasquerading: !!masqueradedUser,
-      realUser,
-    }}>
+    <RoleContext.Provider
+      value={{
+        role: currentUser.role,
+        user: currentUser,
+        setRole: handleSetRole,
+        allUsers,
+        masqueradeAs: handleMasquerade,
+        isMasquerading: !!masqueradedUser,
+        realUser,
+      }}
+    >
       {children}
     </RoleContext.Provider>
   )

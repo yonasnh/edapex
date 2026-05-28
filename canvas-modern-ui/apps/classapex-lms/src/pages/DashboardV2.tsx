@@ -11,12 +11,27 @@ import { Badge, BookIcon, CheckCircleIcon, CalendarIcon, AlertTriangleIcon, Star
 import { BookmarkIcon } from '../navigation'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useTenant } from '../contexts/TenantContext'
+import { extractPath } from '../utils/urlHelpers'
 import { TodoWidget, type TodoItem } from '../widgets/TodoWidget'
 import { UpcomingWidget } from '../widgets/UpcomingWidget'
 import { RecentActivity } from '../widgets/RecentActivity'
 import { FavoriteCourses } from '../widgets/FavoriteCourses'
 import './dashboard-v2.css'
 import '../widgets/widgets.css'
+
+interface ActivityStreamItem {
+  id: number
+  title: string
+  type: string
+  read_state: boolean
+  submission_comments?: any[]
+  score?: number | null
+  graded_at?: string | null
+  html_url?: string
+  course_id?: number
+  assignment_id?: number
+  created_at?: string
+}
 
 // ─── Types ───
 
@@ -68,6 +83,21 @@ export default function DashboardV2() {
     '/api/v1/users/self/activity_stream/summary'
   )
 
+  const { data: activityStream } = useCanvasQuery<ActivityStreamItem[]>(
+    '/api/v1/users/self/activity_stream',
+    { only_active: true } as any
+  )
+
+  const recentFeedback = useMemo(() => {
+    if (!activityStream) return []
+    return activityStream.filter(item => {
+      if (item.type !== 'Submission') return false
+      const hasUnread = item.read_state === false
+      const hasFeedback = (item.submission_comments && item.submission_comments.length > 0) || item.score !== null || item.graded_at !== null
+      return hasUnread || hasFeedback
+    }).slice(0, 5)
+  }, [activityStream])
+
   // Compute stats
   const stats = useMemo(() => {
     const activeCourses = courses?.length || 0
@@ -117,6 +147,54 @@ export default function DashboardV2() {
           <StatCard label="Completed" value={stats.completed} icon={<CheckCircleIcon />} />
         ) : null}
       </div>
+
+      {/* ── Recent Feedback ── */}
+      {recentFeedback.length > 0 && (
+        <section className="cx-dashboard__section" style={{ marginTop: 16 }}>
+          <div className="cx-section-header">
+            <h2 className="cx-section-title">Recent Feedback</h2>
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+            gap: 12,
+          }}>
+            {recentFeedback.map(item => (
+              <Link
+                key={item.id}
+                to={extractPath(item.html_url || '#')}
+                className="cx-stat-card"
+                style={{
+                  textDecoration: 'none',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  padding: '12px 14px',
+                  background: 'var(--cx-bg-surface)',
+                  border: '1px solid var(--cx-border-subtle)',
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: 6,
+                  background: 'var(--cx-color-primary-subtle)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--cx-color-primary)', flexShrink: 0,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--cx-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.title}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-secondary)', marginTop: 2 }}>
+                    {item.score !== null && item.score !== undefined ? `Score: ${item.score} · ` : ''}
+                    {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recently'}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Main Grid ── */}
       <div className="cx-dashboard__grid">

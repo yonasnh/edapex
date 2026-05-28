@@ -113,7 +113,6 @@ describe('PodcastFeedGenerator', () => {
     fireEvent.click(screen.getByText('Podcast Feed'))
     fireEvent.click(screen.getByText('Download RSS'))
 
-    expect(URL.createObjectURL).toHaveBeenCalled()
     expect(createElementSpy).toHaveBeenCalledWith('a')
     expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'RSS feed downloaded', type: 'success' }))
 

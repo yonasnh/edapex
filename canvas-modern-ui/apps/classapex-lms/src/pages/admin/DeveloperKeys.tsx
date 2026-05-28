@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
+import LogoLoader from '../../components/LogoLoader'
 
 interface DeveloperKey {
   id: number;
@@ -115,7 +116,7 @@ const DeveloperKeysPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     );
   }

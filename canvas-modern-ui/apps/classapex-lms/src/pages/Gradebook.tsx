@@ -4,6 +4,8 @@ import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
 import MessageStudentsWho from '../components/MessageStudentsWho'
+import BulkOperationsBar from '../components/BulkOperationsBar'
+import LogoLoader from '../components/LogoLoader'
 
 interface CellState {
   value: string
@@ -69,6 +71,62 @@ function parseCsv(text: string): string[][] {
   return rows
 }
 
+/**
+ * Compute which assignments are dropped for a given student within an assignment group,
+ * based on the group's drop_lowest / drop_highest rules.
+ * Canvas does not expose dropped status per-submission, so we re-calculate client-side.
+ */
+function computeDroppedAssignments(
+  userId: number,
+  groupAssignments: any[],
+  getSubmission: (uid: number, aid: number) => any,
+  rules: any
+): Set<number> {
+  if (!rules) return new Set()
+  const dropLowest = rules.drop_lowest || 0
+  const dropHighest = rules.drop_highest || 0
+  if (dropLowest === 0 && dropHighest === 0) return new Set()
+
+  const neverDrop = new Set<number>(Array.isArray(rules.never_drop) ? rules.never_drop : [])
+
+  const scored = groupAssignments
+    .map((a: any) => ({
+      assignmentId: a.id,
+      sub: getSubmission(userId, a.id),
+      pointsPossible: a.points_possible ?? 0,
+    }))
+    .filter(({ assignmentId, sub, pointsPossible }) => {
+      if (pointsPossible <= 0) return false
+      if (neverDrop.has(assignmentId)) return false
+      if (sub?.excused || sub?.grade === 'EX' || sub?.posted_grade === 'EX') return false
+      return true
+    })
+    .map(({ assignmentId, sub }) => ({
+      assignmentId,
+      score: sub?.score != null ? sub.score : 0,
+    }))
+
+  // Must have more scorable assignments than drops
+  if (scored.length <= dropLowest + dropHighest) return new Set()
+
+  const dropped = new Set<number>()
+  const sorted = [...scored].sort((a, b) => a.score - b.score)
+
+  for (let i = 0; i < dropLowest; i++) {
+    dropped.add(sorted[i].assignmentId)
+  }
+
+  const remaining = sorted.filter(s => !dropped.has(s.assignmentId))
+  const remainingDesc = [...remaining].sort((a, b) => b.score - a.score)
+  for (let i = 0; i < dropHighest; i++) {
+    if (remainingDesc[i]) {
+      dropped.add(remainingDesc[i].assignmentId)
+    }
+  }
+
+  return dropped
+}
+
 export default function GradebookPage() {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
@@ -93,6 +151,9 @@ export default function GradebookPage() {
   const [importLoading, setImportLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [messageStudentsOpen, setMessageStudentsOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkAssignmentId, setBulkAssignmentId] = useState<number | ''>('')
+  const [customColumnData, setCustomColumnData] = useState<Record<number, Record<string, string>>>({})
 
   const { data: studentsData, isLoading: studentsLoading } = useCanvasQuery<any[]>(
     courseId ? `/api/v1/courses/${courseId}/users` : '',
@@ -124,11 +185,42 @@ export default function GradebookPage() {
     { enabled: !!courseId }
   )
 
+  const { data: customColumnsData } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/custom_gradebook_columns` : '',
+    { per_page: 50 } as any,
+    { enabled: !!courseId }
+  )
+
   const students = useMemo(() => Array.isArray(studentsData) ? studentsData : [], [studentsData])
   const assignments = useMemo(() => Array.isArray(assignmentsData) ? assignmentsData : [], [assignmentsData])
   const submissions = useMemo(() => Array.isArray(submissionsData) ? submissionsData : [], [submissionsData])
   const groups = useMemo(() => Array.isArray(groupsData) ? groupsData : [], [groupsData])
   const enrollments = useMemo(() => Array.isArray(enrollmentsData) ? enrollmentsData : [], [enrollmentsData])
+  const customColumns = useMemo(() => Array.isArray(customColumnsData) ? customColumnsData : [], [customColumnsData])
+
+  useEffect(() => {
+    if (!courseId || !customColumns?.length) return
+    let cancelled = false
+    async function load() {
+      const result: Record<number, Record<string, string>> = {}
+      await Promise.all(customColumns.map(async (col: any) => {
+        try {
+          const entries: any[] = await canvasFetch(`/api/v1/courses/${courseId}/custom_gradebook_columns/${col.id}/data`, { method: 'GET' })
+          result[col.id] = {}
+          ;(Array.isArray(entries) ? entries : []).forEach((entry: any) => {
+            if (entry.user_id != null && entry.content != null) {
+              result[col.id][String(entry.user_id)] = String(entry.content)
+            }
+          })
+        } catch {
+          // ignore missing column data
+        }
+      }))
+      if (!cancelled) setCustomColumnData(result)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [courseId, customColumns])
 
   const enrollmentMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -158,13 +250,31 @@ export default function GradebookPage() {
     )
   }, [students, search])
 
+  const handleSelectAll = useCallback(() => setSelectedIds(filteredStudents.map(s => String(s.id))), [filteredStudents])
+  const handleSelectNone = useCallback(() => setSelectedIds([]), [])
+  const toggleSelected = useCallback((id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]), [])
+
   const getSubmission = useCallback((userId: number, assignmentId: number) => {
     return submissionMap.get(`${userId}-${assignmentId}`)
   }, [submissionMap])
 
-  const getCellKey = (userId: number, assignmentId: number) => `${userId}-${assignmentId}`
+  const droppedMap = useMemo(() => {
+    const map = new Map<string, boolean>()
+    students.forEach(s => {
+      groups.forEach(g => {
+        const groupAssignments = g.assignments || assignments.filter((a: any) => a.assignment_group_id === g.id)
+        const dropped = computeDroppedAssignments(s.id, groupAssignments, getSubmission, g.rules)
+        dropped.forEach(aid => {
+          map.set(`${s.id}-${aid}`, true)
+        })
+      })
+    })
+    return map
+  }, [students, groups, assignments, getSubmission])
 
-  const handleCellChange = (userId: number, assignmentId: number, value: string) => {
+  const getCellKey = (userId: number, assignmentId: string | number) => `${userId}-${assignmentId}`
+
+  const handleCellChange = (userId: number, assignmentId: string | number, value: string) => {
     const key = getCellKey(userId, assignmentId)
     setCellStates(prev => ({ ...prev, [key]: { ...prev[key], value } }))
   }
@@ -200,6 +310,35 @@ export default function GradebookPage() {
     }
   }
 
+  const handleCustomColumnBlur = async (userId: number, columnId: number) => {
+    const key = getCellKey(userId, `cc-${columnId}`)
+    const state = cellStates[key]
+    if (!state) return
+    const raw = state.value.trim()
+    setCellStates(prev => ({ ...prev, [key]: { ...prev[key], saving: true } }))
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/custom_gradebook_columns/${columnId}/data/${userId}`, {
+        method: 'PUT',
+        body: { column_data: { content: raw } },
+      })
+      setCellStates(prev => ({ ...prev, [key]: { ...prev[key], saving: false, saved: true } }))
+      setTimeout(() => {
+        setCellStates(prev => ({ ...prev, [key]: { ...prev[key], saved: false } }))
+      }, 1500)
+      const entries: any[] = await canvasFetch(`/api/v1/courses/${courseId}/custom_gradebook_columns/${columnId}/data`, { method: 'GET' })
+      setCustomColumnData(prev => ({
+        ...prev,
+        [columnId]: {
+          ...(prev[columnId] || {}),
+          ...(Array.isArray(entries) ? Object.fromEntries(entries.map(e => [String(e.user_id), String(e.content)])) : {})
+        }
+      }))
+    } catch (err: any) {
+      setCellStates(prev => ({ ...prev, [key]: { ...prev[key], saving: false } }))
+      showToast({ title: 'Failed to save', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }
+
   const getOverrideValue = (userId: number): string | undefined => {
     return overrideScores[String(userId)]
   }
@@ -210,11 +349,19 @@ export default function GradebookPage() {
   }
 
   const computeTotal = (userId: number): { score: number; possible: number; percent: number; overridden?: boolean; overridePercent?: number } => {
+    const isExcused = (sub: any) => {
+      if (!sub) return false
+      if (sub.excused || sub.grade === 'EX' || sub.posted_grade === 'EX') return true
+      return false
+    }
+
     if (!groups.length) {
       let score = 0
       let possible = 0
       assignments.forEach(a => {
         const sub = getSubmission(userId, a.id)
+        if (isExcused(sub)) return
+        if (droppedMap.get(`${userId}-${a.id}`)) return
         if (sub && sub.score != null && a.points_possible > 0) {
           score += sub.score
           possible += a.points_possible
@@ -233,6 +380,8 @@ export default function GradebookPage() {
       const groupAssignments = g.assignments || assignments.filter((a: any) => a.assignment_group_id === g.id)
       groupAssignments.forEach((a: any) => {
         const sub = getSubmission(userId, a.id)
+        if (isExcused(sub)) return
+        if (droppedMap.get(`${userId}-${a.id}`)) return
         if (sub && sub.score != null && (a.points_possible ?? 0) > 0) {
           groupScore += sub.score
           groupPossible += a.points_possible
@@ -390,10 +539,7 @@ export default function GradebookPage() {
   if (isLoading) {
     return (
       <div style={{ maxWidth: 'var(--cx-max-content-width)', margin: '0 auto' }}>
-        <div className="cx-loading" role="status" aria-label="Loading gradebook">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading gradebook…</span>
-        </div>
+        <LogoLoader text="Loading gradebook…" />
         <div className="cx-skeleton cx-skeleton--list-banner" style={{ marginTop: 24 }} />
       </div>
     )
@@ -412,6 +558,17 @@ export default function GradebookPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <select
+            className="cx-select cx-select--sm"
+            value={bulkAssignmentId}
+            onChange={e => setBulkAssignmentId(e.target.value ? Number(e.target.value) : '')}
+            style={{ maxWidth: 200 }}
+          >
+            <option value="">Select assignment…</option>
+            {assignments.map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportCsv}>Export CSV</button>
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => fileInputRef.current?.click()}>Import CSV</button>
           <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setMessageStudentsOpen(true)}>Message Students</button>
@@ -441,7 +598,15 @@ export default function GradebookPage() {
             <thead>
               <tr style={{ background: 'var(--cx-bg-surface)' }}>
                 <th style={{ position: 'sticky', left: 0, background: 'var(--cx-bg-surface)', zIndex: 2, padding: '10px 14px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'left', fontWeight: 600, color: 'var(--cx-text-primary)', whiteSpace: 'nowrap', minWidth: 180, boxShadow: '2px 0 4px rgba(0,0,0,0.05)' }}>
-                  Student
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={filteredStudents.length > 0 && selectedIds.length === filteredStudents.length}
+                      onChange={() => selectedIds.length === filteredStudents.length ? handleSelectNone() : handleSelectAll()}
+                      style={{ margin: 0 }}
+                    />
+                    <span>Student</span>
+                  </div>
                 </th>
                 {assignments.map(a => (
                   <th key={a.id} style={{ padding: '10px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', fontWeight: 600, color: 'var(--cx-text-primary)', minWidth: 90, maxWidth: 140 }}>
@@ -455,6 +620,11 @@ export default function GradebookPage() {
                 <th style={{ padding: '10px 14px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', fontWeight: 600, color: 'var(--cx-text-secondary)', minWidth: 110 }}>
                   Final Override
                 </th>
+                {customColumns?.map((col: any) => (
+                  <th key={`cc-h-${col.id}`} style={{ padding: '10px 14px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', fontWeight: 600, color: 'var(--cx-text-secondary)', minWidth: 100 }}>
+                    <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 120, margin: '0 auto' }} title={col.title}>{col.title}</div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -464,6 +634,12 @@ export default function GradebookPage() {
                   <tr key={s.id} style={{ background: idx % 2 === 0 ? 'transparent' : 'var(--cx-bg-surface-sunken, rgba(0,0,0,0.02))' }}>
                     <td style={{ position: 'sticky', left: 0, background: idx % 2 === 0 ? 'var(--cx-bg-app)' : 'var(--cx-bg-surface-sunken, rgba(0,0,0,0.02))', zIndex: 1, padding: '8px 14px', borderBottom: '1px solid var(--cx-border-subtle)', whiteSpace: 'nowrap', fontWeight: 500, color: 'var(--cx-text-primary)', boxShadow: '2px 0 4px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(String(s.id))}
+                          onChange={() => toggleSelected(String(s.id))}
+                          style={{ margin: 0 }}
+                        />
                         {s.avatar_url ? (
                           <img src={s.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
                         ) : (
@@ -481,7 +657,8 @@ export default function GradebookPage() {
                       const displayValue = state ? state.value : (sub?.score != null ? String(sub.score) : sub?.excused ? 'EX' : '')
                       const isLate = sub?.late
                       const isMissing = sub?.missing
-                      const isExcused = sub?.excused
+                      const isExcused = sub?.excused || displayValue.toUpperCase() === 'EX' || sub?.posted_grade === 'EX' || sub?.grade === 'EX'
+                      const isDropped = droppedMap.get(`${s.id}-${a.id}`) ?? false
 
                       return (
                         <td key={a.id} style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center' }}>
@@ -494,7 +671,8 @@ export default function GradebookPage() {
                               textAlign: 'center',
                               padding: '4px 6px',
                               fontSize: 'var(--cx-text-xs)',
-                              background: isExcused ? 'var(--cx-color-warning-subtle)' : isLate ? 'var(--cx-color-danger-subtle)' : isMissing ? 'var(--cx-bg-surface-sunken)' : 'var(--cx-bg-surface)',
+                              background: isExcused ? 'rgba(139,92,246,0.12)' : isLate ? 'var(--cx-color-danger-subtle)' : isMissing ? 'var(--cx-bg-surface-sunken)' : 'var(--cx-bg-surface)',
+                              color: isExcused ? '#7c3aed' : isDropped ? '#6b7280' : 'inherit',
                               borderColor: state?.saved ? 'var(--cx-color-success)' : 'var(--cx-border-default)',
                               transition: 'border-color 0.2s',
                             }}
@@ -507,9 +685,12 @@ export default function GradebookPage() {
                               }
                             }}
                             disabled={state?.saving}
-                            title={isLate ? 'Late' : isMissing ? 'Missing' : isExcused ? 'Excused' : ''}
+                            title={isExcused ? 'Excused — does not affect grade' : isDropped ? 'Dropped by assignment group rules' : isLate ? 'Late' : isMissing ? 'Missing' : ''}
                           />
                           {state?.saving && <span style={{ fontSize: '0.6rem', color: 'var(--cx-text-tertiary)', display: 'block' }}>…</span>}
+                          {isDropped && (
+                            <span style={{ display: 'inline-block', marginTop: 2, padding: '1px 4px', fontSize: '0.6rem', borderRadius: 4, background: '#f3f4f6', color: '#6b7280', fontWeight: 600 }}>Dropped</span>
+                          )}
                         </td>
                       )
                     })}
@@ -583,6 +764,34 @@ export default function GradebookPage() {
                       />
                       {overrideSaving[String(s.id)] && <span style={{ fontSize: '0.6rem', color: 'var(--cx-text-tertiary)', display: 'block' }}>…</span>}
                     </td>
+                    {customColumns?.map((col: any) => {
+                      const key = getCellKey(s.id, `cc-${col.id}`)
+                      const state = cellStates[key]
+                      const savedValue = customColumnData[col.id]?.[String(s.id)] ?? ''
+                      const displayValue = state ? state.value : savedValue
+                      return (
+                        <td key={`cc-${col.id}`} style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center' }}>
+                          <input
+                            type="text"
+                            className="cx-input"
+                            style={{
+                              width: 80,
+                              textAlign: 'center',
+                              padding: '4px 6px',
+                              fontSize: 'var(--cx-text-xs)',
+                              borderColor: state?.saved ? 'var(--cx-color-success)' : 'var(--cx-border-default)',
+                              transition: 'border-color 0.2s',
+                            }}
+                            value={displayValue}
+                            onChange={e => handleCellChange(s.id, `cc-${col.id}`, e.target.value)}
+                            onBlur={() => handleCustomColumnBlur(s.id, col.id)}
+                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                            disabled={state?.saving}
+                          />
+                          {state?.saving && <span style={{ fontSize: '0.6rem', color: 'var(--cx-text-tertiary)', display: 'block' }}>…</span>}
+                        </td>
+                      )
+                    })}
                   </tr>
                 )
               })}
@@ -591,10 +800,40 @@ export default function GradebookPage() {
         </div>
       )}
 
+      <BulkOperationsBar
+        items={filteredStudents}
+        selectedIds={selectedIds}
+        onSelectAll={handleSelectAll}
+        onSelectNone={handleSelectNone}
+        itemName="students"
+        actions={[
+          {
+            id: 'excuse',
+            label: 'Excuse',
+            variant: 'secondary',
+            confirmMessage: `Excuse ${selectedIds.length} students for the selected assignment?`,
+            onClick: async (ids) => {
+              if (!bulkAssignmentId) {
+                showToast({ title: 'Select an assignment first', type: 'warning' })
+                return
+              }
+              await Promise.all(ids.map(id => canvasFetch(`/api/v1/courses/${courseId}/assignments/${bulkAssignmentId}/submissions/${id}`, {
+                method: 'PUT',
+                body: { submission: { posted_grade: 'EX' } },
+              })))
+              showToast({ title: `${ids.length} students excused`, type: 'success' })
+              setSelectedIds([])
+              window.location.reload()
+            },
+          },
+        ]}
+      />
+
       {messageStudentsOpen && (
         <MessageStudentsWho
           courseId={courseId || ''}
           students={filteredStudents.map(s => ({ id: String(s.id), name: s.name }))}
+          assignmentId={bulkAssignmentId ? String(bulkAssignmentId) : undefined}
           isOpen={messageStudentsOpen}
           onClose={() => setMessageStudentsOpen(false)}
           onSent={() => {

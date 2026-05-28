@@ -5,6 +5,7 @@ import NewRceWrapper from '../components/NewRceWrapper'
 import PodcastFeedGenerator from '../components/PodcastFeedGenerator'
 import { useNotification } from '../hooks/useNotification'
 import { useRole } from '../contexts/RoleContext'
+import LogoLoader from '../components/LogoLoader'
 
 interface AnnouncementForm {
   title: string
@@ -33,6 +34,45 @@ export default function AnnouncementsPage() {
     { per_page: 50, order_by: 'position' } as any,
     { enabled: !!courseId }
   )
+
+  const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({})
+  const [commentReplies, setCommentReplies] = useState<Record<number, any[]>>({})
+  const [replyForms, setReplyForms] = useState<Record<number, string>>({})
+  const [replyLoading, setReplyLoading] = useState<Record<number, boolean>>({})
+
+  const toggleComments = async (announcementId: number) => {
+    const isExpanded = expandedComments[announcementId]
+    setExpandedComments(prev => ({ ...prev, [announcementId]: !isExpanded }))
+    if (!isExpanded && !commentReplies[announcementId]) {
+      try {
+        const res = await canvasFetch(`/api/v1/courses/${courseId}/discussion_topics/${announcementId}/entries`, { method: 'GET' })
+        setCommentReplies(prev => ({ ...prev, [announcementId]: Array.isArray(res) ? res : [] }))
+      } catch {
+        setCommentReplies(prev => ({ ...prev, [announcementId]: [] }))
+      }
+    }
+  }
+
+  const handleReply = async (announcementId: number) => {
+    const text = replyForms[announcementId]?.trim()
+    if (!text) return
+    setReplyLoading(prev => ({ ...prev, [announcementId]: true }))
+    try {
+      await canvasFetch(`/api/v1/courses/${courseId}/discussion_topics/${announcementId}/entries`, {
+        method: 'POST',
+        body: { message: text },
+      })
+      setReplyForms(prev => ({ ...prev, [announcementId]: '' }))
+      // Refresh comments
+      const res = await canvasFetch(`/api/v1/courses/${courseId}/discussion_topics/${announcementId}/entries`, { method: 'GET' })
+      setCommentReplies(prev => ({ ...prev, [announcementId]: Array.isArray(res) ? res : [] }))
+      showToast({ title: 'Reply posted', type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Failed to post reply', message: err?.message || 'Please try again.', type: 'error' })
+    } finally {
+      setReplyLoading(prev => ({ ...prev, [announcementId]: false }))
+    }
+  }
 
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -138,10 +178,7 @@ export default function AnnouncementsPage() {
   if (isLoading) {
     return (
       <div className="cx-assignment-list">
-        <div className="cx-loading" role="status" aria-label="Loading announcements">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading announcements…</span>
-        </div>
+        <LogoLoader text="Loading announcements…" />
         <div className="cx-skeleton cx-skeleton--list-banner" style={{ marginTop: 24 }} />
         {[1, 2, 3].map(i => <div key={i} className="cx-skeleton cx-skeleton--assignment-card" style={{ marginTop: 12 }} />)}
       </div>
@@ -186,7 +223,7 @@ export default function AnnouncementsPage() {
                       <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 999, background: 'var(--cx-color-primary-subtle)', color: 'var(--cx-color-primary)', fontWeight: 700 }}>Pinned</span>
                     )}
                     {isDelayed && (
-                      <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 999, background: 'var(--cx-color-warning-subtle)', color: 'var(--cx-color-warning)', fontWeight: 700 }}>Delayed</span>
+                      <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 999, background: 'rgba(37, 99, 235, 0.12)', color: 'var(--cx-color-info, #2563eb)', fontWeight: 700 }}>Scheduled</span>
                     )}
                     {!a.published && (
                       <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 999, background: 'var(--cx-bg-surface-sunken)', color: 'var(--cx-text-tertiary)', fontWeight: 700 }}>Unpublished</span>
@@ -210,7 +247,7 @@ export default function AnnouncementsPage() {
                 <div style={{ fontSize: 'var(--cx-text-xs)', color: 'var(--cx-text-secondary)' }}>
                   {a.author?.display_name || 'Instructor'}
                   {posted && ` · ${posted.toLocaleDateString()} ${posted.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                  {isDelayed && ` · Delayed until ${delayed.toLocaleDateString()}`}
+                  {isDelayed && ` · Scheduled for ${delayed.toLocaleDateString()} ${delayed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                 </div>
 
                 {a.message && (
@@ -221,9 +258,49 @@ export default function AnnouncementsPage() {
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 'var(--cx-text-xs)', color: 'var(--cx-text-tertiary)', marginTop: 4 }}>
-                  <span>{a.discussion_subentry_count || 0} replies</span>
+                  <button
+                    className="cx-btn cx-btn--ghost cx-btn--sm"
+                    onClick={() => toggleComments(a.id)}
+                    style={{ padding: 0, fontSize: 'inherit', color: 'inherit' }}
+                  >
+                    {a.discussion_subentry_count || 0} replies {expandedComments[a.id] ? '▲' : '▼'}
+                  </button>
                   {a.read_state === 'unread' && <span style={{ color: 'var(--cx-color-primary)', fontWeight: 600 }}>Unread</span>}
                 </div>
+
+                {expandedComments[a.id] && (
+                  <div style={{ marginTop: 12, padding: 12, background: 'var(--cx-bg-surface-raised)', borderRadius: 8 }}>
+                    {commentReplies[a.id]?.length === 0 && (
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)', margin: '0 0 8px' }}>No replies yet.</p>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                      {(commentReplies[a.id] || []).map((entry: any) => (
+                        <div key={entry.id} style={{ padding: 8, background: 'var(--cx-bg-surface)', borderRadius: 6, border: '1px solid var(--cx-border-subtle)' }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)', marginBottom: 4 }}>{entry.user?.display_name || 'Anonymous'} · {entry.created_at ? new Date(entry.created_at).toLocaleDateString() : ''}</div>
+                          <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }} dangerouslySetInnerHTML={{ __html: entry.message || '' }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        className="cx-input cx-input--sm"
+                        style={{ flex: 1, fontSize: '0.8125rem' }}
+                        placeholder="Write a reply..."
+                        value={replyForms[a.id] || ''}
+                        onChange={e => setReplyForms(prev => ({ ...prev, [a.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleReply(a.id) }}
+                      />
+                      <button
+                        className="cx-btn cx-btn--primary cx-btn--sm"
+                        onClick={() => handleReply(a.id)}
+                        disabled={replyLoading[a.id] || !(replyForms[a.id]?.trim())}
+                      >
+                        {replyLoading[a.id] ? 'Posting...' : 'Reply'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}

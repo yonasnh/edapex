@@ -117,7 +117,7 @@ const AppointmentScheduler: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>()
   const { role } = useRole()
   const { showToast, showConfirm } = useNotification()
-  const isTeacher = role === 'teacher' || role === 'admin' || role === 'ta'
+  const isTeacher = role === 'teacher' || role === 'admin' || (role as string) === 'ta'
 
   const [viewWeek, setViewWeek] = useState(new Date())
   const [selectedSlots, setSelectedSlots] = useState<{ dayIndex: number; hour: number }[]>([])

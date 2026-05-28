@@ -7,7 +7,7 @@
  *  DELETE /api/v1/courses/:id/enrollments/:enrollmentId  — remove
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
@@ -42,6 +42,16 @@ export default function WaitlistPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Auto-enroll config persisted per course
+  const autoEnrollKey = `waitlist-auto-enroll-${courseId}`
+  const courseLimitKey = `waitlist-course-limit-${courseId}`
+  const [autoEnroll, setAutoEnroll] = useState(() => {
+    try { return localStorage.getItem(autoEnrollKey) === 'true' } catch { return false }
+  })
+  const [courseLimit, setCourseLimit] = useState(() => {
+    try { return Number(localStorage.getItem(courseLimitKey)) || 0 } catch { return 0 }
+  })
+
   const { data: enrollments, isLoading, refetch } = useCanvasQuery<Enrollment[]>(
     courseId ? `/api/v1/courses/${courseId}/enrollments` : '',
     {
@@ -52,7 +62,47 @@ export default function WaitlistPage() {
     } as any
   )
 
-  const waitlisted = useMemo(() => enrollments || [], [enrollments])
+  const { data: activeEnrollments } = useCanvasQuery<Enrollment[]>(
+    courseId ? `/api/v1/courses/${courseId}/enrollments` : '',
+    {
+      state: ['active'],
+      type: ['StudentEnrollment'],
+      per_page: 1,
+    } as any
+  )
+
+  const activeCount = activeEnrollments?.length ?? 0
+
+  // Sort by created_at ascending = priority order (oldest first)
+  const waitlisted = useMemo(() => {
+    const list = enrollments || []
+    return [...list].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+      return ta - tb
+    })
+  }, [enrollments])
+
+  // Auto-promote when seats open
+  useEffect(() => {
+    if (!autoEnroll || !courseId || waitlisted.length === 0) return
+    if (courseLimit <= 0) return
+    const seatsAvailable = courseLimit - activeCount
+    if (seatsAvailable > 0) {
+      const toPromote = waitlisted.slice(0, seatsAvailable).map(e => e.id)
+      if (toPromote.length > 0) {
+        Promise.all(toPromote.map(id =>
+          canvasFetch(`/api/v1/courses/${courseId}/enrollments/${id}`, {
+            method: 'PUT',
+            body: { enrollment: { state: 'active' } },
+          })
+        )).then(() => {
+          showToast({ title: `${toPromote.length} student(s) auto-promoted`, type: 'success' })
+          refetch()
+        }).catch(() => {})
+      }
+    }
+  }, [autoEnroll, courseLimit, activeCount, waitlisted, courseId, refetch, showToast])
 
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
@@ -136,14 +186,34 @@ export default function WaitlistPage() {
 
   return (
     <div className="cx-page">
-      <div className="cx-page__header" style={{ paddingTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="cx-page__header" style={{ paddingTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)' }}>Waitlist</h2>
           <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: 'var(--cx-text-secondary)' }}>
             Pending enrollments · {waitlisted.length} student{waitlisted.length !== 1 ? 's' : ''}
+            {courseLimit > 0 && (
+              <span style={{ marginLeft: 8 }}>· {activeCount} / {courseLimit} active seats</span>
+            )}
           </p>
         </div>
-        <Link to={`/courses/${courseId}`} className="cx-btn cx-btn--secondary cx-btn--sm">Back to Course</Link>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--cx-text-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={autoEnroll} onChange={e => {
+                const v = e.target.checked
+                setAutoEnroll(v)
+                localStorage.setItem(autoEnrollKey, String(v))
+              }} />
+              Auto-enroll
+            </label>
+            <input type="number" className="cx-input" style={{ width: 72, fontSize: '0.8125rem' }} min={0} value={courseLimit} onChange={e => {
+              const v = Number(e.target.value) || 0
+              setCourseLimit(v)
+              localStorage.setItem(courseLimitKey, String(v))
+            }} placeholder="Seats" title="Course seat limit" />
+          </div>
+          <Link to={`/courses/${courseId}`} className="cx-btn cx-btn--secondary cx-btn--sm">Back to Course</Link>
+        </div>
       </div>
 
       {/* Bulk actions */}
@@ -176,6 +246,7 @@ export default function WaitlistPage() {
                 <th style={{ width: 40 }}>
                   <input type="checkbox" checked={selectedIds.size === waitlisted.length && waitlisted.length > 0} onChange={toggleSelectAll} />
                 </th>
+                <th style={{ width: 60 }}>#</th>
                 <th>Student</th>
                 <th>Email</th>
                 <th>Status</th>
@@ -184,11 +255,12 @@ export default function WaitlistPage() {
               </tr>
             </thead>
             <tbody>
-              {waitlisted.map(e => (
+              {waitlisted.map((e, idx) => (
                 <tr key={e.id} className="cx-table__row">
                   <td>
                     <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelect(e.id)} />
                   </td>
+                  <td className="cx-table__cell" style={{ fontWeight: 700, color: 'var(--cx-text-tertiary)' }}>{idx + 1}</td>
                   <td className="cx-table__cell cx-table__cell--name">{e.user?.name || 'Unknown'}</td>
                   <td className="cx-table__cell cx-table__cell--muted">{e.user?.email || e.user?.login_id || '—'}</td>
                   <td className="cx-table__cell">

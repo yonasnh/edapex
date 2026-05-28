@@ -17,7 +17,7 @@ function MoreSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill
 export interface FileCardProps {
   id: string;
   name: string;
-  type: 'folder' | 'document' | 'pdf' | 'image' | 'video' | 'audio' | 'other';
+  type: 'folder' | 'document' | 'pdf' | 'image' | 'video' | 'audio' | 'zip' | 'other';
   size?: number;
   modifiedAt: string;
   modifiedBy?: string;
@@ -43,6 +43,7 @@ const FileCard: React.FC<FileCardProps> = ({
       case 'image': return <ImageSvg />;
       case 'video': return <VideoSvg />;
       case 'audio': return <AudioSvg />;
+      case 'zip': return <DocumentSvg />;
       default: return <DocumentSvg />;
     }
   };

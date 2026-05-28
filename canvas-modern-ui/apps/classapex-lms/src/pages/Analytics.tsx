@@ -15,6 +15,7 @@
 import React, { useMemo, useState } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
+import LogoLoader from '../components/LogoLoader'
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
@@ -182,6 +183,7 @@ const Analytics: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null)
   const [selectedGradeCourseId, setSelectedGradeCourseId] = useState<number | null>(null)
   const [selectedStudentCourseId, setSelectedStudentCourseId] = useState<number | null>(null)
+  const [heatmapCourseId, setHeatmapCourseId] = useState<number | null>(null)
 
   const { showConfirm, showToast } = useNotification()
 
@@ -214,6 +216,21 @@ const Analytics: React.FC = () => {
   const { data: accountUsers } = useCanvasQuery<AccountUser[]>(
     '/api/v1/accounts/1/users',
     { per_page: 1 } as any,
+  )
+
+  // ── Heatmap queries (system mode) ────────────────────────────────────────
+  const activeHeatmapCourseId = heatmapCourseId ?? (courses?.find(c => c.workflow_state === 'available')?.id ?? null)
+
+  const { data: heatmapStudents, isLoading: heatmapStudentsLoading } = useCanvasQuery<StudentUser[]>(
+    activeHeatmapCourseId ? `/api/v1/courses/${activeHeatmapCourseId}/users` : '',
+    { enrollment_type: ['student'], include: ['enrollments'], per_page: 100 } as any,
+    { enabled: !!activeHeatmapCourseId && mode === 'system' }
+  )
+
+  const { data: heatmapSummaries, isLoading: heatmapSummariesLoading } = useCanvasQuery<StudentSummary[]>(
+    activeHeatmapCourseId ? `/api/v1/courses/${activeHeatmapCourseId}/analytics/student_summaries` : '',
+    undefined,
+    { enabled: !!activeHeatmapCourseId && mode === 'system' }
   )
 
   // ── Grades mode queries ──────────────────────────────────────────────────
@@ -467,10 +484,7 @@ const Analytics: React.FC = () => {
   if (isLoading) {
     return (
       <div className="cx-page">
-        <div className="cx-loading">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading analytics…</span>
-        </div>
+        <LogoLoader text="Loading analytics…" />
       </div>
     )
   }
@@ -665,6 +679,79 @@ const Analytics: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Participation Heatmap — Real data from Canvas analytics API */}
+          <div className="cx-card" style={{ marginBottom: 16 }}>
+            <div className="cx-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <h3 className="cx-card__title"><TaskIcon /> Student Activity Heatmap</h3>
+              <select
+                className="cx-select"
+                value={activeHeatmapCourseId ?? ''}
+                onChange={e => setHeatmapCourseId(Number(e.target.value) || null)}
+                aria-label="Course for heatmap"
+                style={{ fontSize: '0.8125rem' }}
+              >
+                {courses?.filter(c => c.workflow_state === 'available').map(course => (
+                  <option key={course.id} value={course.id}>{course.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="cx-card__body">
+              {heatmapStudentsLoading || heatmapSummariesLoading ? (
+                <LogoLoader text="Loading activity data…" />
+              ) : !heatmapStudents || heatmapStudents.length === 0 ? (
+                <p style={{ textAlign: 'center', padding: '24px 0', color: 'var(--cx-text-tertiary)', fontSize: '0.875rem' }}>
+                  No student enrollment data available for this course.
+                </p>
+              ) : (
+                <>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>Student</th>
+                          <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>Page Views</th>
+                          <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>Participations</th>
+                          <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>Current Score</th>
+                          <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>Activity Intensity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(heatmapStudents || []).map(student => {
+                          const summary = heatmapSummaries?.find(s => s.id === student.id)
+                          const views = summary?.page_views ?? 0
+                          const parts = summary?.participations ?? 0
+                          const score = summary?.current_score ?? null
+                          const maxViews = Math.max(...(heatmapSummaries?.map(s => s.page_views) || [1]), 1)
+                          const maxParts = Math.max(...(heatmapSummaries?.map(s => s.participations) || [1]), 1)
+                          const intensity = (views / maxViews) * 0.5 + (parts / maxParts) * 0.5
+                          const opacity = Math.max(0.1, Math.min(0.95, intensity))
+                          return (
+                            <tr key={student.id}>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', color: 'var(--cx-text-primary)', fontWeight: 500 }}>{student.name}</td>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', color: 'var(--cx-text-secondary)' }}>{views}</td>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', color: 'var(--cx-text-secondary)' }}>{parts}</td>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center', color: 'var(--cx-text-secondary)', fontWeight: 600 }}>{score !== null ? `${score.toFixed(1)}%` : '—'}</td>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--cx-border-subtle)', textAlign: 'center' }}>
+                                <div style={{ width: '100%', height: 20, borderRadius: 4, background: `rgba(99, 102, 241, ${opacity})`, transition: 'background 0.2s' }} title={`Intensity: ${(opacity * 100).toFixed(0)}%`} />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)' }}>Less</span>
+                    {[0.15, 0.35, 0.55, 0.75, 0.95].map(op => (
+                      <div key={op} style={{ width: 14, height: 14, borderRadius: 3, background: `rgba(99, 102, 241, ${op})` }} />
+                    ))}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--cx-text-tertiary)' }}>More</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </>
       )}
 
@@ -689,10 +776,7 @@ const Analytics: React.FC = () => {
               </select>
             </div>
             {studentModeLoading ? (
-              <div className="cx-loading" style={{ padding: '40px 0' }}>
-                <div className="cx-loading__spinner" />
-                <span className="cx-loading__text">Loading student data…</span>
-              </div>
+              <LogoLoader text="Loading student data…" />
             ) : !activeStudentCourseId || studentList.length === 0 ? (
               <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
                 {!activeStudentCourseId ? 'No active courses available.' : 'No students enrolled in this course.'}
@@ -767,11 +851,9 @@ const Analytics: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button
-                      className="cx-btn cx-btn--primary cx-btn--sm"
-                      onClick={async () => {
-                        const confirmed = await showConfirm({ title: 'Launch Intervention?', message: 'This will flag the student for advisor outreach.', type: 'warning' })
-                        if (confirmed) showToast({ title: 'Intervention Initiated', message: `Workflow started for ${selectedStudent.name}.`, type: 'success' })
-                      }}
+                      className="cx-btn cx-btn--secondary cx-btn--sm"
+                      disabled
+                      title="Intervention workflows require an external student-success platform integration (e.g., EAB Navigate, Starfish)."
                     >
                       Launch Intervention
                     </button>
@@ -822,10 +904,7 @@ const Analytics: React.FC = () => {
             </div>
 
             {gradesLoading ? (
-              <div className="cx-loading" style={{ padding: '40px 0' }}>
-                <div className="cx-loading__spinner" />
-                <span className="cx-loading__text">Loading grade data…</span>
-              </div>
+              <LogoLoader text="Loading grade data…" />
             ) : !activeGradeCourseId || !courses || courses.length === 0 ? (
               <p style={{ color: 'var(--cx-text-tertiary)', fontSize: '0.875rem', padding: '24px 0', textAlign: 'center' }}>
                 No courses available. Enroll in or create a course to view grade distributions.

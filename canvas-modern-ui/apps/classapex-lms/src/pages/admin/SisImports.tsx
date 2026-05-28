@@ -399,6 +399,25 @@ export default function SisImportsPage() {
                         <tr>
                           <td colSpan={7} style={{ padding: 0, border: 'none' }}>
                             <div style={{ padding: '12px 16px', background: 'var(--cx-bg-canvas)', borderBottom: '1px solid var(--cx-border-subtle)' }}>
+                              {/* Diff reporting: compare with previous import */}
+                              {(() => {
+                                const idx = historyImports.findIndex((h: SisImport) => h.id === imp.id);
+                                const prev = idx >= 0 ? historyImports[idx + 1] : null;
+                                if (!prev || !prev.statistics || !imp.statistics) return null;
+                                const diffTotal = (imp.statistics.total_rows ?? 0) - (prev.statistics.total_rows ?? 0);
+                                const diffSuccess = (imp.statistics.successful_rows ?? 0) - (prev.statistics.successful_rows ?? 0);
+                                const diffFailed = (imp.statistics.failed_rows ?? 0) - (prev.statistics.failed_rows ?? 0);
+                                return (
+                                  <div style={{ marginBottom: 12, padding: 10, background: 'var(--cx-bg-surface-raised)', borderRadius: 6, border: '1px solid var(--cx-border-subtle)' }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', marginBottom: 6 }}>Diff vs Previous Import (#{prev.id})</div>
+                                    <div style={{ display: 'flex', gap: 16, fontSize: '0.75rem' }}>
+                                      <span>Total: <strong>{imp.statistics.total_rows ?? 0}</strong> <span style={{ color: diffTotal > 0 ? 'var(--cx-color-success)' : diffTotal < 0 ? 'var(--cx-color-danger)' : 'var(--cx-text-tertiary)' }}>({diffTotal >= 0 ? '+' : ''}{diffTotal})</span></span>
+                                      <span>Success: <strong>{imp.statistics.successful_rows ?? 0}</strong> <span style={{ color: diffSuccess > 0 ? 'var(--cx-color-success)' : diffSuccess < 0 ? 'var(--cx-color-danger)' : 'var(--cx-text-tertiary)' }}>({diffSuccess >= 0 ? '+' : ''}{diffSuccess})</span></span>
+                                      <span>Failed: <strong>{imp.statistics.failed_rows ?? 0}</strong> <span style={{ color: diffFailed > 0 ? 'var(--cx-color-danger)' : diffFailed < 0 ? 'var(--cx-color-success)' : 'var(--cx-text-tertiary)' }}>({diffFailed >= 0 ? '+' : ''}{diffFailed})</span></span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                               {imp.processing_errors && imp.processing_errors.length > 0 && (
                                 <div style={{ marginBottom: imp.processing_warnings && imp.processing_warnings.length > 0 ? 12 : 0 }}>
                                   <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-accent-error)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>

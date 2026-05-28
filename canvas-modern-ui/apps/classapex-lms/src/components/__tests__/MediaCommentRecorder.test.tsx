@@ -216,7 +216,7 @@ describe('MediaCommentRecorder', () => {
     fireEvent.click(screen.getByRole('button', { name: /Send/i }))
 
     await waitFor(() => {
-      expect(onRecordComplete).toHaveBeenCalledWith('http://media.mp4', 'video')
+      expect(onRecordComplete).toHaveBeenCalledWith('http://media.mp4', 'video', expect.objectContaining({ url: 'http://media.mp4' }))
     })
   })
 

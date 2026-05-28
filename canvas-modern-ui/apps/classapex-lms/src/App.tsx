@@ -353,12 +353,12 @@ const AppContent = () => {
   const { data: externalTools } = useCanvasQuery<any[]>('/api/v1/accounts/1/external_tools');
 
   // Role context (used for role-based nav filtering)
-  const { role, user: demoUser, isMasquerading, masqueradeAs } = useRole()
+  const { role, user: currentUser, isMasquerading, masqueradeAs } = useRole()
 
-  // Derive display values — prefer live Canvas data when role matches default 'student', fall back to active preview persona details
-  const displayName = role === 'student' ? (canvasDisplayName || demoUser.displayName) : demoUser.displayName
-  const avatarUrl = role === 'student' ? (canvasAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${demoUser.avatarSeed}`) : `https://api.dicebear.com/7.x/avataaars/svg?seed=${demoUser.avatarSeed}`
-  const userRole = demoUser.title
+  // Derive display values from live Canvas API data only
+  const displayName = canvasDisplayName || currentUser.displayName || 'User'
+  const avatarUrl = canvasAvatarUrl || currentUser.avatarSeed || ''
+  const userRole = currentUser.title
 
   // Global Cmd+K and Command Palette action handlers (S3-10 keyboard nav / command actions)
   useEffect(() => {
@@ -472,7 +472,7 @@ const AppContent = () => {
             id: `lti-global-${tool.id}`,
             label: tool.name,
             icon: () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2l3 6 6 .5-4.5 4 1.5 6-6-3.5L4 18.5l1.5-6L1 8.5 7 8z"/></svg>,
-            href: `/courses/1/lti?tool_id=${tool.id}`, // using a dummy course 1 or global launch URL, but we need a route for account LTI if possible. For now map to course 1 or use a special route.
+            href: `/accounts/1/lti?tool_id=${tool.id}`
           }))
         ];
       }
@@ -485,9 +485,9 @@ const AppContent = () => {
     <NavigationSidebar
       data-testid="navigation-sidebar"
       currentUser={{
-        id: canvasUser?.id ?? demoUser.id,
+        id: canvasUser?.id ?? currentUser.id,
         name: displayName,
-        email: canvasUser?.primary_email ?? canvasUser?.login_id ?? demoUser.email,
+        email: canvasUser?.primary_email ?? canvasUser?.login_id ?? currentUser.email,
         roles: [role],
         locale: 'en',
         timezone: 'UTC',
@@ -779,7 +779,7 @@ const App = () => (
           <TenantProvider>
             <RoleProvider>
               <NotificationProvider>
-                <Router>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <Routes>
                     <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
                     <Route path="/*" element={

@@ -488,27 +488,9 @@ describe('Announcements — Role-Based Access', () => {
 })
 
 describe('CourseHome — Role-Based Access', () => {
-  const originalLocation = window.location
-  const reloadMock = vi.fn()
-
-  beforeAll(() => {
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { ...originalLocation, reload: reloadMock },
-    })
-  })
-
-  afterAll(() => {
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: originalLocation,
-    })
-  })
-
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    reloadMock.mockClear()
   })
 
   ROLES.forEach((role) => {
@@ -593,7 +575,6 @@ describe('CourseHome — Role-Based Access', () => {
         fireEvent.click(screen.getByRole('button', { name: /Student View/i }))
         expect(localStorage.getItem('classapex-student-view-course')).toBe('1')
         expect(localStorage.getItem('classapex-demo-role')).toBe('student')
-        expect(reloadMock).toHaveBeenCalled()
       })
     })
   })

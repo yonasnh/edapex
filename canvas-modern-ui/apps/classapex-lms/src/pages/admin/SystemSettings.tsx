@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
 import { useNotification } from '../../hooks/useNotification';
+import LogoLoader from '../../components/LogoLoader'
 
 function SearchSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>; }
 function FlagSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 17V3h8l1 2h4v9H9l-1-2H4z"/></svg>; }
@@ -24,6 +25,7 @@ export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [saving, setSaving] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: accountData, isLoading: accountLoading, refetch: refetchAccount } = useCanvasQuery<any>('/api/v1/accounts/1')
   const { data: featuresData, isLoading: featuresLoading, refetch: refetchFeatures } = useCanvasQuery<AccountFeature[]>('/api/v1/accounts/1/features')
@@ -40,6 +42,16 @@ export default function SystemSettingsPage() {
         users_can_edit_comm_channels: accountData.users_can_edit_comm_channels ?? true,
         restrict_student_past_view: accountData.restrict_student_past_view ?? false,
         restrict_student_future_view: accountData.restrict_student_future_view ?? false,
+        // Login settings
+        self_registration: accountData.self_registration ?? false,
+        password_policy_min_length: accountData.password_policy_min_length || 8,
+        password_policy_require_numbers: accountData.password_policy_require_numbers ?? true,
+        password_policy_require_symbols: accountData.password_policy_require_symbols ?? false,
+        // Communication settings
+        default_notification_frequency: accountData.default_notification_frequency || 'daily',
+        // Grade settings
+        default_grading_standard_id: accountData.default_grading_standard_id || '',
+        allow_unenrolled_view: accountData.allow_unenrolled_view ?? false,
       })
     }
   }, [accountData])
@@ -69,6 +81,10 @@ export default function SystemSettingsPage() {
           users_can_edit_comm_channels: !!form.users_can_edit_comm_channels,
           restrict_student_past_view: !!form.restrict_student_past_view,
           restrict_student_future_view: !!form.restrict_student_future_view,
+          self_registration: !!form.self_registration,
+          default_notification_frequency: form.default_notification_frequency,
+          default_grading_standard_id: form.default_grading_standard_id ? Number(form.default_grading_standard_id) : undefined,
+          allow_unenrolled_view: !!form.allow_unenrolled_view,
         },
       })
       showToast({ title: 'Account settings saved', type: 'success' })
@@ -91,6 +107,55 @@ export default function SystemSettingsPage() {
       refetchFeatures()
     } catch (err: any) {
       showToast({ title: 'Failed to toggle feature', message: err?.message || 'Please try again.', type: 'error' })
+    }
+  }
+
+  const handleExportSettings = () => {
+    const payload = {
+      settings: form,
+      features,
+      exportedAt: new Date().toISOString(),
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const date = new Date().toISOString().split('T')[0]
+    const filename = `classapex-settings-backup-${date}.json`
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showToast({ title: 'Settings exported successfully', type: 'success' })
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid JSON structure')
+      }
+      if (!data.settings || typeof data.settings !== 'object') {
+        throw new Error('Missing or invalid settings object')
+      }
+      if (!window.confirm('This will merge imported settings with current values. Continue?')) {
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        return
+      }
+      setForm(prev => ({ ...prev, ...data.settings }))
+      showToast({ title: 'Settings imported successfully', type: 'success' })
+    } catch (err: any) {
+      showToast({ title: 'Import failed', message: err?.message || 'Invalid backup file.', type: 'error' })
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -118,10 +183,7 @@ export default function SystemSettingsPage() {
   if (isLoading && activeTab === 0) {
     return (
       <div className="cx-page">
-        <div className="cx-loading" role="status" aria-label="Loading settings">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading system settings…</span>
-        </div>
+        <LogoLoader text="Loading system settings…" />
       </div>
     )
   }
@@ -176,6 +238,63 @@ export default function SystemSettingsPage() {
                   {toggle.label}
                 </label>
               ))}
+            </div>
+
+            <h3 style={{ margin: '24px 0 0', fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Login Settings</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--cx-text-primary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!form.self_registration}
+                  onChange={e => setForm(p => ({ ...p, self_registration: e.target.checked }))}
+                  style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }}
+                />
+                Allow self-registration
+              </label>
+              <div>
+                <label style={labelStyle}>Minimum Password Length</label>
+                <input type="number" style={inpStyle} min={6} max={128} value={form.password_policy_min_length || 8} onChange={e => setForm(p => ({ ...p, password_policy_min_length: Number(e.target.value) }))} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--cx-text-primary)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form.password_policy_require_numbers} onChange={e => setForm(p => ({ ...p, password_policy_require_numbers: e.target.checked }))} style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }} />
+                  Require numbers in passwords
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--cx-text-primary)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form.password_policy_require_symbols} onChange={e => setForm(p => ({ ...p, password_policy_require_symbols: e.target.checked }))} style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }} />
+                  Require symbols in passwords
+                </label>
+              </div>
+            </div>
+
+            <h3 style={{ margin: '24px 0 0', fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Communication Settings</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+              <div>
+                <label style={labelStyle}>Default Notification Frequency</label>
+                <select style={inpStyle} value={form.default_notification_frequency || 'daily'} onChange={e => setForm(p => ({ ...p, default_notification_frequency: e.target.value }))}>
+                  <option value="immediately">Immediately</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="never">Never</option>
+                </select>
+              </div>
+            </div>
+
+            <h3 style={{ margin: '24px 0 0', fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Grade Settings</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+              <div>
+                <label style={labelStyle}>Default Grading Standard ID</label>
+                <input type="text" style={inpStyle} value={form.default_grading_standard_id || ''} onChange={e => setForm(p => ({ ...p, default_grading_standard_id: e.target.value }))} placeholder="e.g. 42 (leave blank for none)" />
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--cx-text-primary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!form.allow_unenrolled_view}
+                  onChange={e => setForm(p => ({ ...p, allow_unenrolled_view: e.target.checked }))}
+                  style={{ accentColor: 'var(--cx-color-primary)', width: 18, height: 18 }}
+                />
+                Allow unenrolled users to view grades
+              </label>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12 }}>
@@ -238,25 +357,29 @@ export default function SystemSettingsPage() {
       {activeTab === 2 && (
         <div className="cx-section">
           <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 16px' }}>Backup, Restore & Demo Data</h3>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 24 }}>Manage system backups and development demo data.</p>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 24 }}>Export and import your system settings locally, or manage demo data.</p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
             <div className="cx-card">
-              <div className="cx-card__header"><h3 className="cx-card__title">Manual Backup</h3></div>
+              <div className="cx-card__header"><h3 className="cx-card__title">Export Settings</h3></div>
               <div className="cx-card__body">
-                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 12 }}>Create an immediate backup of all system data.</p>
-                <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => showToast({ title: 'Backup initiated', type: 'info' })}><UploadSvg /> Create Backup Now</button>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 12 }}>Download a JSON backup of your current account settings and feature flags.</p>
+                <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleExportSettings}><DownloadSvg /> Export Settings</button>
               </div>
             </div>
 
             <div className="cx-card">
-              <div className="cx-card__header"><h3 className="cx-card__title">Restore from Backup</h3></div>
+              <div className="cx-card__header"><h3 className="cx-card__title">Import Settings</h3></div>
               <div className="cx-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div>
-                  <label style={labelStyle}>Upload backup file</label>
-                  <input type="file" style={inpStyle} accept=".backup,.zip" />
-                </div>
-                <button className="cx-btn cx-btn--danger cx-btn--sm" disabled><DownloadSvg /> Restore System</button>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>Upload a previously exported settings JSON file to restore configuration.</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: 'none' }}
+                  accept=".json,application/json"
+                  onChange={handleImportFile}
+                />
+                <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={handleImportClick}><UploadSvg /> Import Settings</button>
               </div>
             </div>
 
@@ -265,7 +388,7 @@ export default function SystemSettingsPage() {
               <div className="cx-card__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>Populate or clean demonstration data for evaluation.</p>
                 <button className="cx-btn cx-btn--secondary cx-btn--sm" style={{ width: '100%' }} onClick={() => showToast({ title: 'Cleanup not available', type: 'warning' })}>Clean Up Test Records</button>
-                <button className="cx-btn cx-btn--primary cx-btn--sm" style={{ width: '100%' }} onClick={() => showToast({ title: 'Import not available', type: 'warning' })}>Import Demo Data</button>
+                <button className="cx-btn cx-btn--secondary cx-btn--sm" style={{ width: '100%' }} disabled title="Demo data management requires server-side infrastructure.">Import Demo Data</button>
               </div>
             </div>
           </div>

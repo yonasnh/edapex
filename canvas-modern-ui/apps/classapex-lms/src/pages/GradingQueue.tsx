@@ -10,7 +10,7 @@
  *  - Prev/Next navigation for efficient grading flow
  */
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import DocViewerWrapper from '../components/DocViewerWrapper'
@@ -95,20 +95,20 @@ export default function GradingQueuePage() {
   const [gradedLocally, setGradedLocally] = useState<Set<number>>(new Set())
 
   // SpeedGrader Enhancements States (Sprint 18)
-  const [rubricViewTab, setRubricViewTab] = useState<'teacher' | 'self' | 'peer'>('teacher')
-  const [isModerated, setIsModerated] = useState(false)
-  const [moderator, setModerator] = useState('Professor Miller')
+  const [rubricViewTab, setRubricViewTab] = useState<'teacher' | 'self' | 'peer' | 'moderated'>('teacher')
   // Real rubric grading state
   const [rubricScores, setRubricScores] = useState<Record<string, { points: number; comments: string }>>({})
+  // Provisional grades state
+  const [selectedProvisionalGradeId, setSelectedProvisionalGradeId] = useState<string | null>(null)
   
   // DocViewer Annotation States
-  const [annotations, setAnnotations] = useState<{ id: string; x: number; y: number; text: string; type: string }[]>([
-    { id: '1', x: 120, y: 110, text: 'Excellent introductory paragraph! Strong thesis statement.', type: 'note' },
-    { id: '2', x: 280, y: 190, text: 'Check APA citation style formatting here.', type: 'highlight' }
-  ])
+  const [annotations, setAnnotations] = useState<{ id: string; x: number; y: number; text: string; type: string }[]>([])
   const [showRecorder, setShowRecorder] = useState(false)
 
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+
+  const gradeInputRef = useRef<HTMLInputElement>(null)
+  const commentInputRef = useRef<HTMLInputElement>(null)
 
   const { showToast } = useNotification()
 
@@ -165,6 +165,26 @@ export default function GradingQueuePage() {
     undefined,
     { enabled: !!(selected?.assignment?.id && selected.assignment.rubric_id && selectedCourseId) }
   )
+
+  // Fetch assignment details to detect moderated grading
+  const { data: assignmentDetails } = useCanvasQuery<any>(
+    selected?.assignment?.id && selectedCourseId
+      ? `/api/v1/courses/${selectedCourseId}/assignments/${selected.assignment_id}`
+      : '',
+    undefined,
+    { enabled: !!(selected?.assignment?.id && selectedCourseId) }
+  )
+  const isModerated = assignmentDetails?.moderated_grading === true
+
+  // Fetch provisional grades for moderated assignments
+  const { data: provisionalGradesData } = useCanvasQuery<any>(
+    isModerated && selected?.assignment?.id && selectedCourseId
+      ? `/api/v1/courses/${selectedCourseId}/assignments/${selected.assignment_id}/provisional_grades`
+      : '',
+    undefined,
+    { enabled: !!(isModerated && selected?.assignment?.id && selectedCourseId) }
+  )
+  const provisionalGrades = provisionalGradesData?.provisional_grades || []
 
   // Reset rubric scores when selection changes
   React.useEffect(() => {
@@ -261,6 +281,41 @@ export default function GradingQueuePage() {
       setComment('')
     }
   }, [selected, filteredSubmissions])
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (selectedId === null) return
+    const active = document.activeElement
+    const isInputFocused = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+    const isGradeOrCommentFocused = active === gradeInputRef.current || active === commentInputRef.current
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      navigateQueue('prev')
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      navigateQueue('next')
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setSelectedId(null)
+    } else if (e.key === 'Enter' && !isGradeOrCommentFocused) {
+      e.preventDefault()
+      handleSubmitGrade()
+    } else if (/^[0-9]$/.test(e.key) && !isInputFocused) {
+      e.preventDefault()
+      setGradeValue(prev => prev + e.key)
+    } else if (e.shiftKey && (e.key === 'G' || e.key === 'g')) {
+      e.preventDefault()
+      gradeInputRef.current?.focus()
+    } else if (e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+      e.preventDefault()
+      commentInputRef.current?.focus()
+    }
+  }, [selectedId, navigateQueue, handleSubmitGrade])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   const currentIndex = selected ? filteredSubmissions.findIndex(s => s.id === selected.id) : -1
 
@@ -464,6 +519,15 @@ export default function GradingQueuePage() {
                   >
                     Peer Reviews
                   </button>
+                  {isModerated && (
+                    <button
+                      className={`cx-btn cx-btn--sm ${rubricViewTab === 'moderated' ? 'cx-btn--primary' : 'cx-btn--ghost'}`}
+                      onClick={() => setRubricViewTab('moderated')}
+                      style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+                    >
+                      Provisional Grades
+                    </button>
+                  )}
                 </div>
 
                 {rubricViewTab === 'teacher' && (
@@ -535,41 +599,62 @@ export default function GradingQueuePage() {
                 {rubricViewTab === 'self' && (
                   <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'var(--cx-color-primary-subtle)' }}>
                     <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Student Self-Evaluation Rubric</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.78rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 4 }}>
-                        <span>Content Accuracy</span>
-                        <strong style={{ color: 'var(--cx-color-success)' }}>Exceeds Standards (5/5)</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 4 }}>
-                        <span>Academic Citations</span>
-                        <strong style={{ color: 'var(--cx-color-warning)' }}>Meets Standards (3/5)</strong>
-                      </div>
-                      <p style={{ margin: '4px 0 0 0', fontStyle: 'italic', color: 'var(--cx-text-secondary)' }}>
-                        "I spent extra time researching peer-reviewed articles, but I need to double-check my APA citation endings."
-                      </p>
-                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--cx-text-secondary)' }}>
+                      Self-assessment data is not available via the Canvas Submissions API. Instructors can configure self-assessments through Canvas native rubric settings.
+                    </p>
                   </div>
                 )}
 
                 {rubricViewTab === 'peer' && (
                   <div className="cx-card" style={{ padding: 16, marginBottom: 16, background: 'var(--cx-color-primary-subtle)' }}>
-                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Peer Review Evaluations (2 reviews)</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: '0.78rem' }}>
-                      <div style={{ borderBottom: '1px solid var(--cx-border-subtle)', paddingBottom: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <strong>Peer Reviewer A</strong>
-                          <span style={{ color: 'var(--cx-text-tertiary)' }}>Score: 4.5/5</span>
-                        </div>
-                        <p style={{ margin: '2px 0 0 0', color: 'var(--cx-text-secondary)' }}>"Clear thesis and strong evidence in section 2. Well organized!"</p>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-color-primary)' }}>Peer Review Evaluations</h4>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--cx-text-secondary)' }}>
+                      Peer review comments and scores for this submission can be viewed in the Canvas native SpeedGrader or Peer Reviews page. They are not aggregated in this endpoint.
+                    </p>
+                  </div>
+                )}
+
+                {rubricViewTab === 'moderated' && (
+                  <div className="cx-card" style={{ padding: 16, marginBottom: 16 }}>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Provisional Grades</h4>
+                    {provisionalGrades.length === 0 ? (
+                      <p style={{ fontSize: '0.78rem', color: 'var(--cx-text-secondary)' }}>
+                        No provisional grades found for this submission. Grades submitted by non-final graders appear here during moderated grading.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {provisionalGrades.map((pg: any) => (
+                          <div key={pg.provisional_grade_id} style={{ padding: 12, border: '1px solid var(--cx-border-subtle)', borderRadius: 8, background: selectedProvisionalGradeId === pg.provisional_grade_id ? 'rgba(99,102,241,0.05)' : 'var(--cx-bg-surface)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Grader {pg.scorer_id || 'Unknown'}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-secondary)' }}>{pg.score != null ? `${pg.score} pts` : 'No score'}</span>
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--cx-text-secondary)', marginBottom: 8 }}>
+                              {pg.readable_score || pg.grade || '—'}
+                            </div>
+                            <button
+                              className="cx-btn cx-btn--sm cx-btn--secondary"
+                              disabled={pg.final}
+                              onClick={() => setSelectedProvisionalGradeId(pg.provisional_grade_id)}
+                            >
+                              {pg.final ? 'Final Grade' : (selectedProvisionalGradeId === pg.provisional_grade_id ? 'Selected' : 'Select as Final')}
+                            </button>
+                          </div>
+                        ))}
+                        {selectedProvisionalGradeId && (
+                          <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={async () => {
+                            try {
+                              await fetch(`/api/v1/courses/${selectedCourseId}/assignments/${selected?.assignment_id}/provisional_grades/${selectedProvisionalGradeId}/select`, { method: 'PUT' })
+                              showToast({ title: 'Final grade selected', type: 'success' })
+                            } catch {
+                              showToast({ title: 'Failed to select final grade', type: 'error' })
+                            }
+                          }}>
+                            Release Final Grade
+                          </button>
+                        )}
                       </div>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <strong>Peer Reviewer B</strong>
-                          <span style={{ color: 'var(--cx-text-tertiary)' }}>Score: 4.0/5</span>
-                        </div>
-                        <p style={{ margin: '2px 0 0 0', color: 'var(--cx-text-secondary)' }}>"Very detailed analysis, but the bibliography is missing two references cited."</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -586,30 +671,13 @@ export default function GradingQueuePage() {
                   </div>
                 )}
 
-                {/* Moderated / Provisional Grading Controls (S18-07) */}
-                <div className="cx-card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label className="cx-toggle" style={{ margin: 0 }}>
-                    <input type="checkbox" checked={isModerated} onChange={e => setIsModerated(e.target.checked)} />
-                    <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
-                    <span className="cx-toggle__label" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>
-                      Save as Provisional / Moderated Grade
-                    </span>
-                  </label>
-                  {isModerated && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
-                      <div>
-                        <label style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)' }}>Assigned Moderator</label>
-                        <select className="cx-select" value={moderator} onChange={e => setModerator(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: '0.75rem' }}>
-                          <option value="Professor Miller">Professor Miller (Primary)</option>
-                          <option value="TA Davis">TA Davis (Assistant)</option>
-                        </select>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--cx-text-tertiary)', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontStyle: 'italic' }}>Note: Grade must be confirmed by the assigned moderator before posting.</span>
-                      </div>
+                {isModerated && rubricViewTab !== 'moderated' && (
+                  <div className="cx-card" style={{ padding: 14, marginBottom: 16, background: 'var(--cx-color-primary-subtle)' }}>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)' }}>
+                      <strong>Moderated Grading Enabled:</strong> This assignment uses moderated grading. View the <strong>Provisional Grades</strong> tab to see scores from multiple graders and select a final grade.
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Previous comments */}
                 {selected.submission_comments && selected.submission_comments.length > 0 && (
@@ -640,6 +708,7 @@ export default function GradingQueuePage() {
                     <span className="cx-grading__grade-label">Score</span>
                     <div className="cx-grading__grade-input-wrap">
                       <input
+                        ref={gradeInputRef}
                         type="number"
                         className="cx-grading__grade-input"
                         value={gradeValue}
@@ -653,6 +722,7 @@ export default function GradingQueuePage() {
                   </div>
 
                   <input
+                    ref={commentInputRef}
                     type="text"
                     className="cx-grading__comment-input"
                     value={comment}

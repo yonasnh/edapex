@@ -558,18 +558,25 @@ function DraggablePageRow({
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--cx-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-          {page.title}
+        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--cx-text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
           {page.front_page && (
             <span style={{
-              marginLeft: 8,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
               fontSize: '0.7rem',
-              padding: '1px 6px',
+              padding: '2px 8px',
               borderRadius: 8,
-              background: 'var(--cx-color-primary)',
-              color: '#fff',
-            }}>Front Page</span>
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: 'var(--cx-color-warning, #f59e0b)',
+              fontWeight: 700,
+              flexShrink: 0,
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Front Page
+            </span>
           )}
+          {page.title}
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-tertiary)', marginTop: 2 }}>
           Updated {new Date(page.updated_at).toLocaleDateString()}
@@ -672,9 +679,13 @@ export default function Pages() {
     })
   }, [pages, courseId])
 
-  const filtered = (orderedPages ?? []).filter(p =>
-    p.title.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (orderedPages ?? [])
+    .filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (a.front_page && !b.front_page) return -1
+      if (!a.front_page && b.front_page) return 1
+      return 0
+    })
 
   const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
     setOrderedPages(prev => {

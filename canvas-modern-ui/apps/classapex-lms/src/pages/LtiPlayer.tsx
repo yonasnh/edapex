@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
+import LogoLoader from '../components/LogoLoader'
 
 export default function LtiPlayer() {
   const { courseId, accountId } = useParams();
@@ -75,7 +76,7 @@ export default function LtiPlayer() {
   if (loading) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     );
   }

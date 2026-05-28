@@ -45,7 +45,7 @@ describe('PublicSyllabusPage', () => {
     vi.mocked(useCanvasQuery).mockReturnValue({ data: null, isLoading: true, isError: false } as any)
 
     renderWithRoute(<PublicSyllabusPage />)
-    expect(document.querySelector('.cx-loading-ring')).toBeInTheDocument()
+    expect(screen.getByAltText('ClassApex Logo')).toBeInTheDocument()
   })
 
   it('renders error state with sign in link', () => {

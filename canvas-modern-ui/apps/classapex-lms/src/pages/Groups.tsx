@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
+import { extractPath } from '../utils/urlHelpers';
 import GroupCard from '../components/GroupCard';
 
 interface GroupData {
@@ -30,16 +32,18 @@ function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill
 
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import LogoLoader from '../components/LogoLoader'
 
 function GroupDetail({ groupId, onBack }: { groupId: string, onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'members' | 'files' | 'conferences'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'files' | 'discussions' | 'conferences'>('members');
 
   const { data: group } = useCanvasQuery<any>(`/api/v1/groups/${groupId}`);
   const { data: members } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/users`);
   const { data: files } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/files`);
+  const { data: discussions } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/discussion_topics`);
   const { data: conferences } = useCanvasQuery<any[]>(`/api/v1/groups/${groupId}/conferences`);
 
-  if (!group) return <div className="cx-loading"><div className="cx-loading__spinner" /></div>;
+  if (!group) return <LogoLoader />;
 
   return (
     <div className="cx-page" style={{ paddingTop: 0 }}>
@@ -56,6 +60,7 @@ function GroupDetail({ groupId, onBack }: { groupId: string, onBack: () => void 
         <div className="cx-calendar-views" style={{ display: 'flex', gap: 8 }}>
           <button className={clsx('cx-tab', activeTab === 'members' && 'cx-tab--active')} onClick={() => setActiveTab('members')}>Members</button>
           <button className={clsx('cx-tab', activeTab === 'files' && 'cx-tab--active')} onClick={() => setActiveTab('files')}>Files</button>
+          <button className={clsx('cx-tab', activeTab === 'discussions' && 'cx-tab--active')} onClick={() => setActiveTab('discussions')}>Discussions</button>
           <button className={clsx('cx-tab', activeTab === 'conferences' && 'cx-tab--active')} onClick={() => setActiveTab('conferences')}>Conferences</button>
         </div>
       </div>
@@ -104,10 +109,35 @@ function GroupDetail({ groupId, onBack }: { groupId: string, onBack: () => void 
         </div>
       )}
 
+      {activeTab === 'discussions' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {discussions?.map(d => (
+            <div key={d.id} className="cx-card" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--cx-text-primary)', marginBottom: 4 }}>{d.title}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)' }}>
+                    {d.author?.display_name || 'Unknown'} • {d.discussion_subentry_count || 0} replies • {d.pinned ? '📌 Pinned' : ''}
+                  </div>
+                </div>
+                <Link to={extractPath(d.html_url)} className="cx-btn cx-btn--secondary cx-btn--sm">Open</Link>
+              </div>
+            </div>
+          ))}
+          {!discussions?.length && (
+             <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface-raised)', borderRadius: 12 }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
+                <h3 style={{ fontSize: '1.1rem', color: 'var(--cx-text-primary)', marginBottom: 4 }}>No Discussions</h3>
+                <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>Start a group discussion to share ideas and collaborate.</p>
+             </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'conferences' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-             <button className="cx-btn cx-btn--primary cx-btn--sm"><PlusSvg /> New Conference</button>
+             <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => showToast({ title: 'New Conference', message: 'Create conferences from a course Groups tab.', type: 'info' })}><PlusSvg /> New Conference</button>
           </div>
           {conferences?.map(c => (
             <div key={c.id} className="cx-card" style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -220,7 +250,7 @@ const GroupsPage: React.FC = () => {
   return (
     <div className="cx-page">
       <div className="cx-page__header" style={{ justifyContent: 'flex-end', paddingTop: 0 }}>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => {}}><PlusSvg /> Create Group</button>
+        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => showToast({ title: 'Create Group', message: 'Groups are created via course Group Categories. Navigate to a course to create groups.', type: 'info' })}><PlusSvg /> Create Group</button>
       </div>
 
       <div className="cx-stats-grid">

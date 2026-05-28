@@ -564,7 +564,7 @@ describe('Form Validation', () => {
     const emailInput = screen.getByPlaceholderText(/email@example.com/i)
     fireEvent.change(emailInput, { target: { value: 'not-an-email' } })
 
-    fireEvent.click(screen.getByRole('button', { name: /^add$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^add channel$/i }))
 
     await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith(expect.objectContaining({

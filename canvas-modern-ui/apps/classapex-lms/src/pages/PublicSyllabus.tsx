@@ -1,7 +1,9 @@
 import React from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { extractPath } from '../utils/urlHelpers'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import clsx from 'clsx'
+import LogoLoader from '../components/LogoLoader'
 
 interface PublicCourse {
   id: number
@@ -41,7 +43,7 @@ export default function PublicSyllabusPage() {
   if (courseLoading || assignmentsLoading) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     )
   }
@@ -164,9 +166,9 @@ export default function PublicSyllabusPage() {
                 <tr key={a.id} style={{ borderBottom: '1px solid var(--cx-border-subtle)' }}>
                   <td style={{ padding: '12px 16px', color: 'var(--cx-text-primary)', fontWeight: 500 }}>
                     {a.html_url ? (
-                      <a href={a.html_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cx-color-primary)', textDecoration: 'none' }}>
+                      <Link to={extractPath(a.html_url)} style={{ color: 'var(--cx-color-primary)', textDecoration: 'none' }}>
                         {a.name}
-                      </a>
+                      </Link>
                     ) : (
                       a.name
                     )}

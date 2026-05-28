@@ -7,7 +7,7 @@
  *  DELETE /api/v1/courses/:courseId/enrollments/:enrollmentId
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
@@ -41,9 +41,15 @@ export default function CoursePeoplePage() {
   const [addForm, setAddForm] = useState({ userId: '', role: 'StudentEnrollment', sectionId: '' })
   const [adding, setAdding] = useState(false)
 
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
   const { data: users, isLoading, refetch } = useCanvasQuery<User[]>(
     courseId ? `/api/v1/courses/${courseId}/users` : '',
-    { per_page: 100, include: ['email', 'avatar_url', 'enrollments'] } as any
+    { per_page: 100, include: ['email', 'avatar_url', 'enrollments'], ...(debouncedSearch.trim() ? { search_term: debouncedSearch.trim() } : {}) } as any
   )
 
   const { data: sections } = useCanvasQuery<any[]>(
@@ -216,7 +222,30 @@ export default function CoursePeoplePage() {
                     ))}
                   </td>
                   <td className="cx-table__cell cx-table__cell--actions">
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <select
+                        className="cx-select cx-select--sm"
+                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                        value={user.enrollments?.find(e => e.enrollment_state !== 'deleted')?.type || ''}
+                        onChange={async (e) => {
+                          const enrollment = user.enrollments?.find(e => e.enrollment_state !== 'deleted')
+                          if (!enrollment || !e.target.value) return
+                          try {
+                            await canvasFetch(`/api/v1/courses/${courseId}/enrollments/${enrollment.id}`, {
+                              method: 'PUT', body: { enrollment: { type: e.target.value } }
+                            })
+                            showToast({ title: 'Role updated', type: 'success' })
+                            refetch()
+                          } catch (err: any) {
+                            showToast({ title: 'Role update failed', message: err.message || 'Unknown error', type: 'error' })
+                          }
+                        }}
+                        disabled={!isTeacher}
+                      >
+                        {ROLE_OPTIONS.map(r => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
                       {user.enrollments?.some(e => e.enrollment_state === 'active') && (
                         <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleConclude(user)} title="Conclude">Conclude</button>
                       )}

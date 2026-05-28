@@ -20,7 +20,7 @@ export default function AssignmentGroupsPage() {
   const isTeacher = role === 'teacher' || role === 'admin'
   const { showToast, showConfirm } = useNotification()
   const [editing, setEditing] = useState<any | null>(null)
-  const [form, setForm] = useState({ name: '', group_weight: 0 })
+  const [form, setForm] = useState({ name: '', group_weight: 0, drop_lowest: 0, drop_highest: 0 })
 
   const { data: groups, isLoading, refetch } = useCanvasQuery<any[]>(
     courseId ? `/api/v1/courses/${courseId}/assignment_groups` : '',
@@ -35,18 +35,26 @@ export default function AssignmentGroupsPage() {
   const handleSave = async () => {
     if (!form.name.trim()) { showToast({ title: 'Name is required', type: 'error' }); return }
     try {
+      const payload = {
+        name: form.name.trim(),
+        group_weight: Number(form.group_weight) || 0,
+        rules: {
+          drop_lowest: Number(form.drop_lowest) || 0,
+          drop_highest: Number(form.drop_highest) || 0,
+        }
+      }
       if (editing?.id) {
         await canvasFetch(`/api/v1/courses/${courseId}/assignment_groups/${editing.id}`, {
-          method: 'PUT', body: { name: form.name.trim(), group_weight: Number(form.group_weight) || 0 }
+          method: 'PUT', body: payload
         })
       } else {
         await canvasFetch(`/api/v1/courses/${courseId}/assignment_groups`, {
-          method: 'POST', body: { name: form.name.trim(), group_weight: Number(form.group_weight) || 0 }
+          method: 'POST', body: payload
         })
       }
       showToast({ title: `Assignment group ${editing?.id ? 'updated' : 'created'}`, type: 'success' })
       setEditing(null)
-      setForm({ name: '', group_weight: 0 })
+      setForm({ name: '', group_weight: 0, drop_lowest: 0, drop_highest: 0 })
       refetch()
     } catch (err: any) {
       showToast({ title: 'Save failed', message: err.message || 'Unknown error', type: 'error' })
@@ -80,7 +88,7 @@ export default function AssignmentGroupsPage() {
     <div className="cx-page">
       <div className="cx-page__header" style={{ paddingTop: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, fontWeight: 700, color: 'var(--cx-text-primary)' }}>Assignment Groups</h2>
-        <button className="cx-btn cx-btn--primary" onClick={() => { setEditing({}); setForm({ name: '', group_weight: 0 }) }}>+ New Group</button>
+        <button className="cx-btn cx-btn--primary" onClick={() => { setEditing({}); setForm({ name: '', group_weight: 0, drop_lowest: 0, drop_highest: 0 }) }}>+ New Group</button>
       </div>
 
       <div className="cx-card" style={{ padding: 18, marginBottom: 20, background: totalWeight !== 100 ? 'rgba(217,119,6,0.08)' : 'rgba(5,150,105,0.08)', borderLeft: `4px solid ${totalWeight !== 100 ? 'var(--cx-color-warning, #d97706)' : 'var(--cx-color-success, #059669)'}` }}>
@@ -103,10 +111,10 @@ export default function AssignmentGroupsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--cx-text-primary)' }}>{g.name}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--cx-text-tertiary)' }}>{groupAssignments.length} assignments · Weight: {g.group_weight || 0}%</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--cx-text-tertiary)' }}>{groupAssignments.length} assignments · Weight: {g.group_weight || 0}%{g.rules?.drop_lowest ? ` · Drop Lowest: ${g.rules.drop_lowest}` : ''}{g.rules?.drop_highest ? ` · Drop Highest: ${g.rules.drop_highest}` : ''}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { setEditing(g); setForm({ name: g.name, group_weight: g.group_weight || 0 }) }}>Edit</button>
+                    <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => { setEditing(g); setForm({ name: g.name, group_weight: g.group_weight || 0, drop_lowest: g.rules?.drop_lowest || 0, drop_highest: g.rules?.drop_highest || 0 }) }}>Edit</button>
                     <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={() => handleDelete(g.id)} style={{ color: 'var(--cx-color-danger, #dc2626)' }}>Delete</button>
                   </div>
                 </div>
@@ -132,6 +140,16 @@ export default function AssignmentGroupsPage() {
               <div>
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Weight (%)</label>
                 <input type="number" className="cx-input" value={form.group_weight} onChange={e => setForm(p => ({ ...p, group_weight: Number(e.target.value) || 0 }))} style={{ width: 120 }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Drop Lowest</label>
+                  <input type="number" className="cx-input" min={0} value={form.drop_lowest} onChange={e => setForm(p => ({ ...p, drop_lowest: Number(e.target.value) || 0 }))} style={{ width: 120 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 6 }}>Drop Highest</label>
+                  <input type="number" className="cx-input" min={0} value={form.drop_highest} onChange={e => setForm(p => ({ ...p, drop_highest: Number(e.target.value) || 0 }))} style={{ width: 120 }} />
+                </div>
               </div>
             </div>
             <div className="cx-modal__footer">

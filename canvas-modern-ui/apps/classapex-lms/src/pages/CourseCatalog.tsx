@@ -19,57 +19,72 @@ interface CourseData {
 
 const COURSE_COLORS = ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#10b981', '#ec4899', '#6366f1', '#14b8a6']
 
-function CourseCard({ course, viewMode }: { course: CourseData; viewMode: 'grid' | 'list' }) {
+function CourseCard({ course, viewMode, onEnroll, isEnrolled }: { course: CourseData; viewMode: 'grid' | 'list'; onEnroll: (courseId: number) => void; isEnrolled: boolean }) {
   const color = COURSE_COLORS[course.id % COURSE_COLORS.length]
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/courses/${course.id}`} className="cx-catalog-row">
-        <div className="cx-catalog-row__color" style={{ background: color }} />
-        <div className="cx-catalog-row__info">
-          <span className="cx-catalog-row__name">{course.name}</span>
-          <span className="cx-catalog-row__meta">{course.course_code}</span>
-        </div>
-        {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
-        <span className="cx-catalog-row__students">{course.total_students ?? 0} students</span>
-      </Link>
+      <div className="cx-catalog-row" style={{ display: 'flex', alignItems: 'center' }}>
+        <Link to={`/courses/${course.id}`} style={{ display: 'flex', alignItems: 'center', flex: 1, textDecoration: 'none', color: 'inherit', gap: 12 }}>
+          <div className="cx-catalog-row__color" style={{ background: color }} />
+          <div className="cx-catalog-row__info">
+            <span className="cx-catalog-row__name">{course.name}</span>
+            <span className="cx-catalog-row__meta">{course.course_code}</span>
+          </div>
+          {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
+          <span className="cx-catalog-row__students">{course.total_students ?? 0} students</span>
+        </Link>
+        <button
+          className="cx-btn cx-btn--primary cx-btn--sm"
+          disabled={isEnrolled}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (!isEnrolled) onEnroll(course.id)
+          }}
+          style={{ marginLeft: 12, opacity: isEnrolled ? 0.6 : 1 }}
+        >
+          {isEnrolled ? 'Enrolled' : 'Enroll'}
+        </button>
+      </div>
     )
   }
 
   return (
-    <Link to={`/courses/${course.id}`} className="cx-catalog-card">
-      <div
-        className="cx-catalog-card__banner"
-        style={{
-          background: course.course_image
-            ? `url(${course.course_image}) center/cover`
-            : `linear-gradient(135deg, ${color}, ${color}88)`,
-        }}
-      />
-      <div className="cx-catalog-card__body">
-        <span className="cx-catalog-card__code">{course.course_code}</span>
-        <h3 className="cx-catalog-card__name">{course.name}</h3>
-        <div className="cx-catalog-card__footer">
-          {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
-          <span className="cx-catalog-card__students">{course.total_students ?? 0} enrolled</span>
+    <div className="cx-catalog-card" style={{ position: 'relative' }}>
+      <Link to={`/courses/${course.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div
+          className="cx-catalog-card__banner"
+          style={{
+            background: course.course_image
+              ? `url(${course.course_image}) center/cover`
+              : `linear-gradient(135deg, ${color}, ${color}88)`,
+          }}
+        />
+        <div className="cx-catalog-card__body">
+          <span className="cx-catalog-card__code">{course.course_code}</span>
+          <h3 className="cx-catalog-card__name">{course.name}</h3>
+          <div className="cx-catalog-card__footer">
+            {course.term && <Badge variant="default" size="sm">{course.term.name}</Badge>}
+            <span className="cx-catalog-card__students">{course.total_students ?? 0} enrolled</span>
+          </div>
         </div>
-        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-          <button 
-            className="cx-btn cx-btn--primary cx-btn--sm" 
-            style={{ flex: 1 }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if ((window as any).handleEnrollCourse) {
-                (window as any).handleEnrollCourse(course.id);
-              }
-            }}
-          >
-            Enroll Now
-          </button>
-        </div>
+      </Link>
+      <div style={{ padding: '0 16px 16px' }}>
+        <button
+          className="cx-btn cx-btn--primary cx-btn--sm"
+          style={{ width: '100%' }}
+          disabled={isEnrolled}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (!isEnrolled) onEnroll(course.id)
+          }}
+        >
+          {isEnrolled ? 'Enrolled' : 'Enroll'}
+        </button>
       </div>
-    </Link>
+    </div>
   )
 }
 
@@ -122,6 +137,13 @@ export default function CourseCatalog() {
     return result
   }, [courses, searchQuery, filterTerm, sortBy])
 
+  const [enrolledIds, setEnrolledIds] = useState<Set<number>>(new Set())
+
+  const isEnrolled = (course: CourseData) => {
+    if (enrolledIds.has(course.id)) return true
+    return course.enrollments?.some((e: any) => e.enrollment_state === 'active' || e.user_id === 'self') ?? false
+  }
+
   const handleEnrollCourse = async (courseId: number) => {
     try {
       await canvasFetch(`/api/v1/courses/${courseId}/enrollments`, {
@@ -134,14 +156,12 @@ export default function CourseCatalog() {
           }
         }
       });
+      setEnrolledIds(prev => new Set(prev).add(courseId))
       showToast({ title: 'Enrolled successfully!', message: 'You have been enrolled in the course.', type: 'success' });
     } catch (err: any) {
       showToast({ title: 'Enrollment Failed', message: err.message || 'Could not enroll in course.', type: 'error' });
     }
   }
-
-  // Attach to window so card can call it easily without prop drilling
-  (window as any).handleEnrollCourse = handleEnrollCourse;
 
   return (
     <div className="cx-catalog">
@@ -215,7 +235,7 @@ export default function CourseCatalog() {
           <p className="cx-catalog__count">{filtered.length} course{filtered.length !== 1 ? 's' : ''} found</p>
           <div className={viewMode === 'grid' ? 'cx-catalog-grid' : 'cx-catalog-list'}>
             {filtered.map(course => (
-              <CourseCard key={course.id} course={course} viewMode={viewMode} />
+              <CourseCard key={course.id} course={course} viewMode={viewMode} onEnroll={handleEnrollCourse} isEnrolled={isEnrolled(course)} />
             ))}
           </div>
         </>

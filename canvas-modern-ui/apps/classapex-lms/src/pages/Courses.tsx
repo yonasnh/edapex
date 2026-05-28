@@ -12,6 +12,7 @@ import AssignmentList from './AssignmentList';
 import AssignmentDetail from './AssignmentDetail';
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 import './courses-page.css';
+import LogoLoader from '../components/LogoLoader'
 
 // Canvas API course shape
 interface Course {
@@ -169,10 +170,7 @@ const CoursesOverview: React.FC<CoursesOverviewProps> = ({ filterType = 'all' })
   if (showLoading) {
     return (
       <div className="cx-page" data-testid="loading-container">
-        <div className="cx-loading" role="status" aria-label="Loading courses">
-          <div className="cx-loading__spinner" data-testid="loading-spinner" />
-          <span className="cx-loading__text">Loading courses...</span>
-        </div>
+        <LogoLoader text="Loading courses..." />
       </div>
     );
   }

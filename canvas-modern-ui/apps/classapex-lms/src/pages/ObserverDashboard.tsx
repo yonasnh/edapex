@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { Link } from 'react-router-dom';
+import LogoLoader from '../components/LogoLoader'
 
 function UserSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function BookSvg() { return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>; }
@@ -75,7 +76,7 @@ export default function ObserverDashboard() {
       </div>
 
       {loadingObservees ? (
-        <div style={{ padding: 40, textAlign: 'center' }}><div className="cx-loading-ring" /></div>
+        <LogoLoader />
       ) : !observees || observees.length === 0 ? (
         <div className="cx-empty" style={{ background: 'var(--cx-bg-surface)', padding: 48, borderRadius: 12, border: '1px solid var(--cx-border-subtle)' }}>
           <UserSvg />
@@ -118,7 +119,7 @@ export default function ObserverDashboard() {
           {/* Main Content */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
             {loadingEnrollments ? (
-              <div style={{ padding: 40, textAlign: 'center' }}><div className="cx-loading-ring" /></div>
+              <LogoLoader />
             ) : (
               <>
                 {missingSubmissions && missingSubmissions.length > 0 && (

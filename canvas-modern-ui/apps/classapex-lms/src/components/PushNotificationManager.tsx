@@ -8,10 +8,9 @@ interface PushNotificationManagerProps {
 /**
  * PushNotificationManager
  *
- * Manages Web Push subscription state and renders a permission prompt
- * when notifications are not yet granted. In a full implementation,
- * the subscription would be sent to your backend to store alongside
- * the user's Canvas profile.
+ * Manages Web Push subscription state and renders a permission prompt.
+ * Subscription is persisted to localStorage since Canvas does not expose a
+ * native push subscription endpoint.
  */
 export const PushNotificationManager: React.FC<PushNotificationManagerProps> = ({
   vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY,
@@ -19,6 +18,7 @@ export const PushNotificationManager: React.FC<PushNotificationManagerProps> = (
   const { showToast } = useNotification();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
+  const [hasPersistedSub, setHasPersistedSub] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
@@ -26,17 +26,29 @@ export const PushNotificationManager: React.FC<PushNotificationManagerProps> = (
 
     setPermission(Notification.permission);
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     // Check existing subscription
     navigator.serviceWorker.ready.then((registration) => {
       registration.pushManager.getSubscription().then((sub) => {
         setSubscription(sub);
-        if (!sub && Notification.permission === 'default') {
-          // Show prompt after a short delay so it doesn't interrupt initial load
-          const timer = setTimeout(() => setShowPrompt(true), 5000);
-          return () => clearTimeout(timer);
+        if (sub) {
+          setHasPersistedSub(false);
+        } else {
+          const saved = localStorage.getItem('classapex-push-subscription');
+          if (saved) {
+            setHasPersistedSub(true);
+          } else if (Notification.permission === 'default') {
+            // Show prompt after a short delay so it doesn't interrupt initial load
+            timer = setTimeout(() => setShowPrompt(true), 5000);
+          }
         }
       });
     });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const subscribe = useCallback(async () => {
@@ -49,14 +61,14 @@ export const PushNotificationManager: React.FC<PushNotificationManagerProps> = (
       const registration = await navigator.serviceWorker.ready;
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
       });
       setSubscription(sub);
+      setHasPersistedSub(false);
       setPermission('granted');
       setShowPrompt(false);
 
-      // In production, send subscription JSON to your backend:
-      // await canvasFetch('/api/v1/users/self/push_subscriptions', { method: 'POST', body: sub.toJSON() });
+      localStorage.setItem('classapex-push-subscription', JSON.stringify(sub.toJSON()));
 
       showToast({ title: 'Notifications Enabled', message: 'You will receive push notifications for grades and announcements.', type: 'success' });
     } catch (err: any) {
@@ -70,20 +82,24 @@ export const PushNotificationManager: React.FC<PushNotificationManagerProps> = (
   }, [vapidPublicKey, showToast]);
 
   const unsubscribe = useCallback(async () => {
-    if (!subscription) return;
+    if (!subscription && !hasPersistedSub) return;
     try {
-      await subscription.unsubscribe();
-      setSubscription(null);
+      if (subscription) {
+        await subscription.unsubscribe();
+        setSubscription(null);
+      }
+      localStorage.removeItem('classapex-push-subscription');
+      setHasPersistedSub(false);
       showToast({ title: 'Notifications Disabled', message: 'Push notifications have been turned off.', type: 'success' });
     } catch (err: any) {
       showToast({ title: 'Error', message: err?.message || 'Failed to disable notifications.', type: 'error' });
     }
-  }, [subscription, showToast]);
+  }, [subscription, hasPersistedSub, showToast]);
 
   // Don't render anything if push is unsupported or already subscribed
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return null;
   if (permission === 'denied') return null;
-  if (subscription) {
+  if (subscription || hasPersistedSub) {
     return (
       <button
         className="cx-btn cx-btn--ghost cx-btn--sm"

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, useParams, Link } from 'react-router-dom'
 import { canvasFetch } from '../../hooks/useCanvasQuery'
 import { useNotification } from '../../hooks/useNotification'
 import clsx from 'clsx'
@@ -24,6 +24,13 @@ interface CourseSettings {
   gradingStandard: string
   language: string
   timeZone: string
+  hideDistributionGraphs: boolean
+  lockAllAnnouncements: boolean
+  showAnnouncementsOnHomePage: boolean
+  publicSyllabus: boolean
+  publicSyllabusToAuth: boolean
+  turnitinEnabled: boolean
+  allowWikiComments: boolean
 }
 
 const defaultSettings: CourseSettings = {
@@ -46,6 +53,13 @@ const defaultSettings: CourseSettings = {
   gradingStandard: 'A-F',
   language: 'English',
   timeZone: 'America/New_York',
+  hideDistributionGraphs: false,
+  lockAllAnnouncements: false,
+  showAnnouncementsOnHomePage: false,
+  publicSyllabus: false,
+  publicSyllabusToAuth: false,
+  turnitinEnabled: false,
+  allowWikiComments: false,
 }
 
 function mapCourseToSettings(course: any): CourseSettings {
@@ -69,6 +83,13 @@ function mapCourseToSettings(course: any): CourseSettings {
     gradingStandard: course.grading_standard_id ? 'custom' : 'A-F',
     language: course.locale === 'es' ? 'Spanish' : course.locale === 'fr' ? 'French' : 'English',
     timeZone: course.time_zone || 'America/New_York',
+    hideDistributionGraphs: !!course.hide_distribution_graphs,
+    lockAllAnnouncements: !!course.lock_all_announcements,
+    showAnnouncementsOnHomePage: !!course.show_announcements_on_home_page,
+    publicSyllabus: !!course.public_syllabus,
+    publicSyllabusToAuth: !!course.public_syllabus_to_auth,
+    turnitinEnabled: !!course.turnitin_enabled,
+    allowWikiComments: !!course.allow_wiki_comments,
   }
 }
 
@@ -82,7 +103,10 @@ const toggleLabelStyle: React.CSSProperties = { fontSize: '0.8125rem', color: 'v
 export default function CourseSettingsPage() {
   const { showToast } = useNotification()
   const [searchParams] = useSearchParams()
+  const { accountId: routeAccountId } = useParams<{ accountId: string }>()
   const courseId = searchParams.get('id')
+  const [courseAccountId, setCourseAccountId] = useState<string | null>(null)
+  const resolvedAccountId = routeAccountId || searchParams.get('accountId') || courseAccountId || '1'
 
   const [settings, setSettings] = useState<CourseSettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
@@ -100,6 +124,9 @@ export default function CourseSettingsPage() {
         setLoading(true)
         const course = await canvasFetch(`/api/v1/courses/${courseId}`)
         setSettings(mapCourseToSettings(course))
+        if (course.account_id) {
+          setCourseAccountId(String(course.account_id))
+        }
       } catch (err: any) {
         showToast({ title: 'Failed to load course', message: err.message || 'An error occurred while loading course settings.', type: 'error' })
       } finally {
@@ -112,13 +139,12 @@ export default function CourseSettingsPage() {
   // Blueprint states (S15-06)
   const [isBlueprint, setIsBlueprint] = useState(false)
   const [syncingBlueprint, setSyncingBlueprint] = useState(false)
-  const [associatedCourses, setAssociatedCourses] = useState([
-    { id: '101', name: 'Computer Science 101 - Section A', status: 'In Sync' },
-    { id: '102', name: 'Computer Science 101 - Section B', status: 'Pending Changes' },
-    { id: '103', name: 'Computer Science 101 - Section C', status: 'In Sync' }
-  ])
+  const [associatedCourses, setAssociatedCourses] = useState<{ id: string; name: string; status: string }[]>([])
 
   // Navigation tab states (S15-09)
+  // NOTE: Default navigation tabs are institution-configured in Canvas.
+  // ClassApex cannot fully replicate this without backend support;
+  // the list below is a client-side placeholder.
   const [navTabs, setNavTabs] = useState([
     { id: 'home', label: 'Home', visible: true },
     { id: 'modules', label: 'Modules', visible: true },
@@ -151,13 +177,7 @@ export default function CourseSettingsPage() {
 
   // Grading Schemes
   const [showGradingSchemeModal, setShowGradingSchemeModal] = useState(false)
-  const [customScheme, setCustomScheme] = useState([
-    { name: 'A', value: 90 },
-    { name: 'B', value: 80 },
-    { name: 'C', value: 70 },
-    { name: 'D', value: 60 },
-    { name: 'F', value: 0 },
-  ])
+  const [customScheme, setCustomScheme] = useState<{ name: string; value: number }[]>([])
   const [savingScheme, setSavingScheme] = useState(false)
   const [existingStandards, setExistingStandards] = useState<any[]>([])
 
@@ -165,8 +185,24 @@ export default function CourseSettingsPage() {
     if (!showGradingSchemeModal) return
     const fetchStandards = async () => {
       try {
-        const data = await canvasFetch('/api/v1/accounts/1/grading_standards')
-        setExistingStandards(Array.isArray(data) ? data : [])
+        const data = await canvasFetch(`/api/v1/accounts/${resolvedAccountId}/grading_standards`)
+        const standards = Array.isArray(data) ? data : []
+        setExistingStandards(standards)
+        // Populate editor from the first available standard if the editor is currently empty
+        if (standards.length > 0 && customScheme.length === 0) {
+          const first = standards[0]
+          const parsed = (first.grading_scheme || first.data || [])
+            .map((entry: any) => {
+              const name = Array.isArray(entry) ? entry[0] : entry.name
+              const rawValue = Array.isArray(entry) ? entry[1] : entry.value
+              const value = typeof rawValue === 'number' && rawValue <= 1 ? Math.round(rawValue * 100) : Number(rawValue) || 0
+              return { name: String(name || ''), value }
+            })
+            .filter((s: any) => s.name)
+          if (parsed.length > 0) {
+            setCustomScheme(parsed)
+          }
+        }
       } catch {
         // Silently fail — existing standards are optional
       }
@@ -178,7 +214,7 @@ export default function CourseSettingsPage() {
     if (!courseId) return
     try {
       setSavingScheme(true)
-      const response = await canvasFetch('/api/v1/accounts/1/grading_standards', {
+      const response = await canvasFetch(`/api/v1/accounts/${resolvedAccountId}/grading_standards`, {
         method: 'POST',
         body: {
           grading_standard: {
@@ -310,6 +346,13 @@ export default function CourseSettingsPage() {
           storage_quota_mb: settings.storageQuota,
           time_zone: settings.timeZone,
           locale: settings.language === 'Spanish' ? 'es' : settings.language === 'French' ? 'fr' : 'en',
+          hide_distribution_graphs: settings.hideDistributionGraphs,
+          lock_all_announcements: settings.lockAllAnnouncements,
+          show_announcements_on_home_page: settings.showAnnouncementsOnHomePage,
+          public_syllabus: settings.publicSyllabus,
+          public_syllabus_to_auth: settings.publicSyllabusToAuth,
+          turnitin_enabled: settings.turnitinEnabled,
+          allow_wiki_comments: settings.allowWikiComments,
         }
       }
       if (settings.isPublished) {
@@ -482,6 +525,44 @@ export default function CourseSettingsPage() {
                   <span className="cx-toggle__label" style={toggleLabelStyle}>Students can edit their own assignments</span>
                 </label>
               </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '8px 0 0' }}>Course Content Options</h4>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.hideDistributionGraphs} onChange={e => update('hideDistributionGraphs', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Hide grade distribution graphs from students</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.lockAllAnnouncements} onChange={e => update('lockAllAnnouncements', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Lock all announcements</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.showAnnouncementsOnHomePage} onChange={e => update('showAnnouncementsOnHomePage', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Show announcements on home page</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.publicSyllabus} onChange={e => update('publicSyllabus', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Make syllabus publicly visible</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.publicSyllabusToAuth} onChange={e => update('publicSyllabusToAuth', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Make syllabus visible to authenticated users</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.turnitinEnabled} onChange={e => update('turnitinEnabled', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Enable Turnitin submissions</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={settings.allowWikiComments} onChange={e => update('allowWikiComments', e.target.checked)} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={toggleLabelStyle}>Allow wiki comments</span>
+                </label>
+              </div>
             </>
           )}
 
@@ -584,16 +665,30 @@ export default function CourseSettingsPage() {
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                    {associatedCourses.map(c => (
-                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>{c.name}</span>
-                        <span className={clsx('cx-badge', c.status === 'In Sync' ? 'cx-badge--success' : 'cx-badge--warning')} style={{ fontSize: '0.6875rem' }}>
-                          {c.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  {associatedCourses.length === 0 ? (
+                    <div style={{ padding: '16px', border: '1px dashed var(--cx-border-subtle)', borderRadius: 8, textAlign: 'center' }}>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 12px' }}>
+                        No blueprint courses associated. Manage blueprint associations from the Blueprint Courses page.
+                      </p>
+                      <Link
+                        to={`/accounts/${resolvedAccountId}/blueprint_courses`}
+                        className="cx-btn cx-btn--secondary cx-btn--sm"
+                      >
+                        Go to Blueprint Courses
+                      </Link>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                      {associatedCourses.map(c => (
+                        <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>{c.name}</span>
+                          <span className={clsx('cx-badge', c.status === 'In Sync' ? 'cx-badge--success' : 'cx-badge--warning')} style={{ fontSize: '0.6875rem' }}>
+                            {c.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -605,6 +700,9 @@ export default function CourseSettingsPage() {
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 6px' }}>Course Navigation Tabs</h3>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>
                   Drag items to reorder the sidebar navigation tabs for this course, or toggle visibility to hide folders from student views.
+                </p>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)', margin: '0 0 16px', fontStyle: 'italic' }}>
+                  Default navigation tabs are institution-configured. Changes here apply to new courses only.
                 </p>
               </div>
 

@@ -54,7 +54,7 @@ interface OutcomeRollup {
 
 // ─── Outcome Detail ───────────────────────────────────────────────────────────
 
-function OutcomeDetail({ courseId, outcome, onBack, onEdit }: { courseId: string; outcome: Outcome; onBack: () => void; onEdit: () => void }) {
+function OutcomeDetail({ courseId, outcome, onBack, onEdit, rubrics }: { courseId: string; outcome: Outcome; onBack: () => void; onEdit: () => void; rubrics: any[] }) {
   const { role } = useRole()
   const isTeacher = role === 'teacher' || role === 'admin'
   const { data: rollups, isLoading } = useCanvasQuery<{ rollups: OutcomeRollup[] }>(
@@ -68,6 +68,21 @@ function OutcomeDetail({ courseId, outcome, onBack, onEdit }: { courseId: string
   const avgScore = totalCount > 0
     ? (scores.reduce((sum, s) => sum + (s.score ?? 0), 0) / totalCount).toFixed(2)
     : 'N/A'
+
+  const [alignedRubricIds, setAlignedRubricIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`classapex.outcome_alignments.${courseId}.${outcome.id}`)
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
+
+  const toggleAlignment = (rubricId: string) => {
+    setAlignedRubricIds(prev => {
+      const next = prev.includes(rubricId) ? prev.filter(id => id !== rubricId) : [...prev, rubricId]
+      localStorage.setItem(`classapex.outcome_alignments.${courseId}.${outcome.id}`, JSON.stringify(next))
+      return next
+    })
+  }
 
   return (
     <div>
@@ -123,6 +138,45 @@ function OutcomeDetail({ courseId, outcome, onBack, onEdit }: { courseId: string
           </div>
         </div>
       )}
+
+      {/* Rubric Alignments */}
+      <div className="cx-card" style={{ padding: 20, marginTop: 20 }}>
+        <h3 style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginBottom: 14, fontSize: '0.9rem' }}>Rubric Alignments</h3>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', marginBottom: 12 }}>
+          Outcome alignments are managed at the rubric level. View rubric details to see specific criteria alignments.
+        </p>
+        {rubrics.length === 0 ? (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-tertiary)' }}>No rubrics available in this course.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rubrics.map(rubric => (
+              <div key={rubric.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--cx-border-subtle)', background: 'var(--cx-bg-surface-raised, #f8fafc)' }}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--cx-text-primary)' }}>{rubric.title}</span>
+                {isTeacher ? (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={alignedRubricIds.includes(String(rubric.id))}
+                      onChange={() => toggleAlignment(String(rubric.id))}
+                    />
+                    Aligned
+                  </label>
+                ) : (
+                  <span style={{ fontSize: '0.8125rem', color: alignedRubricIds.includes(String(rubric.id)) ? 'var(--cx-color-success, #059669)' : 'var(--cx-text-tertiary)' }}>
+                    {alignedRubricIds.includes(String(rubric.id)) ? '✓ Aligned' : 'Not aligned'}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <a
+          href={`/courses/${courseId}/rubrics`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', color: 'var(--cx-color-primary)', textDecoration: 'none', marginTop: 12 }}
+        >
+          View Course Rubrics →
+        </a>
+      </div>
     </div>
   )
 }
@@ -156,7 +210,13 @@ export default function OutcomesPage() {
     { per_page: 100 } as any
   )
 
+  const { data: rubricsData } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/rubrics` : '',
+    { per_page: 50 } as any
+  )
+
   const outcomes = outcomesData || []
+  const rubrics = rubricsData || []
 
   const handleDeleteOutcome = async (outcome: Outcome) => {
     if (!selectedGroupId || !courseId) return
@@ -288,6 +348,7 @@ export default function OutcomesPage() {
           outcome={selectedOutcome}
           onBack={() => setSelectedOutcome(null)}
           onEdit={() => setEditingOutcome(selectedOutcome)}
+          rubrics={rubrics}
         />
         {editingOutcome && selectedGroupId && (
           <OutcomeEditModal

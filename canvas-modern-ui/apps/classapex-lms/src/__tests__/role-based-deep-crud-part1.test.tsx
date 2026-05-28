@@ -309,8 +309,10 @@ describe('Gradebook — Inline Editing (Teacher)', () => {
 
     // After successful save, the cell gets a green border via borderColor style
     // We verify by re-querying and checking the style attribute contains the success color
-    const savedCell = screen.getByDisplayValue('95') as HTMLInputElement
-    expect(savedCell.style.borderColor).toContain('success')
+    await waitFor(() => {
+      const savedCell = screen.getByDisplayValue('95') as HTMLInputElement
+      expect(savedCell.style.borderColor).toContain('success')
+    })
   })
 })
 
@@ -358,19 +360,14 @@ describe('Inbox — Actual Send & Reply', () => {
         '/api/v1/conversations',
         expect.objectContaining({
           method: 'POST',
-          body: expect.any(FormData),
+          body: expect.objectContaining({
+            body: 'This is a test message',
+            subject: 'Hello',
+            recipients: 'user_user_202',
+          }),
         })
       )
     })
-
-    // Verify FormData contents
-    const [, options] = vi.mocked(canvasFetch).mock.calls.find(
-      ([ep]) => ep === '/api/v1/conversations'
-    )!
-    const formData = options.body as FormData
-    expect(formData.get('body')).toBe('This is a test message')
-    expect(formData.get('subject')).toBe('Hello')
-    expect(formData.get('recipients[]')).toBe('user_user_202')
   })
 
   it('student can reply to a conversation', async () => {

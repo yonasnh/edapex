@@ -12,6 +12,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { extractPath } from '../utils/urlHelpers'
 import { useCanvasQuery } from '../hooks/useCanvasQuery'
 import './planner.css'
 
@@ -138,9 +139,9 @@ const ItemLink = ({ item, children }: { item: PlannerItem; children: React.React
 
   if (item.html_url) {
     return (
-      <a href={item.html_url} className="cx-planner-item__main-link" target="_blank" rel="noopener noreferrer">
+      <Link to={extractPath(item.html_url)} className="cx-planner-item__main-link">
         {children}
-      </a>
+      </Link>
     )
   }
 

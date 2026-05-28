@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
 import { useRole } from '../contexts/RoleContext';
+import LogoLoader from '../components/LogoLoader'
 
 function PlusSvg() { return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 3v10M3 8h10"/></svg>; }
 function SettingsSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>; }
@@ -16,6 +17,9 @@ interface ExternalTool {
   privacy_level: string;
   consumer_key: string;
   created_at: string;
+  course_navigation?: any;
+  editor_button?: any;
+  resource_selection?: any;
 }
 
 interface DeveloperKey {
@@ -54,9 +58,19 @@ export default function ExternalToolsPage() {
   const [addingTool, setAddingTool] = useState(false);
   const [deletingToolId, setDeletingToolId] = useState<number | null>(null);
 
+  // Edit placements state
+  const [editingTool, setEditingTool] = useState<ExternalTool | null>(null);
+  const [editPlacements, setEditPlacements] = useState({
+    course_navigation: false,
+    editor_button: false,
+    assignment_selection: false,
+  });
+  const [savingPlacements, setSavingPlacements] = useState(false);
+
   // Developer Keys state
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyEmail, setNewKeyEmail] = useState('');
+  const [newKeyRedirectUri, setNewKeyRedirectUri] = useState('');
   const [savingKey, setSavingKey] = useState(false);
   const [togglingKeyId, setTogglingKeyId] = useState<number | null>(null);
   const [deletingKeyId, setDeletingKeyId] = useState<number | null>(null);
@@ -94,16 +108,25 @@ export default function ExternalToolsPage() {
 
     setAddingTool(true);
     try {
+      const body: any = {
+        name: newToolName,
+        url: newToolUrl,
+        consumer_key: newToolConsumerKey,
+        shared_secret: newToolSharedSecret,
+        privacy_level: newToolPrivacyLevel,
+      }
+      if (placements.course_navigation) {
+        body.course_navigation = { enabled: true, text: newToolName }
+      }
+      if (placements.editor_button) {
+        body.editor_button = { enabled: true, text: newToolName, icon_url: '' }
+      }
+      if (placements.assignment_selection) {
+        body.resource_selection = { enabled: true, text: newToolName }
+      }
       await canvasFetch(`/api/v1/courses/${courseId}/external_tools`, {
         method: 'POST',
-        body: {
-          name: newToolName,
-          url: newToolUrl,
-          consumer_key: newToolConsumerKey,
-          shared_secret: newToolSharedSecret,
-          privacy_level: newToolPrivacyLevel,
-          course_navigation: { enabled: true, text: newToolName }
-        }
+        body,
       });
       showToast({ title: 'Tool Added', message: `${newToolName} has been configured.`, type: 'success' });
       setShowAddModal(false);
@@ -156,7 +179,7 @@ export default function ExternalToolsPage() {
           developer_key: {
             name: newKeyName,
             email: newKeyEmail,
-            redirect_uri: 'https://example.com',
+            redirect_uri: newKeyRedirectUri || window.location.origin,
             tool_configuration: {}
           }
         }
@@ -164,13 +187,14 @@ export default function ExternalToolsPage() {
       showToast({ title: 'Key Created', message: 'Developer key successfully generated.', type: 'success' });
       setNewKeyName('');
       setNewKeyEmail('');
+      setNewKeyRedirectUri('');
       refetchKeys();
     } catch (err: any) {
       showToast({ title: 'Error', message: err.message || 'Failed to create developer key.', type: 'error' });
     } finally {
       setSavingKey(false);
     }
-  }, [newKeyName, newKeyEmail, showToast, refetchKeys]);
+  }, [newKeyName, newKeyEmail, newKeyRedirectUri, showToast, refetchKeys]);
 
   const handleToggleKey = useCallback(async (key: DeveloperKey) => {
     const nextState = key.workflow_state === 'active' ? 'inactive' : 'active';
@@ -192,6 +216,40 @@ export default function ExternalToolsPage() {
       setTogglingKeyId(null);
     }
   }, [showToast, refetchKeys]);
+
+  const handleSavePlacements = useCallback(async () => {
+    if (!editingTool || !courseId) return;
+    setSavingPlacements(true);
+    try {
+      const body: any = {};
+      if (editPlacements.course_navigation) {
+        body.course_navigation = { enabled: true, text: editingTool.name };
+      } else {
+        body.course_navigation = { enabled: false };
+      }
+      if (editPlacements.editor_button) {
+        body.editor_button = { enabled: true, text: editingTool.name };
+      } else {
+        body.editor_button = { enabled: false };
+      }
+      if (editPlacements.assignment_selection) {
+        body.resource_selection = { enabled: true, text: editingTool.name };
+      } else {
+        body.resource_selection = { enabled: false };
+      }
+      await canvasFetch(`/api/v1/courses/${courseId}/external_tools/${editingTool.id}`, {
+        method: 'PUT',
+        body,
+      });
+      showToast({ title: 'Placements updated', type: 'success' });
+      setEditingTool(null);
+      refetchTools();
+    } catch (err: any) {
+      showToast({ title: 'Update failed', message: err.message || 'Failed to update placements.', type: 'error' });
+    } finally {
+      setSavingPlacements(false);
+    }
+  }, [courseId, editingTool, editPlacements, showToast, refetchTools]);
 
   const handleDeleteKey = useCallback(async (keyId: number) => {
     const confirmed = await showConfirm({
@@ -260,7 +318,7 @@ export default function ExternalToolsPage() {
       {activeTab === 'tools' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {toolsLoading ? (
-            <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+            <LogoLoader />
           ) : tools.length === 0 ? (
             <div className="cx-empty">
               <SettingsSvg />
@@ -294,13 +352,28 @@ export default function ExternalToolsPage() {
                           🚀 Launch App
                         </button>
                         {isTeacher && (
-                          <button
-                            className="cx-btn cx-btn--secondary cx-btn--sm"
-                            onClick={() => handleDeleteTool(tool)}
-                            disabled={deletingToolId === tool.id}
-                          >
-                            {deletingToolId === tool.id ? 'Deleting...' : 'Delete'}
-                          </button>
+                          <>
+                            <button
+                              className="cx-btn cx-btn--ghost cx-btn--sm"
+                              onClick={() => {
+                                setEditingTool(tool);
+                                setEditPlacements({
+                                  course_navigation: !!tool.course_navigation,
+                                  editor_button: !!tool.editor_button,
+                                  assignment_selection: !!tool.resource_selection,
+                                });
+                              }}
+                            >
+                              Edit Placements
+                            </button>
+                            <button
+                              className="cx-btn cx-btn--secondary cx-btn--sm"
+                              onClick={() => handleDeleteTool(tool)}
+                              disabled={deletingToolId === tool.id}
+                            >
+                              {deletingToolId === tool.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -341,6 +414,17 @@ export default function ExternalToolsPage() {
                 required
               />
             </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-secondary)', display: 'block', marginBottom: 4 }}>Redirect URI</label>
+              <input
+                type="url"
+                className="cx-grading__comment-input"
+                placeholder={window.location.origin}
+                value={newKeyRedirectUri}
+                onChange={e => setNewKeyRedirectUri(e.target.value)}
+                style={{ width: '100%', height: '36px', border: '1px solid var(--cx-border-subtle)', borderRadius: 6, padding: '0 10px' }}
+              />
+            </div>
             <button className="cx-btn cx-btn--primary" type="submit" style={{ height: '36px' }} disabled={savingKey}>
               {savingKey ? 'Creating...' : 'Create Developer Key'}
             </button>
@@ -348,7 +432,7 @@ export default function ExternalToolsPage() {
 
           {/* Developer Keys Table */}
           {keysLoading ? (
-            <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+            <LogoLoader />
           ) : (
             <div className="cx-table-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
@@ -415,25 +499,86 @@ export default function ExternalToolsPage() {
 
       {/* ── Tab 3: SCORM Player ── */}
       {activeTab === 'scorm' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          {/* SCORM Info */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>SCORM 1.2 / 2004 Course Packages</h3>
-            <div className="cx-card" style={{ padding: 16 }}>
-              <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>
-                SCORM packages are managed through Canvas Content Migrations. Use the Course Management page to import SCORM content.
-              </p>
-            </div>
-          </div>
-
-          {/* SCORM API Monitor Console (placeholder) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--cx-text-primary)' }}>Simulated SCORM Runtime Stream</h3>
-            <div style={{ flex: 1, background: '#0f172a', color: '#10b981', padding: '16px', borderRadius: 8, fontFamily: 'var(--cm-font-family-mono, monospace)', fontSize: '0.72rem', minHeight: '220px', overflowY: 'auto' }}>
-              <div style={{ color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6, marginBottom: 10, fontWeight: 'bold' }}>
-                SCORM API_1484_11 bindings log
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {toolsLoading ? (
+            <LogoLoader />
+          ) : (() => {
+            const scormTool = tools.find(
+              (t) =>
+                t.name.toLowerCase().includes('scorm') ||
+                t.url.toLowerCase().includes('scorm')
+            );
+            if (scormTool) {
+              return (
+                <div className="cx-card" style={{ padding: 24 }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--cx-text-primary)', margin: '0 0 12px 0' }}>
+                    SCORM Tool Detected
+                  </h3>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)', marginBottom: 4 }}>
+                      {scormTool.name}
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', fontFamily: 'var(--cm-font-family-mono, monospace)' }}>
+                      {scormTool.url}
+                    </div>
+                  </div>
+                  <button
+                    className="cx-btn cx-btn--primary"
+                    onClick={() => window.open(scormTool.url, '_blank', 'noopener,noreferrer')}
+                  >
+                    Launch SCORM Manager
+                  </button>
+                </div>
+              );
+            }
+            return (
+              <div className="cx-empty">
+                <SettingsSvg />
+                <h3>No SCORM LTI tool detected.</h3>
+                <p>Install a SCORM provider (e.g., SCORM Cloud) from the LTI Tools tab.</p>
+                <button
+                  className="cx-btn cx-btn--primary cx-btn--sm"
+                  onClick={() => setActiveTab('tools')}
+                  style={{ marginTop: 12 }}
+                >
+                  Go to LTI Tools
+                </button>
               </div>
-              <div style={{ color: '#475569', fontStyle: 'italic' }}>Awaiting SCORM Package Launch...</div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Edit Placements Modal */}
+      {editingTool && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0, 0, 0, 0.6)', zIndex: 100, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', padding: 20
+        }}>
+          <div className="cx-card" style={{ background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-default)', width: '100%', maxWidth: '480px', padding: 24, borderRadius: 8 }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--cx-text-primary)' }}>
+              Edit Placements — {editingTool.name}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.875rem', marginBottom: 18 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={editPlacements.course_navigation} onChange={e => setEditPlacements(prev => ({ ...prev, course_navigation: e.target.checked }))} />
+                Course Left Navigation Tab
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={editPlacements.editor_button} onChange={e => setEditPlacements(prev => ({ ...prev, editor_button: e.target.checked }))} />
+                Rich Text Editor Button
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={editPlacements.assignment_selection} onChange={e => setEditPlacements(prev => ({ ...prev, assignment_selection: e.target.checked }))} />
+                Assignment Tool Selection
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="cx-btn cx-btn--ghost" type="button" onClick={() => setEditingTool(null)}>Cancel</button>
+              <button className="cx-btn cx-btn--primary" onClick={handleSavePlacements} disabled={savingPlacements}>
+                {savingPlacements ? 'Saving...' : 'Save Placements'}
+              </button>
             </div>
           </div>
         </div>

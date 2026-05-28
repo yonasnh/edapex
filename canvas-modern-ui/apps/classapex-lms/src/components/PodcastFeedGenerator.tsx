@@ -198,8 +198,8 @@ export default function PodcastFeedGenerator({
 
   const handleCopyUrl = useCallback(async () => {
     const rss = generateRss()
-    const blob = new Blob([rss], { type: 'application/rss+xml' })
-    const url = URL.createObjectURL(blob)
+    const base64 = btoa(unescape(encodeURIComponent(rss)))
+    const url = `data:application/rss+xml;base64,${base64}`
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
@@ -212,15 +212,14 @@ export default function PodcastFeedGenerator({
 
   const handleDownload = useCallback(() => {
     const rss = generateRss()
-    const blob = new Blob([rss], { type: 'application/rss+xml' })
-    const url = URL.createObjectURL(blob)
+    const base64 = btoa(unescape(encodeURIComponent(rss)))
+    const url = `data:application/rss+xml;base64,${base64}`
     const a = document.createElement('a')
     a.href = url
     a.download = `podcast-feed-${courseId}.rss`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
     showToast({ title: 'RSS feed downloaded', type: 'success' })
   }, [generateRss, courseId, showToast])
 

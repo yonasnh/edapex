@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { canvasFetch } from '../hooks/useCanvasQuery'
+import { canvasFetch, useCanvasQuery } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 
 interface Rating {
@@ -22,6 +22,7 @@ interface Criterion {
   long_description?: string
   points: number
   ratings: Rating[]
+  learning_outcome_id?: string
 }
 
 interface RubricForm {
@@ -41,6 +42,7 @@ const emptyCriterion = (): Criterion => ({
     { description: 'Needs Improvement', points: 1 },
     { description: 'Unsatisfactory', points: 0 },
   ],
+  learning_outcome_id: '',
 })
 
 interface Props {
@@ -60,6 +62,12 @@ export default function RubricEditModal({ rubric, courseId, onClose, onSave }: P
     criteria: [emptyCriterion()],
   })
 
+  const { data: outcomes } = useCanvasQuery<any[]>(
+    courseId ? `/api/v1/courses/${courseId}/outcomes` : '',
+    { per_page: 100 } as any
+  )
+  const outcomeList = outcomes || []
+
   useEffect(() => {
     if (rubric) {
       setForm({
@@ -70,6 +78,7 @@ export default function RubricEditModal({ rubric, courseId, onClose, onSave }: P
           description: c.description || '',
           long_description: c.long_description || '',
           points: c.points ?? 0,
+          learning_outcome_id: c.learning_outcome_id ? String(c.learning_outcome_id) : '',
           ratings: (c.ratings || []).map((r: any) => ({
             id: r.id,
             description: r.description || '',
@@ -157,6 +166,7 @@ export default function RubricEditModal({ rubric, courseId, onClose, onSave }: P
             long_description: c.long_description,
             points: c.points,
             ratings: c.ratings.map(r => ({ description: r.description, points: r.points })),
+            ...(c.learning_outcome_id ? { learning_outcome_id: c.learning_outcome_id } : {}),
           })),
         },
       }
@@ -253,6 +263,22 @@ export default function RubricEditModal({ rubric, courseId, onClose, onSave }: P
                     onChange={e => updateCriterion(ci, { long_description: e.target.value })}
                     style={{ width: '100%', resize: 'vertical' }}
                   />
+                </div>
+
+                {/* Outcome Alignment */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--cx-text-tertiary)', display: 'block', marginBottom: 4 }}>Align to Outcome</label>
+                  <select
+                    className="cx-input"
+                    style={{ width: '100%', fontSize: '0.8125rem' }}
+                    value={criterion.learning_outcome_id || ''}
+                    onChange={e => updateCriterion(ci, { learning_outcome_id: e.target.value })}
+                  >
+                    <option value="">None</option>
+                    {outcomeList.map((o: any) => (
+                      <option key={o.id} value={String(o.id)}>{o.title}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Ratings */}

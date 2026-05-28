@@ -60,7 +60,7 @@ const MOCK_MODULES = [
         title: 'Syllabus Page',
         type: 'Page',
         published: true,
-        completion_requirement: { type: 'must_view' },
+        completion_requirement: { type: 'must_view', completed: true },
         position: 1,
       },
       {
@@ -68,7 +68,7 @@ const MOCK_MODULES = [
         title: 'Intro Quiz',
         type: 'Quiz',
         published: false,
-        completion_requirement: { type: 'min_score', min_score: 7 },
+        completion_requirement: { type: 'min_score', min_score: 7, completed: true },
         position: 2,
       },
     ],

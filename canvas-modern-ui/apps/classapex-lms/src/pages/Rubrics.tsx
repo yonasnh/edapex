@@ -14,6 +14,7 @@ import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useRole } from '../contexts/RoleContext'
 import { useNotification } from '../hooks/useNotification'
 import RubricEditModal from './RubricEditModal'
+import LogoLoader from '../components/LogoLoader'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ function RubricDetail({
   )
 
   if (isLoading) {
-    return <div className="cx-loading"><div className="cx-loading__spinner" /></div>
+    return <LogoLoader />
   }
   if (!rubric) {
     return <p style={{ color: 'var(--cx-text-tertiary)', padding: 24 }}>Rubric not found.</p>

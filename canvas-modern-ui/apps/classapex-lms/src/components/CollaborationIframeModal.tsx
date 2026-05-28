@@ -13,6 +13,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
+import LogoLoader from './LogoLoader'
 
 interface CollaborationIframeModalProps {
   courseId: string
@@ -128,10 +129,7 @@ export default function CollaborationIframeModal({
               zIndex: 2,
             }}
           >
-            <div className="cx-loading__spinner" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
-              Loading Canvas Collaborations…
-            </span>
+            <LogoLoader text="Loading Canvas Collaborations…" />
           </div>
         )}
 

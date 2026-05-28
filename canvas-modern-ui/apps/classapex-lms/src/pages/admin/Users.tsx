@@ -18,6 +18,8 @@ function PeopleSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fi
 function UserCheckSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11l2 2 4-4"/></svg>; }
 function ClockSvg() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>; }
 function ChevronDownSvg() { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 5l3 3 3-3"/></svg>; }
+function UploadSvg() { return <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 15V4M5 9l5-5 5 5M4 17h12"/></svg>; }
+function FileSvg() { return <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg>; }
 
 interface UserData {
   id: string;
@@ -38,6 +40,8 @@ interface UserData {
   enrollmentCount?: number;
   courseCount?: number;
   loginCount?: number;
+  sisUserId?: string;
+  integrationId?: string;
 }
 
 // We will fetch these from Canvas API instead
@@ -65,6 +69,7 @@ const AdminUsersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterSisLinked, setFilterSisLinked] = useState<'all' | 'sis' | 'manual'>('all');
   const [sortBy, setSortBy] = useState('name');
   const [page, setPage] = useState(1);
   const [pageSize, _setPageSize] = useState(20);
@@ -74,6 +79,12 @@ const AdminUsersPage: React.FC = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showActions, setShowActions] = useState<string | null>(null);
+
+  // Bulk import states
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
+  const [bulkImportLoading, setBulkImportLoading] = useState(false);
+  const [bulkImportResult, setBulkImportResult] = useState<{ success: boolean; message: string; importId?: number } | null>(null);
 
   // Communication channels states
   const [commChannels, setCommChannels] = useState<any[]>([]);
@@ -160,21 +171,8 @@ const AdminUsersPage: React.FC = () => {
           role = knownRolesRef.current[id];
         }
 
-        // Determine last login
-        let lastLogin = u.last_login;
-        if (!lastLogin) {
-          if (id === '1' || loginId.includes('mail2yonas') || email.includes('mail2yonas')) {
-            lastLogin = new Date().toISOString();
-          } else {
-            const idNum = parseInt(id) || 0;
-            const createdDate = new Date(u.created_at || '2025-08-09T00:00:00Z');
-            const now = new Date();
-            const diffMs = now.getTime() - createdDate.getTime();
-            const loginOffsetMs = (idNum * 1234567) % Math.min(diffMs, 10 * 24 * 60 * 60 * 1000);
-            const loginDate = new Date(now.getTime() - loginOffsetMs);
-            lastLogin = loginDate.toISOString();
-          }
-        }
+        // Determine last login — use Canvas API value only; do not synthesize fake data.
+        const lastLogin = u.last_login || null;
 
         return {
           id,
@@ -184,6 +182,8 @@ const AdminUsersPage: React.FC = () => {
           isActive: true,
           lastLogin,
           createdAt: u.created_at || new Date().toISOString(),
+          sisUserId: u.sis_user_id || undefined,
+          integrationId: u.integration_id || undefined,
           profile: {
             phone: u.phone || undefined,
             timezone: u.time_zone || 'America/New_York'
@@ -496,7 +496,8 @@ const AdminUsersPage: React.FC = () => {
     const students = users.filter(u => u.role === 'student').length;
     const week = new Date(); week.setDate(week.getDate() - 7);
     const recent = users.filter(u => u.lastLogin && new Date(u.lastLogin) > week).length;
-    return { total, active, students, recent };
+    const sisLinked = users.filter(u => !!u.sisUserId).length;
+    return { total, active, students, recent, sisLinked };
   }, [users]);
 
   const getStatusIcon = (isActive: boolean, lastLogin?: string) => {
@@ -509,6 +510,54 @@ const AdminUsersPage: React.FC = () => {
     if (!isActive) return 'cx-badge--danger';
     if (lastLogin) { const w = new Date(); w.setDate(w.getDate() - 7); if (new Date(lastLogin) > w) return 'cx-badge--success'; }
     return 'cx-badge--warning';
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkImportFile) {
+      showToast({ title: 'No file selected', message: 'Please select a CSV file to import.', type: 'warning' });
+      return;
+    }
+    setBulkImportLoading(true);
+    setBulkImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('attachment', bulkImportFile);
+      formData.append('import_type', 'instructure_csv');
+
+      const result = await canvasFetch('/api/v1/accounts/1/sis_imports', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header; browser will set it with boundary for FormData
+      });
+
+      if (result?.id) {
+        setBulkImportResult({
+          success: true,
+          message: `SIS import #${result.id} queued successfully. Track progress on the SIS Imports page.`,
+          importId: result.id,
+        });
+        showToast({
+          title: 'Import Queued',
+          message: `SIS import #${result.id} has been started.`,
+          type: 'success'
+        });
+        setBulkImportFile(null);
+      } else {
+        throw new Error('Import did not return an ID');
+      }
+    } catch (err: any) {
+      setBulkImportResult({
+        success: false,
+        message: err.message || 'Failed to start SIS import. Ensure the CSV is in Instructure format.',
+      });
+      showToast({
+        title: 'Import Failed',
+        message: err.message || 'Failed to start SIS import.',
+        type: 'error'
+      });
+    } finally {
+      setBulkImportLoading(false);
+    }
   };
 
   const handleCreateUser = async () => {
@@ -766,15 +815,18 @@ const AdminUsersPage: React.FC = () => {
           <h1 className="cx-page__title">User Management</h1>
           <p className="cx-page__subtitle">Create, edit, and manage user accounts, roles, and permissions across the platform.</p>
         </div>
-        <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowCreateModal(true)}><PlusSvg /> Add User</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => setShowBulkImportModal(true)}><UploadSvg /> Bulk Import</button>
+          <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowCreateModal(true)}><PlusSvg /> Add User</button>
+        </div>
       </div>
 
       <div className="cx-stats-grid">
         {[
           { label: 'Total Users', value: stats.total, icon: <UserGroupSvg /> },
-          { label: 'Active Users', value: stats.active, icon: <UserCheckSvg />, desc: `${Math.round((stats.active / stats.total) * 100)}% active` },
+          { label: 'Active Users', value: stats.active, icon: <UserCheckSvg />, desc: `${stats.total ? Math.round((stats.active / stats.total) * 100) : 0}% active` },
           { label: 'Students', value: stats.students, icon: <PeopleSvg /> },
-          { label: 'Recent Logins', value: stats.recent, icon: <ClockSvg />, desc: 'Logged in this week' },
+          { label: 'SIS Linked', value: stats.sisLinked, icon: <UploadSvg />, desc: `${stats.total ? Math.round((stats.sisLinked / stats.total) * 100) : 0}% via SIS` },
         ].map((s, i) => (
           <div key={i} className="cx-stat-card">
             <div className="cx-stat-card__icon">{s.icon}</div>
@@ -808,6 +860,11 @@ const AdminUsersPage: React.FC = () => {
             <option value="inactive">Inactive</option>
             <option value="recent">Recent Logins</option>
           </select>
+          <select className="cx-select" value={filterSisLinked} onChange={e => { setFilterSisLinked(e.target.value as any); setPage(1); }}>
+            <option value="all">All Sources</option>
+            <option value="sis">SIS Linked</option>
+            <option value="manual">Manually Created</option>
+          </select>
           <select className="cx-select" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }}>
             <option value="name">Name A-Z</option>
             <option value="email">Email</option>
@@ -835,7 +892,7 @@ const AdminUsersPage: React.FC = () => {
             <UserSvg />
             <h3>No users found</h3>
             <p>Try adjusting your search or filters.</p>
-            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setSearchTerm(''); setFilterRole('all'); setFilterStatus('all'); setPage(1); }}>Clear Filters</button>
+            <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setSearchTerm(''); setFilterRole('all'); setFilterStatus('all'); setFilterSisLinked('all'); setPage(1); }}>Clear Filters</button>
           </div>
         ) : (
           <div className="cx-table-container">
@@ -848,6 +905,7 @@ const AdminUsersPage: React.FC = () => {
                   <th>Role</th>
                   <th>Status</th>
                   <th>Last Login</th>
+                  <th>SIS ID</th>
                   <th>Enrollments</th>
                   <th>Created</th>
                   <th></th>
@@ -862,6 +920,7 @@ const AdminUsersPage: React.FC = () => {
                     <td className="cx-table__cell"><span className={clsx('cx-badge', roleBadgeClass(user.role))}>{user.role}</span></td>
                     <td className="cx-table__cell"><span className={clsx('cx-badge', getStatusBadge(user.isActive, user.lastLogin))} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{getStatusIcon(user.isActive, user.lastLogin)}{user.isActive ? 'Active' : 'Inactive'}</span></td>
                     <td className="cx-table__cell cx-table__cell--muted">{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td className="cx-table__cell cx-table__cell--muted">{user.sisUserId ? <span className="cx-badge cx-badge--info" style={{ fontSize: '0.7rem' }}>{user.sisUserId}</span> : '—'}</td>
                     <td className="cx-table__cell cx-table__cell--muted">{user.enrollmentCount || 0}</td>
                     <td className="cx-table__cell cx-table__cell--muted">{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td className="cx-table__cell cx-table__cell--actions" style={{ position: 'relative' }}>
@@ -1040,11 +1099,14 @@ const AdminUsersPage: React.FC = () => {
                 <div>
                   <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: 0 }}>{selectedUser.name}</h3>
                   <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '2px 0 8px' }}>{selectedUser.email}</p>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <span className={clsx('cx-badge', roleBadgeClass(selectedUser.role))}>{selectedUser.role}</span>
                     <span className={clsx('cx-badge', getStatusBadge(selectedUser.isActive, selectedUser.lastLogin))} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       {getStatusIcon(selectedUser.isActive, selectedUser.lastLogin)}{selectedUser.isActive ? 'Active' : 'Inactive'}
                     </span>
+                    {selectedUser.sisUserId && (
+                      <span className="cx-badge cx-badge--info" style={{ fontSize: '0.75rem' }}>SIS: {selectedUser.sisUserId}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1217,30 +1279,9 @@ const AdminUsersPage: React.FC = () => {
 
               <div className="cx-detail-section">
                 <h4>User Activity & Page Views Log</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-                  <div style={{ padding: 12, background: 'var(--cx-bg-canvas)', borderRadius: 6, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent)', marginTop: 4 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Accessed Course Dashboard</div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>Vite Development Server • 2 minutes ago</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent-success, #10b981)', marginTop: 4 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Submitted Quiz: Midterm Practice Check</div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>API Gateway • 1 hour ago</div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cx-accent)', marginTop: 4 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>Downloaded File: syllabus.pdf</div>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--cx-text-tertiary)' }}>S3 File Storage • 3 hours ago</div>
-                      </div>
-                    </div>
-                  </div>
+                <div style={{ padding: 16, background: 'var(--cx-bg-canvas)', borderRadius: 6, color: 'var(--cx-text-tertiary)', fontSize: '0.8125rem' }}>
+                  <p>Granular page-view and participation logs require the Canvas Data Services API or an analytics pipeline integration.</p>
+                  <p style={{ fontSize: '0.75rem', marginTop: 8 }}>Standard REST endpoints do not expose per-user activity timelines.</p>
                 </div>
               </div>
             </div>
@@ -1277,6 +1318,61 @@ const AdminUsersPage: React.FC = () => {
               <button type="submit" className="cx-btn cx-btn--primary cx-btn--sm" disabled={isSendingMessage}>{isSendingMessage ? 'Sending...' : 'Send Message'}</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImportModal && (
+        <div className="cx-modal-overlay" onClick={() => { setShowBulkImportModal(false); setBulkImportResult(null); setBulkImportFile(null); }}>
+          <div className="cx-modal cx-modal--md" onClick={e => e.stopPropagation()}>
+            <div className="cx-modal__header">
+              <h2 className="cx-modal__title">Bulk Import Users</h2>
+              <button className="cx-btn cx-btn--ghost" onClick={() => { setShowBulkImportModal(false); setBulkImportResult(null); setBulkImportFile(null); }}><XSvg /></button>
+            </div>
+            <div className="cx-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
+                Upload a CSV file in <strong>Instructure format</strong> to bulk create users, courses, and enrollments via the Canvas SIS Import API.
+              </p>
+
+              <div style={{
+                border: '2px dashed var(--cx-border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: 32,
+                textAlign: 'center',
+                background: 'var(--cx-bg-surface-raised)'
+              }}>
+                <FileSvg />
+                <h4 style={{ margin: '12px 0 6px', color: 'var(--cx-text-primary)', fontSize: '1rem' }}>{bulkImportFile ? bulkImportFile.name : 'Select a CSV or ZIP file'}</h4>
+                <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem', marginBottom: 16 }}>
+                  {bulkImportFile ? `${(bulkImportFile.size / 1024).toFixed(1)} KB` : 'Instructure CSV format required'}
+                </p>
+                <label className="cx-btn cx-btn--secondary" style={{ cursor: 'pointer' }}>
+                  Choose File
+                  <input type="file" accept=".csv,.zip" style={{ display: 'none' }} onChange={e => { setBulkImportFile(e.target.files?.[0] || null); setBulkImportResult(null); }} />
+                </label>
+              </div>
+
+              {bulkImportResult && (
+                <div className={`cx-notification cx-notification--${bulkImportResult.success ? 'success' : 'danger'}`} style={{ marginTop: 4 }}>
+                  <div>
+                    <div className="cx-notification__title">{bulkImportResult.success ? 'Import Started' : 'Import Failed'}</div>
+                    <div className="cx-notification__subtitle">{bulkImportResult.message}</div>
+                    {bulkImportResult.importId && (
+                      <div style={{ marginTop: 8 }}>
+                        <a href="/sis-imports" className="cx-btn cx-btn--ghost cx-btn--sm" style={{ textDecoration: 'none' }}>View on SIS Imports Page →</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="cx-modal__footer">
+              <button className="cx-btn cx-btn--secondary cx-btn--sm" onClick={() => { setShowBulkImportModal(false); setBulkImportResult(null); setBulkImportFile(null); }}>Close</button>
+              <button className="cx-btn cx-btn--primary cx-btn--sm" disabled={!bulkImportFile || bulkImportLoading} onClick={handleBulkImport}>
+                {bulkImportLoading ? 'Uploading...' : 'Start Import'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

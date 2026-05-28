@@ -22,6 +22,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
+import LogoLoader from './LogoLoader'
 
 export type NewQuizzesMode = 'take' | 'build' | 'moderate'
 
@@ -154,10 +155,7 @@ export default function NewQuizzesIframe({
               zIndex: 2,
             }}
           >
-            <div className="cx-loading__spinner" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--cx-text-secondary)' }}>
-              Loading New Quiz…
-            </span>
+            <LogoLoader text="Loading New Quiz…" />
           </div>
         )}
 

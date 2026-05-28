@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCanvasQuery } from '../../hooks/useCanvasQuery'
+import LogoLoader from '../../components/LogoLoader'
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ const AdminDashboard: React.FC = () => {
 
           {coursesLoading ? (
             <div style={{ padding: 24, textAlign: 'center' }}>
-              <div className="cx-loading-ring" />
+              <LogoLoader />
             </div>
           ) : recentCourses.length === 0 ? (
             <p style={{ color: 'var(--cx-text-secondary)', fontSize: '0.875rem', margin: 0 }}>

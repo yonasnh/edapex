@@ -19,10 +19,6 @@ interface CalendarEvent {
   priority?: 'low' | 'medium' | 'high';
 }
 
-// We will fetch these from Canvas API instead
-// const mockEvents = ...
-// const mockCourses = ...
-
 const ChevronLeftSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>;
 const ChevronRightSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 3l5 5-5 5"/></svg>;
 const SearchSvg = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></svg>;
@@ -44,19 +40,27 @@ function getTypeColor(type: string) {
 import { useCanvasQuery } from '../hooks/useCanvasQuery';
 
 const parseEventDescription = (desc: string | undefined) => {
-  if (!desc) return { parsedType: 'other' as const, parsedDesc: '' }
-  if (desc.startsWith('Type: ')) {
-    const lines = desc.split('\n')
-    const typeLine = lines[0]
-    const val = typeLine.replace('Type: ', '').trim()
+  if (!desc) return { parsedType: 'other' as const, parsedDesc: '', isRecurring: false }
+  const lines = desc.split('\n')
+  let parsedType: CalendarEvent['type'] = 'other'
+  let isRecurring = false
+  let parsedDesc = desc
+
+  if (lines[0]?.startsWith('Type: ')) {
+    const val = lines[0].replace('Type: ', '').trim()
     if (['assignment', 'exam', 'lecture', 'meeting', 'deadline', 'other'].includes(val)) {
-      return {
-        parsedType: val as CalendarEvent['type'],
-        parsedDesc: lines.slice(1).join('\n').trim(),
-      }
+      parsedType = val as CalendarEvent['type']
+      parsedDesc = lines.slice(1).join('\n').trim()
     }
   }
-  return { parsedType: 'other' as const, parsedDesc: desc }
+
+  const recurringLine = lines.find(l => l.startsWith('Recurring:'))
+  if (recurringLine) {
+    isRecurring = recurringLine.replace('Recurring:', '').trim() === 'true'
+    parsedDesc = lines.filter(l => !l.startsWith('Recurring:')).join('\n').trim()
+  }
+
+  return { parsedType, parsedDesc, isRecurring }
 }
 
 const CalendarPage: React.FC = () => {
@@ -71,7 +75,7 @@ const CalendarPage: React.FC = () => {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [eventForm, setEventForm] = useState<Partial<CalendarEvent>>({
     title: '', description: '', startDate: '', endDate: '',
-    location: '', type: 'other', isAllDay: false,
+    location: '', type: 'other', isAllDay: false, isRecurring: false,
   });
 
   const { user } = useAuth();
@@ -129,7 +133,7 @@ const CalendarPage: React.FC = () => {
 
     if (Array.isArray(eventsData)) {
       eventsData.forEach(e => {
-        const { parsedType, parsedDesc } = parseEventDescription(e.description)
+        const { parsedType, parsedDesc, isRecurring } = parseEventDescription(e.description)
         list.push({
           id: String(e.id),
           title: e.title || e.name || 'Untitled Event',
@@ -140,6 +144,7 @@ const CalendarPage: React.FC = () => {
           type: parsedType,
           course: courses.find(c => String(c.id) === String(e.context_code?.replace('course_', ''))),
           isAllDay: e.all_day,
+          isRecurring,
           status: 'upcoming' as const,
         })
       })
@@ -228,7 +233,7 @@ const CalendarPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingEvent(null);
-    setEventForm({ title: '', description: '', startDate: '', endDate: '', location: '', type: 'other', isAllDay: false });
+    setEventForm({ title: '', description: '', startDate: '', endDate: '', location: '', type: 'other', isAllDay: false, isRecurring: false });
     setShowEventModal(true);
   };
 
@@ -242,6 +247,7 @@ const CalendarPage: React.FC = () => {
       location: event.location || '',
       type: event.type,
       isAllDay: event.isAllDay || false,
+      isRecurring: event.isRecurring || false,
     });
     setShowEventModal(true);
   };
@@ -253,8 +259,8 @@ const CalendarPage: React.FC = () => {
         ? `course_${eventForm.course.id}`
         : (user?.id ? `user_${user.id}` : 'user_self')
 
-      // Encode custom event type into the description field
-      const serializedDescription = `Type: ${eventForm.type || 'other'}\n${eventForm.description || ''}`
+      // Encode custom event type and recurring flag into the description field
+      const serializedDescription = `Type: ${eventForm.type || 'other'}\nRecurring: ${eventForm.isRecurring ? 'true' : 'false'}\n${eventForm.description || ''}`
 
       const body: Record<string, any> = {
         'calendar_event[context_code]': contextCode,
@@ -401,8 +407,8 @@ const CalendarPage: React.FC = () => {
 
   const handleExportICal = () => {
     const ical = buildICal(filteredEvents)
-    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
+    const base64 = btoa(unescape(encodeURIComponent(ical)))
+    const url = `data:text/calendar;base64,${base64}`
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', 'classapex-calendar.ics')
@@ -413,8 +419,8 @@ const CalendarPage: React.FC = () => {
 
   const handleCopyFeedUrl = async () => {
     const ical = buildICal(filteredEvents)
-    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
-    const dataUri = URL.createObjectURL(blob)
+    const base64 = btoa(unescape(encodeURIComponent(ical)))
+    const dataUri = `data:text/calendar;base64,${base64}`
     try {
       await navigator.clipboard.writeText(dataUri)
       showToast({ title: 'Copied', message: 'Calendar feed URL copied to clipboard.', type: 'success' })
@@ -425,11 +431,9 @@ const CalendarPage: React.FC = () => {
 
   const handleSubscribe = () => {
     const ical = buildICal(filteredEvents)
-    const blob = new Blob([ical], { type: 'text/calendar;charset=utf-8' })
-    const dataUri = URL.createObjectURL(blob)
-    // Attempt webcal protocol; fallback to data URI for direct import
-    const webcalUrl = dataUri.replace(/^https?/, 'webcal')
-    window.open(webcalUrl, '_blank')
+    const base64 = btoa(unescape(encodeURIComponent(ical)))
+    const dataUri = `data:text/calendar;base64,${base64}`
+    window.open(dataUri, '_blank')
     showToast({
       title: 'Subscribe',
       message: 'Opened calendar subscription. If your calendar app did not open, use Export iCal and import manually.',
@@ -785,6 +789,12 @@ const CalendarPage: React.FC = () => {
                     onChange={e => setEventForm(p => ({ ...p, isAllDay: e.target.checked }))} />
                   <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
                   <span className="cx-toggle__label" style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }}>All Day Event</span>
+                </label>
+                <label className="cx-toggle">
+                  <input type="checkbox" checked={eventForm.isRecurring || false}
+                    onChange={e => setEventForm(p => ({ ...p, isRecurring: e.target.checked }))} />
+                  <span className="cx-toggle__track"><span className="cx-toggle__thumb" /></span>
+                  <span className="cx-toggle__label" style={{ fontSize: '0.8125rem', color: 'var(--cx-text-primary)' }}>Recurring (Weekdays)</span>
                 </label>
               </div>
             </div>

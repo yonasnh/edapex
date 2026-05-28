@@ -5,33 +5,20 @@
 
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 import DocViewerWrapper from '../DocViewerWrapper'
 
 describe('DocViewerWrapper', () => {
-  const originalOrigin = window.location.origin
-
   beforeEach(() => {
     vi.clearAllMocks()
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { origin: 'https://canvas.example.com' },
-    })
-  })
-
-  afterEach(() => {
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { origin: originalOrigin },
-    })
   })
 
   it('renders iframe with correct src', () => {
     render(<DocViewerWrapper fileUrl="/files/123/preview" />)
     const iframe = screen.getByTitle('Document preview')
     expect(iframe).toBeInTheDocument()
-    expect(iframe).toHaveAttribute('src', 'https://canvas.example.com/files/123/preview')
+    expect(iframe).toHaveAttribute('src', `${window.location.origin}/files/123/preview`)
   })
 
   it('shows loading spinner initially', () => {
@@ -64,7 +51,7 @@ describe('DocViewerWrapper', () => {
     })
     const downloadLink = screen.getByRole('link', { name: /Download File/i })
     expect(downloadLink).toBeInTheDocument()
-    expect(downloadLink).toHaveAttribute('href', 'https://canvas.example.com/files/123/download?download_frd=1')
+    expect(downloadLink).toHaveAttribute('href', `${window.location.origin}/files/123/download?download_frd=1`)
   })
 
   it('adds annotatable=1 param when annotatable=true', () => {
@@ -72,7 +59,7 @@ describe('DocViewerWrapper', () => {
     const iframe = screen.getByTitle('Document preview')
     expect(iframe).toHaveAttribute(
       'src',
-      'https://canvas.example.com/files/123/preview?annotatable=1'
+      `${window.location.origin}/files/123/preview?annotatable=1`
     )
   })
 

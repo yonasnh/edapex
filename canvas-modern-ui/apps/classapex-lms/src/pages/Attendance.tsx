@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery';
 import { useNotification } from '../hooks/useNotification';
+import { useRole } from '../contexts/RoleContext';
+import LogoLoader from '../components/LogoLoader'
 
 interface Student {
   id: number;
@@ -24,12 +26,19 @@ interface Assignment {
 export default function AttendancePage() {
   const { courseId } = useParams();
   const { showToast, showConfirm } = useNotification();
+  const { role } = useRole();
+  const isTeacher = role === 'teacher' || role === 'admin';
   const [viewMode, setViewMode] = useState<'list' | 'seating'>('list');
   const [attendanceAssignment, setAttendanceAssignment] = useState<Assignment | null>(null);
   const [localStatuses, setLocalStatuses] = useState<Record<number, string>>({});
   const [initializing, setInitializing] = useState(false);
   const [updatingStudents, setUpdatingStudents] = useState<Set<number>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
+
+  // Fetch current user
+  const { data: currentUser, isLoading: loadingCurrentUser } = useCanvasQuery<{ id: number }>(
+    `/api/v1/users/self`
+  );
 
   // Fetch students in the course
   const { data: students, isLoading: loadingStudents, isError: studentsError } = useCanvasQuery<Student[]>(
@@ -201,10 +210,10 @@ export default function AttendancePage() {
     }
   };
 
-  if (loadingStudents || loadingAssignments || (attendanceAssignment && loadingSubmissions)) {
+  if (loadingStudents || loadingAssignments || loadingCurrentUser || (attendanceAssignment && loadingSubmissions)) {
     return (
       <div className="cx-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 64px)' }}>
-        <div className="cx-loading-ring" />
+        <LogoLoader />
       </div>
     );
   }
@@ -231,66 +240,96 @@ export default function AttendancePage() {
       </div>
 
       {!attendanceAssignment ? (
-        <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, textAlign: 'center' }}>
-          <h3>Initialize Attendance Tracking</h3>
-          <p style={{ color: 'var(--cx-text-secondary)', maxWidth: 450, margin: '8px auto 24px' }}>
-            No "Roll Call Attendance" assignment was found in this course. Initialize it now to automatically create a column in your Canvas gradebook.
-          </p>
-          <button className="cx-btn cx-btn--primary" onClick={handleInitializeAssignment} disabled={initializing}>
-            {initializing ? 'Initializing...' : 'Initialize Attendance'}
-          </button>
-        </div>
+        isTeacher ? (
+          <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, textAlign: 'center' }}>
+            <h3>Initialize Attendance Tracking</h3>
+            <p style={{ color: 'var(--cx-text-secondary)', maxWidth: 450, margin: '8px auto 24px' }}>
+              No "Roll Call Attendance" assignment was found in this course. Initialize it now to automatically create a column in your Canvas gradebook.
+            </p>
+            <button className="cx-btn cx-btn--primary" onClick={handleInitializeAssignment} disabled={initializing}>
+              {initializing ? 'Initializing...' : 'Initialize Attendance'}
+            </button>
+          </div>
+        ) : (
+          <div className="cx-empty" style={{ padding: 48, background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 8, textAlign: 'center' }}>
+            <h3>Attendance Not Set Up</h3>
+            <p style={{ color: 'var(--cx-text-secondary)', maxWidth: 450, margin: '8px auto 24px' }}>
+              Attendance tracking has not been set up for this course yet.
+            </p>
+          </div>
+        )
       ) : (
         <div style={{ padding: '24px', background: 'var(--cx-bg-surface)', border: '1px solid var(--cx-border-subtle)', borderRadius: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, alignItems: 'center' }}>
             <div style={{ fontWeight: 600, color: 'var(--cx-text-primary)' }}>Today: {new Date().toLocaleDateString()}</div>
-            <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={handleMarkAllPresent} disabled={markingAll}>{markingAll ? 'Marking...' : 'Mark All Present'}</button>
+            {isTeacher && (
+              <button className="cx-btn cx-btn--ghost cx-btn--sm" onClick={handleMarkAllPresent} disabled={markingAll}>{markingAll ? 'Marking...' : 'Mark All Present'}</button>
+            )}
           </div>
 
           {viewMode === 'list' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {students?.map(student => {
+              {(isTeacher ? students : students?.filter(s => s.id === currentUser?.id))?.map(student => {
                 const status = localStatuses[student.id] || 'unmarked';
                 return (
                   <div key={student.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--cx-bg-surface-sunken)', borderRadius: 8, border: '1px solid var(--cx-border-subtle)' }}>
                     <span style={{ fontWeight: 500, color: 'var(--cx-text-primary)' }}>{student.name}</span>
-                    <button 
-                      onClick={() => cycleStatus(student.id)}
-                      disabled={updatingStudents.has(student.id)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 16,
-                        border: `1px solid ${getStatusColor(status)}`,
-                        background: status === 'unmarked' ? 'transparent' : `${getStatusColor(status)}22`,
-                        color: getStatusColor(status),
-                        fontWeight: 600,
-                        cursor: updatingStudents.has(student.id) ? 'not-allowed' : 'pointer',
-                        minWidth: 100,
-                        textTransform: 'capitalize',
-                        opacity: updatingStudents.has(student.id) ? 0.7 : 1
-                      }}
-                    >
-                      {updatingStudents.has(student.id) ? 'Saving...' : status}
-                    </button>
+                    {isTeacher ? (
+                      <button
+                        onClick={() => cycleStatus(student.id)}
+                        disabled={updatingStudents.has(student.id)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 16,
+                          border: `1px solid ${getStatusColor(status)}`,
+                          background: status === 'unmarked' ? 'transparent' : `${getStatusColor(status)}22`,
+                          color: getStatusColor(status),
+                          fontWeight: 600,
+                          cursor: updatingStudents.has(student.id) ? 'not-allowed' : 'pointer',
+                          minWidth: 100,
+                          textTransform: 'capitalize',
+                          opacity: updatingStudents.has(student.id) ? 0.7 : 1
+                        }}
+                      >
+                        {updatingStudents.has(student.id) ? 'Saving...' : status}
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 16,
+                          border: `1px solid ${getStatusColor(status)}`,
+                          background: status === 'unmarked' ? 'transparent' : `${getStatusColor(status)}22`,
+                          color: getStatusColor(status),
+                          fontWeight: 600,
+                          minWidth: 100,
+                          textTransform: 'capitalize',
+                          display: 'inline-block',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {status}
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, padding: 24, background: 'var(--cx-bg-surface-sunken)', borderRadius: 8, minHeight: 300 }}>
-              {students?.map(student => {
+              {(isTeacher ? students : students?.filter(s => s.id === currentUser?.id))?.map(student => {
                 const status = localStatuses[student.id] || 'unmarked';
                 return (
-                  <div 
-                    key={student.id} 
-                    onClick={() => { if (!updatingStudents.has(student.id)) cycleStatus(student.id); }}
+                  <div
+                    key={student.id}
+                    onClick={isTeacher ? () => { if (!updatingStudents.has(student.id)) cycleStatus(student.id); } : undefined}
                     style={{
                       padding: '24px 16px',
                       background: 'var(--cx-bg-surface)',
                       borderRadius: 8,
                       border: `2px solid ${getStatusColor(status)}`,
                       textAlign: 'center',
-                      cursor: updatingStudents.has(student.id) ? 'not-allowed' : 'pointer',
+                      cursor: isTeacher ? (updatingStudents.has(student.id) ? 'not-allowed' : 'pointer') : 'default',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                       transition: 'border-color 0.2s',
                       opacity: updatingStudents.has(student.id) ? 0.7 : 1

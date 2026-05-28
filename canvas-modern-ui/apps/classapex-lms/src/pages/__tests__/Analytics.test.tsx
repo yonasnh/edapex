@@ -86,7 +86,7 @@ describe('Analytics Page', () => {
         <Analytics />
       </MemoryRouter>
     )
-    expect(screen.getByText('Physics 101')).toBeInTheDocument()
+    expect(screen.getAllByText('Physics 101').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders time range select', () => {

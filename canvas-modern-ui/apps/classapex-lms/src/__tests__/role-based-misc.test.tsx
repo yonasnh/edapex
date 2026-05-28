@@ -409,7 +409,8 @@ describe('ObserverDashboard', () => {
 
   it('shows linked student courses', () => {
     renderObserverDashboard()
-    expect(screen.getByText('Alice Student')).toBeInTheDocument()
+    // 'Alice Student' appears in sidebar, select dropdown, and heading
+    expect(screen.getAllByText('Alice Student').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Current Courses')).toBeInTheDocument()
     expect(screen.getByText('Course ID: 101')).toBeInTheDocument()
   })

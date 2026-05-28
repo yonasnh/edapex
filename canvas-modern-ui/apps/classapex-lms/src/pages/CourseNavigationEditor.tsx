@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useCanvasQuery, canvasFetch } from '../hooks/useCanvasQuery'
 import { useNotification } from '../hooks/useNotification'
 import clsx from 'clsx'
+import LogoLoader from '../components/LogoLoader'
 
 export interface CourseTab {
   id: string
@@ -178,10 +179,7 @@ export default function CourseNavigationEditor() {
   if (isLoading) {
     return (
       <div className="cx-page">
-        <div className="cx-loading" role="status" aria-label="Loading navigation">
-          <div className="cx-loading__spinner" />
-          <span className="cx-loading__text">Loading course navigation…</span>
-        </div>
+        <LogoLoader text="Loading course navigation…" />
       </div>
     )
   }

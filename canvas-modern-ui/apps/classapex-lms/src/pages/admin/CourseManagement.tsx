@@ -56,10 +56,6 @@ interface CourseData {
   visibility?: 'public' | 'course_members' | 'institution';
 }
 
-// We will fetch these from Canvas API instead
-// const mockCourses: CourseData[] = ...
-
-
 const statusBadgeClass = (s: string) => s === 'available' ? 'cx-badge--success' : s === 'unpublished' ? 'cx-badge--warning' : s === 'completed' ? 'cx-badge--info' : 'cx-badge--danger';
 
 import { useCanvasQuery, canvasFetch } from '../../hooks/useCanvasQuery';
@@ -98,11 +94,11 @@ const AdminCourseManagementPage: React.FC = () => {
   const [importFileName, setImportFileName] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [bulkImportCourseId, setBulkImportCourseId] = useState<string>('');
-  const [auditLogs] = useState([
-    { id: 'a1', date: '2026-05-19T10:14:00Z', user: 'Sophia Miller', course: 'Computer Science 101', role: 'Student', action: 'Enrolled via SIS Import', actor: 'System Admin' },
-    { id: 'a2', date: '2026-05-19T09:45:00Z', user: 'James Wilson', course: 'Mathematics 204', role: 'Teacher', action: 'Added to Section A', actor: 'Professor Davis (Masquerading)' },
-    { id: 'a3', date: '2026-05-18T14:22:00Z', user: 'Emma Thompson', course: 'Chemistry Lab', role: 'Student', action: 'Dropped Course', actor: 'Student (Self-service)' }
-  ]);
+  // Canvas does not expose a unified enrollment audit log via REST API.
+  // Audit data requires Canvas Data Services or account-level report exports.
+  const auditLogs: { id: string; date: string; user: string; course: string; role: string; action: string; actor: string }[] = [];
+  // Canvas does not expose a course template API.
+  const templates: any[] = [];
 
   // Bulk selection state
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
@@ -742,22 +738,26 @@ const AdminCourseManagementPage: React.FC = () => {
         <div className="cx-section">
           <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--cx-text-primary)', margin: '0 0 4px' }}>Course Templates</h3>
           <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: '0 0 16px' }}>Create new courses from predefined templates to ensure consistency and save time.</p>
-          <div className="cx-card-grid">
-            {[
-              { name: 'Computer Science Course', desc: 'Template for programming and computer science courses with coding assignments and projects.' },
-              { name: 'Mathematics Course', desc: 'Template for mathematics courses with problem sets and theoretical assignments.' },
-              { name: 'Literature Course', desc: 'Template for literature and humanities courses with discussion forums and essays.' },
-              { name: 'Science Lab Course', desc: 'Template for laboratory science courses with experiments and lab reports.' },
-            ].map((t, i) => (
-              <div key={i} className="cx-card">
-                <div className="cx-card__header"><h3 className="cx-card__title">{t.name}</h3></div>
-                <div className="cx-card__body"><p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>{t.desc}</p></div>
-                <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
-                  <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => handleUseTemplate(t.name)}>Use Template</button>
+          {templates.length === 0 ? (
+            <div className="cx-empty">
+              <BookSvg />
+              <h3>No course templates configured</h3>
+              <p>Create a course manually or contact your administrator to set up templates.</p>
+              <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setShowCreateModal(true)}><PlusSvg /> Create Course Manually</button>
+            </div>
+          ) : (
+            <div className="cx-card-grid">
+              {templates.map((t, i) => (
+                <div key={i} className="cx-card">
+                  <div className="cx-card__header"><h3 className="cx-card__title">{t.name}</h3></div>
+                  <div className="cx-card__body"><p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>{t.desc}</p></div>
+                  <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
+                    <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => handleUseTemplate(t.name)}>Use Template</button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -787,11 +787,11 @@ const AdminCourseManagementPage: React.FC = () => {
                   <div className="cx-card__header"><h3 className="cx-card__title">Enrollment Audit Trails</h3></div>
                   <div className="cx-card__body">
                     <p style={{ fontSize: '0.8125rem', color: 'var(--cx-text-secondary)', margin: 0 }}>
-                      Inspect historic course enrollment events, track student additions/drops, and verify who authorized each enrollment change.
+                      Audit trails require Canvas Data Services or SIS integration. Not available via standard REST API.
                     </p>
                   </div>
                   <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
-                    <button className="cx-btn cx-btn--primary cx-btn--sm" onClick={() => setActiveBulkOp('audit')}>Open Audit Trail</button>
+                    <button className="cx-btn cx-btn--secondary cx-btn--sm" disabled title="Requires Canvas Data Services">Open Audit Trail</button>
                   </div>
                 </div>
 
@@ -803,7 +803,7 @@ const AdminCourseManagementPage: React.FC = () => {
                     </p>
                   </div>
                   <div className="cx-card__footer" style={{ padding: '12px 16px', borderTop: '1px solid var(--cx-border-subtle)' }}>
-                    <button className="cx-btn cx-btn--secondary cx-btn--sm" disabled>Launch Wizard</button>
+                    <button className="cx-btn cx-btn--secondary cx-btn--sm" disabled title="Requires Canvas Data Services">Launch Wizard</button>
                   </div>
                 </div>
               </div>
