@@ -1,6 +1,6 @@
 {
-  "domContentLoaded": 0.09999990463256836,
-  "loadComplete": 1.5,
-  "firstPaint": 388,
-  "firstContentfulPaint": 388
+  "domContentLoaded": 0,
+  "loadComplete": 0,
+  "firstPaint": 56,
+  "firstContentfulPaint": 56
 }

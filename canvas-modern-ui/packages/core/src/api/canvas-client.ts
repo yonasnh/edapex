@@ -69,8 +69,9 @@ export class CanvasApiClient {
       ...(fetchOptions.headers as Record<string, string>),
     }
 
-    if (this.config.accessToken) {
-      headers['Authorization'] = `Bearer ${this.config.accessToken}`
+    const token = this.config.accessToken || getActiveToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
     const csrfToken = getCsrfToken()
@@ -158,8 +159,9 @@ export class CanvasApiClient {
       ...(fetchOptions.headers as Record<string, string>),
     }
 
-    if (this.config.accessToken) {
-      headers['Authorization'] = `Bearer ${this.config.accessToken}`
+    const token = this.config.accessToken || getActiveToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
     const csrfToken = getCsrfToken()
@@ -279,6 +281,11 @@ export class CanvasApiError extends Error {
 function getActiveToken(): string | undefined {
   if (typeof window === 'undefined') return undefined
 
+  // If logged out, do not return any active or fallback tokens
+  if (localStorage.getItem('cx_logged_out') === 'true') {
+    return undefined
+  }
+
   // 1. Try schoolapex_canvas_token (E2E test mock token)
   const mockTokenStr = localStorage.getItem('schoolapex_canvas_token')
   if (mockTokenStr) {
@@ -294,7 +301,11 @@ function getActiveToken(): string | undefined {
   const cxToken = localStorage.getItem('cx_access_token')
   if (cxToken) return cxToken
 
-  // 3. Fallback to VITE_CANVAS_API_TOKEN (only if not running under Playwright)
+  // 3. Try canvas-api-token
+  const canvasApiToken = localStorage.getItem('canvas-api-token')
+  if (canvasApiToken) return canvasApiToken
+
+  // 4. Fallback to VITE_CANVAS_API_TOKEN (only if not running under Playwright)
   const isPlaywright = (window as any).__playwright || navigator.userAgent.toLowerCase().includes('playwright')
   if (!isPlaywright) {
     return import.meta.env.VITE_CANVAS_API_TOKEN
@@ -309,11 +320,12 @@ function getActiveToken(): string | undefined {
 export function createApiClient(baseUrl?: string, token?: string): CanvasApiClient {
   return new CanvasApiClient({
     baseUrl: baseUrl || import.meta.env.VITE_CANVAS_API_URL || '',
-    accessToken: token || getActiveToken(),
+    accessToken: token,
     onUnauthorized: () => {
       console.warn('[ClassApex API] 401 Unauthorized — clearing token')
       localStorage.removeItem('cx_access_token')
       localStorage.removeItem('schoolapex_canvas_token')
+      localStorage.removeItem('canvas-api-token')
       // Don't hard-redirect — let React AuthProvider handle the flow
     },
   })

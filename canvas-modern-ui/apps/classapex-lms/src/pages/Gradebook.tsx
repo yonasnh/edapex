@@ -329,7 +329,7 @@ export default function GradebookPage() {
       setCustomColumnData(prev => ({
         ...prev,
         [columnId]: {
-          ...(prev[columnId] || {}),
+          ...prev[columnId],
           ...(Array.isArray(entries) ? Object.fromEntries(entries.map(e => [String(e.user_id), String(e.content)])) : {})
         }
       }))

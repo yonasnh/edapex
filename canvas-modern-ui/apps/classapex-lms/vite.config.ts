@@ -16,7 +16,14 @@ export default defineConfig({
     port: 3003,
     host: true,
     proxy: {
-      // Proxy all Canvas LMS requests to avoid CORS issues
+      // Proxy GraphQL requests to our custom middle-tier backend
+      '/api/graphql': {
+        target: 'http://localhost:4003',
+        rewrite: (path) => path.replace(/^\/api\/graphql/, '/graphql'),
+        changeOrigin: true,
+        secure: false,
+      },
+      // Proxy all other Canvas LMS requests to avoid CORS issues
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
@@ -40,11 +47,19 @@ export default defineConfig({
         secure: false,
       },
     },
+
   },
   preview: {
     port: 3003,
     host: true,
     proxy: {
+      // Proxy GraphQL requests to our custom middle-tier backend
+      '/api/graphql': {
+        target: 'http://localhost:4003',
+        rewrite: (path) => path.replace(/^\/api\/graphql/, '/graphql'),
+        changeOrigin: true,
+        secure: false,
+      },
       // Proxy all Canvas LMS requests to avoid CORS issues
       '/api': {
         target: 'http://localhost:3000',
@@ -70,6 +85,7 @@ export default defineConfig({
       },
     },
   },
+
   build: {
     rollupOptions: {
       output: {

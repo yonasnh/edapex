@@ -12,10 +12,48 @@ const httpLink = createHttpLink({
   credentials: 'include', // Include cookies for authentication
 });
 
+// Helper to dynamically get the active authentication token
+function getActiveToken(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+
+  // If logged out, do not return any active or fallback tokens
+  if (localStorage.getItem('cx_logged_out') === 'true') {
+    return undefined;
+  }
+
+  // 1. Try schoolapex_canvas_token (E2E test mock token)
+  const mockTokenStr = localStorage.getItem('schoolapex_canvas_token');
+  if (mockTokenStr) {
+    try {
+      const mockToken = JSON.parse(mockTokenStr);
+      if (mockToken && mockToken.access_token) {
+        return mockToken.access_token;
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
+
+  // 2. Try cx_access_token
+  const cxToken = localStorage.getItem('cx_access_token');
+  if (cxToken) return cxToken;
+
+  // 3. Try canvas-api-token
+  const canvasApiToken = localStorage.getItem('canvas-api-token');
+  if (canvasApiToken) return canvasApiToken;
+
+  // 4. Fallback to VITE_CANVAS_API_TOKEN (only if not running under Playwright)
+  const isPlaywright = (window as any).__playwright || (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('playwright'));
+  if (!isPlaywright) {
+    return process.env.VITE_CANVAS_API_TOKEN;
+  }
+
+  return undefined;
+}
+
 // Authentication link to add Canvas API tokens
 const authLink = setContext((_, { headers }) => {
-  // Get Canvas API token from localStorage or environment
-  const token = localStorage.getItem('canvas-api-token') || process.env.VITE_CANVAS_API_TOKEN;
+  const token = getActiveToken();
   
   return {
     headers: {
@@ -54,6 +92,9 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
         case 401:
           // Unauthorized - clear token and redirect to login
           localStorage.removeItem('canvas-api-token');
+          localStorage.removeItem('cx_access_token');
+          localStorage.removeItem('schoolapex_canvas_token');
+          localStorage.setItem('cx_logged_out', 'true');
           console.warn('Authentication required - please log in to Canvas LMS');
           break;
         case 403:

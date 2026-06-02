@@ -33,6 +33,8 @@ interface AuthContextValue extends AuthState {
   handleOAuthCallback: (code: string, state: string) => Promise<void>
   devMode: boolean
   devLogin: () => void
+  loginWithCredentials: (email: string, password: string) => Promise<boolean>
+  signUpUser: (name: string, email: string, password: string, role: string, joinCode?: string) => Promise<boolean>
 }
 
 // ─── Constants ───
@@ -43,6 +45,8 @@ const REDIRECT_URI = import.meta.env?.VITE_CANVAS_REDIRECT_URI || `${window.loca
 const TOKEN_KEY = 'cx_access_token'
 const REFRESH_KEY = 'cx_refresh_token'
 const STATE_KEY = 'cx_oauth_state'
+// ClassApex backend GraphQL endpoint (proxied by Vite/Nginx dev → port 4003)
+const CLASSAPEX_GRAPHQL_URL = '/api/graphql'
 
 // ─── Context ───
 
@@ -79,6 +83,7 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
       timezone: 'UTC',
     }
     localStorage.setItem(TOKEN_KEY, 'dev-token')
+    localStorage.removeItem('cx_logged_out')
     setState({
       user: mockUser,
       isAuthenticated: true,
@@ -119,11 +124,12 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
 
       // If we are in Playwright E2E test, ignore the fallback env VITE_CANVAS_API_TOKEN to allow testing unauthenticated state
       const envToken = isPlaywright ? undefined : import.meta.env.VITE_CANVAS_API_TOKEN
-      const token = mockToken || localStorage.getItem(TOKEN_KEY) || apiToken || envToken
+      const loggedOut = localStorage.getItem('cx_logged_out') === 'true'
+      const token = loggedOut ? null : (mockToken || localStorage.getItem(TOKEN_KEY) || apiToken || envToken)
 
       if (!token) {
         console.log('[ClassApex Auth] No token found anywhere')
-        if (devMode) {
+        if (devMode && !loggedOut) {
           devLogin()
           return
         }
@@ -242,6 +248,7 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
       const { access_token, refresh_token } = tokenData
 
       localStorage.setItem(TOKEN_KEY, access_token)
+      localStorage.removeItem('cx_logged_out')
       if (refresh_token) localStorage.setItem(REFRESH_KEY, refresh_token)
 
       const user = await fetchCurrentUser(access_token)
@@ -259,6 +266,115 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
         isLoading: false,
         error: err instanceof Error ? err.message : 'Authentication failed',
       }))
+    }
+  }, [])
+
+  // ── loginWithCredentials ──
+  const loginWithCredentials = useCallback(async (email: string, password: string): Promise<boolean> => {
+    try {
+      setState(s => ({ ...s, isLoading: true, error: null }))
+      const res = await fetch(CLASSAPEX_GRAPHQL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `mutation Login($email: String!, $password: String!) {
+            loginWithCredentials(email: $email, password: $password) {
+              accessToken
+              user { id name sortableName workflowState }
+              error
+            }
+          }`,
+          variables: { email, password },
+        }),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const json = await res.json()
+      const payload = json.data?.loginWithCredentials
+      if (payload?.error) throw new Error(payload.error)
+      if (payload?.accessToken && payload?.user) {
+        localStorage.setItem(TOKEN_KEY, payload.accessToken)
+        localStorage.removeItem('cx_logged_out')
+        localStorage.setItem('schoolapex_canvas_token', JSON.stringify({
+          access_token: payload.accessToken,
+          token_type: 'Bearer',
+          user: { id: Number(payload.user.id), name: payload.user.name || '', email },
+          created_at: Date.now()
+        }))
+        setState({
+          user: {
+            id: String(payload.user.id),
+            name: payload.user.name || '',
+            email,
+            roles: ['student'],
+            locale: 'en',
+            timezone: 'UTC',
+          },
+          isAuthenticated: true,
+          isLoading: false,
+          accessToken: payload.accessToken,
+          error: null,
+        })
+        return true
+      }
+      throw new Error('Invalid login payload')
+    } catch (err: any) {
+      setState(s => ({ ...s, isLoading: false, error: err.message || 'Login failed' }))
+      return false
+    }
+  }, [])
+
+  // ── signUpUser ──
+  const signUpUser = useCallback(async (name: string, email: string, password: string, role: string, joinCode?: string): Promise<boolean> => {
+    try {
+      setState(s => ({ ...s, isLoading: true, error: null }))
+      const res = await fetch(CLASSAPEX_GRAPHQL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `mutation Signup($name: String!, $email: String!, $password: String!, $role: String!, $joinCode: String) {
+            signUpUser(name: $name, email: $email, password: $password, role: $role, joinCode: $joinCode) {
+              accessToken
+              user { id name sortableName workflowState }
+              error
+            }
+          }`,
+          variables: { name, email, password, role, joinCode },
+        }),
+      })
+      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      const json = await res.json()
+      const payload = json.data?.signUpUser
+      if (payload?.error) throw new Error(payload.error)
+      if (payload?.accessToken && payload?.user) {
+        const resolvedRole = role === 'educator' ? 'teacher' : role
+        localStorage.setItem(TOKEN_KEY, payload.accessToken)
+        localStorage.removeItem('cx_logged_out')
+        localStorage.setItem('schoolapex_canvas_token', JSON.stringify({
+          access_token: payload.accessToken,
+          token_type: 'Bearer',
+          user: { id: Number(payload.user.id), name: payload.user.name || '', email },
+          created_at: Date.now()
+        }))
+        setState({
+          user: {
+            id: String(payload.user.id),
+            name: payload.user.name || '',
+            email,
+            roles: [resolvedRole],
+            locale: 'en',
+            timezone: 'UTC',
+          },
+          isAuthenticated: true,
+          isLoading: false,
+          accessToken: payload.accessToken,
+          error: null,
+        })
+        return true
+      }
+      throw new Error('Invalid signup payload')
+    } catch (err: any) {
+      setState(s => ({ ...s, isLoading: false, error: err.message || 'Signup failed' }))
+      return false
     }
   }, [])
 
@@ -282,8 +398,10 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REFRESH_KEY)
     localStorage.removeItem('schoolapex_canvas_token')
+    localStorage.removeItem('canvas-api-token')
     sessionStorage.removeItem('oauth2_state')
     sessionStorage.removeItem('schoolapex_pkce_verifier')
+    localStorage.setItem('cx_logged_out', 'true')
 
     setState({
       user: null,
@@ -295,7 +413,7 @@ export function AuthProvider({ children, devMode = false, apiToken }: AuthProvid
   }, [])
 
   return (
-    <AuthContext.Provider value={{ ...state, devMode, login, logout, handleOAuthCallback, devLogin }}>
+    <AuthContext.Provider value={{ ...state, devMode, login, logout, handleOAuthCallback, devLogin, loginWithCredentials, signUpUser }}>
       {children}
     </AuthContext.Provider>
   )
@@ -317,13 +435,14 @@ interface RequireAuthProps {
   fallback?: ReactNode
 }
 
-/**
- * Wrap routes that require authentication.
- * Optionally restrict to specific roles.
- */
 export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
-  const { isAuthenticated, isLoading, user, login, devMode, devLogin } = useAuth()
+
+  const { isAuthenticated, isLoading, user, login, loginWithCredentials, devMode, devLogin } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [emailInput, setEmailInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('cm-theme')
     if (saved === 'light' || saved === 'dark') return saved
@@ -344,6 +463,22 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
     const newTheme = theme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
     localStorage.setItem('cm-theme', newTheme)
+  }
+
+  const handleLocalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLocalError(null)
+    setIsSubmitting(true)
+    try {
+      const success = await loginWithCredentials(emailInput, passwordInput)
+      if (!success) {
+        setLocalError('Invalid email or password.')
+      }
+    } catch (err: any) {
+      setLocalError(err.message || 'Login failed')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const isDark = theme === 'dark'
@@ -633,15 +768,32 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
               paddingBottom: '1rem',
               borderBottom: `1px solid ${colors.border}` 
             }}>
-              New to ClassApex? <a href="#" style={{ color: linkColor, textDecoration: 'none', fontWeight: 500 }}>Sign up</a>
+              New to ClassApex? <a href="/signup" style={{ color: linkColor, textDecoration: 'none', fontWeight: 500 }}>Sign up</a>
             </p>
             
-            <form onSubmit={(e) => { e.preventDefault(); login(); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {localError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                borderLeft: '4px solid #ef4444',
+                color: '#ef4444',
+                padding: '8px 12px',
+                fontSize: '0.875rem',
+                borderRadius: '4px',
+                marginBottom: '1rem',
+                fontWeight: 500
+              }}>
+                {localError}
+              </div>
+            )}
+
+            <form onSubmit={handleLocalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
                 <input 
                   type="email" 
                   required 
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="student@schoolapex.edu"
                   style={{
                     width: '100%', padding: '0.625rem 0.75rem', borderRadius: '0.5rem',
@@ -662,6 +814,8 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
                   <input 
                     type={showPassword ? 'text' : 'password'} 
                     required 
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
                     placeholder="••••••••"
                     style={{
                       width: '100%', padding: '0.625rem 3rem 0.625rem 0.75rem', borderRadius: '0.5rem',
@@ -694,17 +848,40 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
               
               <button
                 type="submit"
+                disabled={isSubmitting}
                 style={{
                   marginTop: '0.5rem',
                   padding: '0.75rem', fontSize: '1rem', fontWeight: 600,
                   background: 'var(--cx-color-primary, #2563eb)', color: '#fff', border: 'none', borderRadius: '0.5rem',
-                  cursor: 'pointer', boxShadow: '0 4px 6px rgba(37,99,235,0.2)',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1,
+                  boxShadow: '0 4px 6px rgba(37,99,235,0.2)',
                   transition: 'background 0.2s', width: '100%'
                 }}
               >
-                Sign in
+                {isSubmitting ? 'Signing in...' : 'Sign in'}
               </button>
             </form>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '1.25rem 0' }}>
+              <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+              <span style={{ fontSize: '0.75rem', color: colors.textTertiary, textTransform: 'uppercase' }}>or</span>
+              <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => login()}
+              style={{
+                padding: '0.625rem', fontSize: '0.875rem', fontWeight: 600,
+                background: colors.bgPage, color: colors.textPrimary, border: `1px solid ${colors.border}`,
+                borderRadius: '0.5rem', cursor: 'pointer', width: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                transition: 'all 0.2s'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Sign in with Institution (SSO)
+            </button>
             
             <div style={{ marginTop: '1.25rem', fontSize: '0.8125rem', color: colors.textTertiary, borderTop: `1px solid ${colors.border}`, paddingTop: '0.75rem' }}>
               <p style={{ margin: 0 }}>Authentication is secured via Canvas LMS.</p>
@@ -736,6 +913,7 @@ export function RequireAuth({ children, roles, fallback }: RequireAuthProps) {
       </div>
     )
   }
+
 
   // Role check
   if (roles && roles.length > 0 && user) {

@@ -1,6 +1,9 @@
 import { Context } from '../context';
 import { GraphQLScalarType } from 'graphql';
 import { Kind } from 'graphql/language';
+import crypto from 'crypto';
+import { verifyPassword, hashPassword } from '../utils/auth-crypto';
+import { signJwt } from '../utils/jwt';
 
 // Custom scalar types
 const DateTimeScalar = new GraphQLScalarType({
@@ -463,4 +466,274 @@ export const resolvers = {
       });
     },
   },
+
+  Mutation: {
+    loginWithCredentials: async (_: any, { email, password }: any, { prisma }: Context) => {
+      try {
+        const normalizedEmail = email.trim().toLowerCase();
+        const pseudonym = await prisma.pseudonyms.findFirst({
+          where: {
+            unique_id_normalized: normalizedEmail,
+            workflow_state: 'active'
+          }
+        });
+        if (!pseudonym) {
+          return { error: 'Invalid email or password' };
+        }
+
+        const isMatch = await verifyPassword(password, pseudonym.crypted_password, pseudonym.password_salt);
+        if (!isMatch) {
+          return { error: 'Invalid email or password' };
+        }
+
+        const user = await prisma.users.findUnique({
+          where: { id: pseudonym.user_id }
+        });
+        if (!user || user.workflow_state !== 'active') {
+          return { error: 'User account is inactive or deleted' };
+        }
+
+        const roles: string[] = [];
+        const adminCheck = await prisma.account_users.findFirst({
+          where: {
+            user_id: user.id,
+            workflow_state: 'active'
+          }
+        });
+        if (adminCheck) {
+          roles.push('admin');
+        }
+
+        const enrollments = await prisma.enrollments.findMany({
+          where: {
+            user_id: user.id,
+            workflow_state: 'active'
+          }
+        });
+
+        enrollments.forEach(e => {
+          if (e.type === 'StudentEnrollment' && !roles.includes('student')) roles.push('student');
+          if (e.type === 'TeacherEnrollment' && !roles.includes('teacher')) roles.push('teacher');
+          if (e.type === 'TaEnrollment' && !roles.includes('ta')) roles.push('ta');
+          if (e.type === 'ObserverEnrollment' && !roles.includes('observer')) roles.push('observer');
+        });
+
+        if (roles.length === 0) {
+          roles.push('student');
+        }
+
+        const accessToken = signJwt({
+          userId: user.id.toString(),
+          email: pseudonym.unique_id,
+          roles
+        });
+
+        return {
+          accessToken,
+          refreshToken: accessToken,
+          user
+        };
+      } catch (err: any) {
+        return { error: err.message || 'An error occurred during login' };
+      }
+    },
+
+    signUpUser: async (_: any, { name, email, password, role, joinCode }: any, { prisma }: Context) => {
+      try {
+        const normalizedEmail = email.trim().toLowerCase();
+        
+        const existingPseudonym = await prisma.pseudonyms.findFirst({
+          where: { unique_id_normalized: normalizedEmail }
+        });
+        if (existingPseudonym) {
+          return { error: 'Email is already in use' };
+        }
+
+        const salt = crypto.randomBytes(16).toString('hex');
+        const cryptedPassword = await hashPassword(password, salt);
+
+        const account = await prisma.accounts.findFirst({
+          where: { workflow_state: 'active', parent_account_id: null }
+        }) || { id: BigInt(1) };
+
+        const term = await prisma.enrollment_terms.findFirst({
+          where: { workflow_state: 'active' }
+        }) || { id: BigInt(1) };
+
+        const userUuid = crypto.randomUUID();
+        const persistenceToken = crypto.randomBytes(15).toString('hex');
+        const singleAccessToken = crypto.randomBytes(15).toString('hex');
+        const perishableToken = crypto.randomBytes(15).toString('hex');
+
+        const nameParts = name.trim().split(/\s+/);
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+        const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0];
+        const sortableName = lastName ? `${lastName}, ${firstName}` : name;
+
+        const { user } = await prisma.$transaction(async (tx) => {
+          const userRecord = await tx.users.create({
+            data: {
+              name,
+              sortable_name: sortableName,
+              workflow_state: 'active',
+              uuid: userUuid,
+              created_at: new Date(),
+              updated_at: new Date(),
+            }
+          });
+
+          await tx.pseudonyms.create({
+            data: {
+              user_id: userRecord.id,
+              account_id: account.id,
+              workflow_state: 'active',
+              unique_id: email,
+              unique_id_normalized: normalizedEmail,
+              crypted_password: cryptedPassword,
+              password_salt: salt,
+              persistence_token: persistenceToken,
+              single_access_token: singleAccessToken,
+              perishable_token: perishableToken,
+              created_at: new Date(),
+              updated_at: new Date(),
+            }
+          });
+
+          await tx.communication_channels.create({
+            data: {
+              path: email,
+              path_type: 'email',
+              user_id: userRecord.id,
+              workflow_state: 'active',
+              created_at: new Date(),
+              updated_at: new Date(),
+            }
+          });
+
+          if (role === 'teacher' || role === 'educator') {
+            const sandboxCourse = await tx.courses.create({
+              data: {
+                name: `${name}'s Sandbox`,
+                course_code: `SANDBOX-${lastName.toUpperCase() || 'EDU'}`,
+                workflow_state: 'available',
+                uuid: crypto.randomUUID(),
+                account_id: account.id,
+                root_account_id: account.id,
+                enrollment_term_id: term.id,
+                created_at: new Date(),
+                updated_at: new Date(),
+              }
+            });
+
+            const sandboxSection = await tx.course_sections.create({
+              data: {
+                name: 'Default Section',
+                course_id: sandboxCourse.id,
+                root_account_id: account.id,
+                created_at: new Date(),
+                updated_at: new Date(),
+                workflow_state: 'active',
+              }
+            });
+
+            const teacherRole = await tx.roles.findFirst({
+              where: { name: 'TeacherEnrollment' }
+            }) || { id: BigInt(2) };
+
+            await tx.enrollments.create({
+              data: {
+                user_id: userRecord.id,
+                course_id: sandboxCourse.id,
+                type: 'TeacherEnrollment',
+                workflow_state: 'active',
+                course_section_id: sandboxSection.id,
+                root_account_id: account.id,
+                role_id: teacherRole.id,
+                created_at: new Date(),
+                updated_at: new Date(),
+              }
+            });
+          } else if (joinCode) {
+            const targetCourse = await tx.courses.findFirst({
+              where: { self_enrollment_code: joinCode, workflow_state: { in: ['available', 'published'] } }
+            });
+
+            if (targetCourse) {
+              const defaultSection = await tx.course_sections.findFirst({
+                where: { course_id: targetCourse.id }
+              });
+
+              if (defaultSection) {
+                const studentRole = await tx.roles.findFirst({
+                  where: { name: 'StudentEnrollment' }
+                }) || { id: BigInt(3) };
+
+                await tx.enrollments.create({
+                  data: {
+                    user_id: userRecord.id,
+                    course_id: targetCourse.id,
+                    type: 'StudentEnrollment',
+                    workflow_state: 'active',
+                    course_section_id: defaultSection.id,
+                    root_account_id: account.id,
+                    role_id: studentRole.id,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                  }
+                });
+              }
+            }
+          }
+
+          return { user: userRecord };
+        });
+
+        const roles = [role === 'teacher' || role === 'educator' ? 'teacher' : 'student'];
+        const accessToken = signJwt({
+          userId: user.id.toString(),
+          email: normalizedEmail,
+          roles
+        });
+
+        return {
+          accessToken,
+          refreshToken: accessToken,
+          user
+        };
+      } catch (err: any) {
+        return { error: err.message || 'An error occurred during signup' };
+      }
+    },
+
+    logoutUser: async (_: any, __: any, { res }: Context) => {
+      return true;
+    },
+
+    refreshUserSession: async (_: any, __: any, { currentUser, prisma }: Context) => {
+      if (!currentUser) {
+        return { error: 'Session expired' };
+      }
+      try {
+        const user = await prisma.users.findUnique({
+          where: { id: BigInt(currentUser.userId) }
+        });
+        if (!user) {
+          return { error: 'User not found' };
+        }
+        const accessToken = signJwt({
+          userId: currentUser.userId,
+          email: currentUser.email,
+          roles: currentUser.roles
+        });
+        return {
+          accessToken,
+          refreshToken: accessToken,
+          user
+        };
+      } catch (err: any) {
+        return { error: err.message || 'Session refresh failed' };
+      }
+    }
+  }
 };
+

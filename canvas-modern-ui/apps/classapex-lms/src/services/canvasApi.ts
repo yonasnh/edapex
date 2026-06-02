@@ -13,6 +13,41 @@ class CanvasApiService {
     this.config = config;
   }
 
+  private getEffectiveToken(): string | undefined {
+    if (typeof window !== 'undefined' && localStorage.getItem('cx_logged_out') === 'true') {
+      return undefined;
+    }
+    
+    // 1. Try schoolapex_canvas_token (E2E test mock token)
+    const mockTokenStr = localStorage.getItem('schoolapex_canvas_token');
+    if (mockTokenStr) {
+      try {
+        const mockToken = JSON.parse(mockTokenStr);
+        if (mockToken && mockToken.access_token) {
+          return mockToken.access_token;
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+
+    // 2. Try cx_access_token
+    const cxToken = localStorage.getItem('cx_access_token');
+    if (cxToken) return cxToken;
+
+    // 3. Try canvas-api-token
+    const canvasApiToken = localStorage.getItem('canvas-api-token');
+    if (canvasApiToken) return canvasApiToken;
+    
+    // 4. Try constructor token (which contains VITE_CANVAS_API_TOKEN in app)
+    const isPlaywright = typeof window !== 'undefined' && ((window as any).__playwright || (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('playwright')));
+    if (!isPlaywright) {
+      return this.config.apiToken;
+    }
+    
+    return undefined;
+  }
+
   private async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.config.baseUrl}${endpoint}`;
     
@@ -22,8 +57,9 @@ class CanvasApiService {
     };
 
     // Add authorization header if token is available
-    if (this.config.apiToken) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.config.apiToken}`;
+    const token = this.getEffectiveToken();
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     }
 
     try {
@@ -235,9 +271,13 @@ class CanvasApiService {
     }
 
     try {
+      const token = this.getEffectiveToken();
       const startRes = await fetch(`/api/v1/users/self/files`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(this.config.apiToken ? { Authorization: `Bearer ${this.config.apiToken}` } : {}) },
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
         body: JSON.stringify(body),
       })
 

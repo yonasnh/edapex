@@ -114,6 +114,7 @@ const AppointmentSchedulerPage = React.lazy(() => import('./pages/AppointmentSch
 const CollaborationsPage = React.lazy(() => import('./pages/Collaborations'))
 const CourseFeatureFlagsPage = React.lazy(() => import('./pages/CourseFeatureFlags'))
 const ZoomLtiPage = React.lazy(() => import('./pages/ZoomLtiPage'))
+const SignupPage = React.lazy(() => import('./pages/Signup'))
 
 // Premium Accessibility, Localization, & Error Boundary (Sprint 22-24)
 import { I18nProvider } from './contexts/I18nContext'
@@ -449,7 +450,8 @@ const AppContent = () => {
     // Properly revokes Canvas token, clears localStorage, resets auth state
     // RequireAuth will then render the sign-in screen
     await authLogout()
-  }, [authLogout])
+    navigate('/')
+  }, [authLogout, navigate])
 
   const handleProfileClick = useCallback(() => {
     navigate('/profile')
@@ -782,6 +784,7 @@ const App = () => (
                 <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <Routes>
                     <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+                    <Route path="/signup" element={<Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>Loading...</div>}><SignupPage /></Suspense>} />
                     <Route path="/*" element={
                       <RequireAuth>
                         <AppContent />

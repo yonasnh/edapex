@@ -266,4 +266,19 @@ export const typeDefs = gql`
     searchUsers(query: String!): [User!]!
     searchCourses(query: String!): [Course!]!
   }
+
+  type AuthPayload {
+    accessToken: String
+    refreshToken: String
+    user: User
+    error: String
+  }
+
+  type Mutation {
+    loginWithCredentials(email: String!, password: String!): AuthPayload!
+    signUpUser(name: String!, email: String!, password: String!, role: String!, joinCode: String): AuthPayload!
+    logoutUser: Boolean!
+    refreshUserSession: AuthPayload!
+  }
 `;
+
