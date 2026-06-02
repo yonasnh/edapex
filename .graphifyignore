@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Compiled assets
+public/javascripts/
+public/dist/
+public/optimized/
+
+# Logs and temp
+log/
+tmp/
+
+# Git
+.git/
+
+# Docker/build artifacts
+build/
+docker-compose/
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
