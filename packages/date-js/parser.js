@@ -507,7 +507,7 @@ import './sugarpak.js'
         },
         timezone: function (s) {
             return function () {
-                var n = s.replace(/[^\d+\-]/g, "");
+                var n = s.replace(/[^\d+-]/g, "");
                 if (n.length) { 
                     this.timezoneOffset = Number(n); 
                 } else if(s == 'Z') {
@@ -745,7 +745,7 @@ import './sugarpak.js'
 
     var _ = $D.Parsing.Operators, g = $D.Grammar, t = $D.Translator, _fn;
 
-    g.datePartDelimiter = _.rtoken(/^([\s\-.\,/\x27]+)/); 
+    g.datePartDelimiter = _.rtoken(/^([\s\-.,/\x27]+)/); 
     g.timePartDelimiter = _.stoken(":");
     g.whiteSpace = _.rtoken(/^\s*/);
     g.generalDelimiter = _.rtoken(/^(([\s,]|at|@|on)+)/);

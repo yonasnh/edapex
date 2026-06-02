@@ -180,7 +180,7 @@ import './widget'
         preventDefault = true;
 
       function escape( value ) {
-        return value.replace( /[-\[\]{}()*+?.,\\^$|#\s]/g, "\\$&" );
+        return value.replace( /[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&" );
       }
 
       switch ( event.keyCode ) {

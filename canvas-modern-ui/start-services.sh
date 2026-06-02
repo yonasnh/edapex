@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 # Service configuration (using arrays for compatibility)
 SERVICES_NAMES=("lms-frontend" "lms-api")
 SERVICES_PORTS=("3003" "4003")
-SERVICES_DIRS=("apps/classapex-lms" "packages/schoolapex-lms")
+SERVICES_DIRS=("apps/classapex-lms" "packages/classapex-lms")
 SERVICES_COMMANDS=("pnpm preview" "pnpm dev")
 
 # Canvas LMS main application (if running locally)
@@ -140,6 +140,11 @@ install_dependencies() {
     
     print_status "Installing root dependencies..."
     pnpm install
+    
+    print_status "Generating Prisma client for GraphQL API..."
+    cd "packages/classapex-lms"
+    pnpm generate
+    cd - > /dev/null
     
     print_success "Dependencies installed successfully"
 }
@@ -269,6 +274,15 @@ stop_canvas_lms() {
     fi
 }
 
+# Function to build the frontend
+build_frontend() {
+    print_status "Building frontend for preview..."
+    cd "apps/classapex-lms"
+    pnpm build
+    cd - > /dev/null
+    print_success "Frontend build completed"
+}
+
 # Function to start all services
 start_services() {
     print_header "STARTING SERVICES"
@@ -278,6 +292,9 @@ start_services() {
 
     # Start Canvas LMS first
     start_canvas_lms
+
+    # Build frontend before preview
+    build_frontend
 
     # Start services in order
     for i in "${!SERVICES_NAMES[@]}"; do

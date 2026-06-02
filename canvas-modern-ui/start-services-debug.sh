@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 # Service configuration (using arrays for compatibility)
 SERVICES_NAMES=("lms-frontend" "lms-api")
 SERVICES_PORTS=("3003" "4003")
-SERVICES_DIRS=("apps/classapex-lms" "packages/schoolapex-lms")
+SERVICES_DIRS=("apps/classapex-lms" "packages/classapex-lms")
 SERVICES_COMMANDS=("pnpm preview" "pnpm dev")
 
 # Canvas LMS main application (if running locally)

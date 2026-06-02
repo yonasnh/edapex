@@ -23,7 +23,7 @@ const formatter = {
 // see also lib/i18n/lolcalize.rb
 function letThereBeLols(str) {
   // don't want to mangle placeholders, wrappers, etc.
-  const pattern = /(\s*%h?\{[^}]+\}\s*|\s*[\n\\`*_{\}[\](\)#\+\-!]+\s*|^\s+)/
+  const pattern = /(\s*%h?\{[^}]+\}\s*|\s*[\n\\`*_{}[\]()#+\-!]+\s*|^\s+)/
 
   const result = str.split(pattern).map(token => {
     if (token.match(pattern)) return token

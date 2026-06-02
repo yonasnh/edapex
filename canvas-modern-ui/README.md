@@ -71,7 +71,7 @@ schoolapex/
 │   │   ├── src/pages/         # Application pages (Discussions, Courses, etc.)
 │   │   ├── src/components/    # App-specific components
 │   │   └── src/services/      # Canvas API integration
-│   ├── schoolapex-lms/        # SchoolApex LMS application
+│   ├── classapex-lms/         # GraphQL API backend
 │   └── demo/                  # Demo application
 ├── 📦 packages/               # Shared packages
 │   ├── components/            # UI component library

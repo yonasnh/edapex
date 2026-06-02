@@ -105,7 +105,7 @@ describe('defaultTinymceConfig', () => {
       const allAllowedElements = [valid_elements, extended_valid_elements].join(',')
 
       elementDenylist.forEach(element => {
-        const regex = new RegExp(`[^a-z|\-]${element}[^a-z|\-]`)
+        const regex = new RegExp(`[^a-z|-]${element}[^a-z|-]`)
         expect(allAllowedElements).not.toMatch(regex)
       })
     })

@@ -133,7 +133,7 @@ canvas-modern-ui/
 ├── apps/
 │   └── classapex-lms/    # LMS frontend (port 3003)
 └── packages/
-    └── schoolapex-lms/    # GraphQL API (port 4003)
+    └── classapex-lms/     # GraphQL API (port 4003)
 ```
 
 ## 🔄 Development Workflow
